@@ -37,12 +37,14 @@ CONTAINS
     REAL*8, INTENT(IN) :: dts
     INTEGER :: i, j, k, l
     REAL*8  :: I_plus, I_minus
-    REAL*8 :: alpha, eta, mu, mom0, mom1, new_f, growth_rate, modulation_term
+    REAL*8 :: alpha, eta 
+    REAL*8 :: mu, mom0, mom1, new_f, growth_rate, modulation_term
     REAL*8 :: IntegrationFactor(number_groups)
     REAL*8 :: G_of_n(Lmax), P_of_n(Lmax)
     LOGICAL :: Gamma_minus(Lmax), Gamma_plus(Lmax)
     LOGICAL :: AlwaysSurvive = .false. ! This basically shuts off FFC (use for testing)
     LOGICAL :: debug_print = .false.
+    REAL*8 :: extra_p(number_species,number_groups)
     REAL*8 :: ang_distr(number_species,Lmax,number_groups)
     REAL*8 :: ang_distr_asy(number_species,Lmax,number_groups)
 
@@ -75,16 +77,16 @@ CONTAINS
         DO j = 1, number_groups
 
           ! Nue 
-          CALL ComputeDistribution(k, j, 1, mu, alpha, eta, closure, 1.0d0)
+          CALL ComputeDistribution(k, j, 1, mu, closure, 1.0d0, alpha, eta, extra_p(1,j))
           ang_distr(1, l, j) = 1.0d0/EXP(eta - alpha * mu)
           if (debug_print) WRITE(*,*) 'angdis', l, j, eta, alpha, mu, ang_distr(1, l, j)
 
           ! Anue
-          CALL ComputeDistribution(k, j, 2, mu, alpha, eta, closure, 1.0d0)
+          CALL ComputeDistribution(k, j, 2, mu, closure, 1.0d0, alpha, eta, extra_p(2,j))
           ang_distr(2, l, j) = 1.0d0/EXP(eta - alpha * mu)
 
           ! Nux
-          CALL ComputeDistribution(k, j, 3, mu, alpha, eta, closure, 4.0d0)
+          CALL ComputeDistribution(k, j, 3, mu, closure, 4.0d0, alpha, eta, extra_p(3,j))
           ang_distr(3, l, j) = 1.0d0/EXP(eta - alpha * mu)
 
           ! Compute G_of_n. Notice that G_x = 0 since we have 3 species
@@ -151,7 +153,8 @@ CONTAINS
           
           ! factor of two comes from angular terms
           q_M1(k, i, j, 1) = mom0 * M1_moment_to_distro_inverse(j) / 2.0d0
-          q_M1(k, i, j, 2) = mom1 * M1_moment_to_distro_inverse(j) / 2.0d0
+          ! add back extra momentum causing flux factor to be greater than one
+          q_M1(k, i, j, 2) = mom1 * M1_moment_to_distro_inverse(j) / 2.0d0 + extra_p(i,j)
         ENDDO
       ENDDO
 
@@ -166,28 +169,38 @@ CONTAINS
 
   END SUBROUTINE ApplyFFC_Box3D
 
-  SUBROUTINE ComputeDistribution(k, j, i, mu, alpha, eta, closure, factor)
+  SUBROUTINE ComputeDistribution(k, j, i, mu, closure, factor, alpha, eta, extra_momentum)
     INTEGER, INTENT(IN) :: k, j, i
     REAL*8, INTENT(IN) :: mu, factor
-    REAL*8, INTENT(OUT) :: alpha, eta
+    REAL*8, INTENT(OUT) :: alpha, eta, extra_momentum
     REAL*8, PARAMETER :: tol = 1.0d-8
     REAL*8 :: ThisConversion
     CHARACTER(LEN=64), INTENT(IN) :: closure
     
     REAL*8 :: e, f
+    REAL*8 :: q_frame(2)
     INTEGER :: l
     LOGICAL :: UseFluidFrame = .false.
 
     ThisConversion = M1_moment_to_distro(j) / factor
+    extra_momentum = 0.0d0
 
     IF (UseFluidFrame) THEN
-      e = ThisConversion * q_M1_fluid(k, i, j, 1)
-      f = q_M1_fluid(k, i, j, 2) / q_M1_fluid(k, i, j, 1)
+      q_frame = q_M1_fluid(k, i, j, 1:2)
     ELSE
-      e = ThisConversion * q_M1(k, i, j, 1)
-      f = q_M1(k, i, j, 2) / q_M1(k, i, j, 1)
+      q_frame = q_M1(k, i, j, 1:2)
     ENDIF
-    if (f > 1.0d0) WRITE(*,*) 'oooops', f
+
+    e = ThisConversion * q_frame(1)
+    IF (q_frame(2) > q_frame(1)) THEN
+      extra_momentum = (q_frame(2) - q_frame(1))*1.01d0
+    ENDIF
+    f = (q_frame(2) - extra_momentum) / q_frame(1)
+
+    IF (extra_momentum > 0.1d0*q_frame(2)) THEN
+      WRITE(*,*) 'Too much extra momentum', k, i, j, q_frame(2), q_frame(1), extra_momentum
+      STOP
+    ENDIF
 
     CALL FindAlpha(f, tol, alpha)
     CALL FindEta(alpha, e, eta)
