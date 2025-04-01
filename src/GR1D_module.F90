@@ -165,6 +165,15 @@ module GR1D_module
   real*8,parameter :: alpha_turb_K = 1.0/6.0
   real*8,parameter :: alpha_turb_nu = 1.0/6.0
 
+  !FFC
+#if defined HAVE_FFC
+  character*64 :: FFC_method
+  integer :: Lmax !Maximum index for Gauss-Legendre integration
+  logical :: Keep_FFC_P_fixed
+  real*8  :: FFC_Pn_value
+  real*8,allocatable,save :: GPQ_Lmax_weights(:), GPQ_Lmax_roots(:) !weights and roots for n=Lmax
+#endif
+
   !testcases variables
   integer :: shocktube_problem
 
@@ -405,9 +414,10 @@ module GR1D_module
   real*8,parameter :: kb_erg = 1.380658d-16
   real*8,parameter :: kb_mev = 8.61738568d-11
   real*8,parameter :: temp_mev_to_kelvin = 1.1604447522806d10
-  real*8,parameter :: planck = 6.626176d-27
   real*8,parameter :: avo = 6.0221367d23
   real*8,parameter :: hbarc_mevcm = 1.97326966d-11
+  real*8,parameter :: fermi0 = 1.1663787d-11 ! G^0_F, i.e. Fermi constant divided by hbarc^3 in MeV^-2
+  
 
   real*8,parameter :: nulib_emissivity_gf = 5.59424238d-55/(6.77140812d-06**3*2.03001708d+05)
   real*8,parameter :: nulib_opacity_gf = 1.0d0/6.77140812d-06

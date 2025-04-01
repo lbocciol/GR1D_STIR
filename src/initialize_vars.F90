@@ -2,7 +2,7 @@
 subroutine initialize_vars
   
   use GR1D_module
-      
+
   implicit none
 
   !don't worry, we call input parser after this to set variable to desired values.
@@ -116,7 +116,7 @@ end subroutine initialize_vars
 subroutine initialize_arrays
 
   use GR1D_module
-  
+
   implicit none
 
   mass(:) = 0.0d0
@@ -277,6 +277,12 @@ subroutine initialize_arrays
   Wm(:) = 1.0d0
   mgrav(:) = 0.0d0
   mgravi(:) = 0.0d0
+
+#if defined HAVE_FFC
+  call GLQ_weights_and_roots( Lmax, GPQ_Lmax_roots, GPQ_Lmax_weights)
+  Keep_FFC_P_fixed = .false.
+  FFC_Pn_value = -1.0d0
+#endif
 
 end subroutine initialize_arrays
   

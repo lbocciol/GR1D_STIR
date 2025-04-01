@@ -267,6 +267,11 @@ subroutine input_parser
         call get_double_parameter('alpha_turb',alpha_turb)
         call get_double_parameter('tpb_for_turbulence',tpb_for_turbulence)
      endif
+#if defined HAVE_FFC
+  call get_string_parameter('FFC_method',FFC_method)
+  call get_logical_parameter('Keep_FFC_P_fixed',Keep_FFC_P_fixed)
+  call get_double_parameter('FFC_Pn_value',FFC_Pn_value)
+#endif
   endif
      
   if(do_restart) then

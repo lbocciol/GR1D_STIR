@@ -49,7 +49,7 @@ SOURCES=GR1D_module.F90 \
 	M1/M1_testcases.F90
 
 MODULES=GR1D_module.mod
-OBJECTS=$(SOURCES:.F90=.o )
+OBJECTS=$(SOURCES:.F90=.o)
 
 EXTRAINCS += $(HDF5INCS)
 EXTRAOBJECTS += $(HDF5LIBS)
@@ -70,12 +70,20 @@ EXTRAINCS += -Inulibtable
 EXTRAOBJECTS += nulibtable/nulibtable.a
 EXTRADEPS += nulibtable/nulibtable.a
 
+ifeq ($(HAVE_FFC),1)
+	DEFS += -DHAVE_FFC
+	EXTRAINCS += -IFFC
+	EXTRAOBJECTS += FFC/FFC.a
+	EXTRADEPS += FFC/FFC.a
+endif	
+
 ifeq ($(HAVE_LAPACK),1)
 	EXTRAOBJECTS += $(LAPACKLIBS)
 	DEFS += -DHAVE_LAPACK
 endif	
 
-GR1D:  GR1D_module.o $(EXTRADEPS) $(OBJECTS)  
+# Ensure libraries are built before compiling GR1D
+GR1D: GR1D_module.o $(EXTRADEPS) $(OBJECTS)  
 	$(F90) $(LDFLAGS) -o ../GR1D $(OBJECTS) $(EXTRAOBJECTS)
 
 $(OBJECTS): %.o: %.F90 
@@ -83,6 +91,7 @@ $(OBJECTS): %.o: %.F90
 
 GR1D.o: GR1D_module.o
 
+# Ensure external dependencies are built first
 nuc_eos/nuc_eos.a: nuc_eos/*.F90 nuc_eos/*.f
 	$(MAKE) -C nuc_eos
 
@@ -91,6 +100,10 @@ leakage_rosswog/leakage_rosswog.a: leakage_rosswog/leak_rosswog.F90
 
 nulibtable/nulibtable.a: nulibtable/*.F90
 	$(MAKE) -C nulibtable
+
+# FFC should depend on nulibtable.a and GR1D_module.o
+FFC/FFC.a: FFC/*.F90 GR1D_module.o nulibtable/nulibtable.a
+	$(MAKE) -C FFC
 
 clean:
 	rm -rf ../GR1D
@@ -105,4 +118,7 @@ clean:
 	rm -rf nulibtable/*.a
 	rm -rf nulibtable/*.o
 	rm -rf nulibtable/*.mod
+	rm -rf FFC/*.o
+	rm -rf FFC/*.mod
+	rm -rf FFC/*.a
 	rm -rf M1/*.o

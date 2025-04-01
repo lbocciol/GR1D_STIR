@@ -7,6 +7,10 @@ subroutine Step(dts)
 #if HAVE_LEAK_ROS
   use leakage_rosswog
 #endif
+#if defined HAVE_FFC
+  use FFC, only : ApplyFastFlavorConversions
+#endif
+
   implicit none
   
   real*8 dts !time step that is passed in
@@ -501,6 +505,11 @@ subroutine Step(dts)
        endif
     endif
  endif
+
+ ! Do the fast flavor conversion at the very end of the step
+#if defined HAVE_FFC
+  call ApplyFastFlavorConversions( M1closure, FFC_method, dts/time_gf)
+#endif
 
 end subroutine Step
 
