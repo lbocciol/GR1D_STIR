@@ -59,6 +59,7 @@ subroutine M1_init
   do i=1,n1
      if (x1(i)/length_gf.lt.M1_maxradii) M1_imaxradii = i
   enddo
+  if (M1_imaxradii==n1) M1_imaxradii=n1-ghosts1
 
   !find zone to extract
   do i=1,n1

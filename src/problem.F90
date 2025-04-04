@@ -59,7 +59,7 @@ subroutine problem
 
      !setup everything in for the M1test
      write(*,*) "Setting up M1 test case #",M1_testcase_number
-     call M1test(M1_testcase_number)
+     call M1test
 
   else 
      
