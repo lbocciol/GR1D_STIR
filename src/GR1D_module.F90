@@ -415,6 +415,8 @@ module GR1D_module
   real*8,parameter :: kb_mev = 8.61738568d-11
   real*8,parameter :: temp_mev_to_kelvin = 1.1604447522806d10
   real*8,parameter :: avo = 6.0221367d23
+  real*8,parameter :: hbar_cgs = 1.05457266d-27 ! erg/s
+  real*8,parameter :: hbarc_cgs = hbar_cgs*clite
   real*8,parameter :: hbarc_mevcm = 1.97326966d-11
   real*8,parameter :: fermi0 = 1.1663787d-11 ! G^0_F, i.e. Fermi constant divided by hbarc^3 in MeV^-2
   

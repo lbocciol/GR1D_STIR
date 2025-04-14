@@ -508,7 +508,7 @@ subroutine Step(dts)
 
  ! Do the fast flavor conversion at the very end of the step
 #if defined HAVE_FFC
-  call ApplyFastFlavorConversions( M1closure, FFC_method, dts/time_gf)
+  call ApplyFastFlavorConversions( M1closure, FFC_method, dts)
 #endif
 
 end subroutine Step

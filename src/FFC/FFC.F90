@@ -7,8 +7,9 @@ MODULe FFC
     GPQ_Lmax_weights, GPQ_Lmax_roots, &
     clite, pi4, pi, M1_moment_to_distro_inverse, &
     twothirds, fermi0, energy_gf, length_gf, &
-    nulib_energy_gf, hbarc_mevcm, Keep_FFC_P_fixed, &
-    FFC_Pn_value, X, alp, W
+    nulib_energy_gf, hbarc_mevcm, mev_to_erg, &
+    Keep_FFC_P_fixed, FFC_Pn_value, X, alp, W, &
+    hbarc_cgs, time_gf
 
   USE nulibtable, ONLY: &
     nulibtable_ewidths, nulibtable_energies
@@ -33,6 +34,7 @@ CONTAINS
   END SUBROUTINE ApplyFastFlavorConversions
 
   SUBROUTINE ApplyFFC_Box3D(closure, dts)
+
     CHARACTER(LEN=64), INTENT(IN) :: closure
     REAL*8, INTENT(IN) :: dts
     INTEGER :: i, j, k, l
@@ -41,7 +43,7 @@ CONTAINS
     REAL*8 :: mu, mom0, mom1, new_f, growth_rate, modulation_term
     REAL*8 :: IntegrationFactor(number_groups)
     REAL*8 :: G_of_n(Lmax), P_of_n(Lmax)
-    LOGICAL :: Gamma_minus(Lmax), Gamma_plus(Lmax)
+    LOGICAL :: Gamma_minus(Lmax) 
     LOGICAL :: AlwaysSurvive = .false. ! This basically shuts off FFC (use for testing)
     LOGICAL :: debug_print = .false.
     REAL*8 :: ang_distr_asy(number_species,Lmax,number_groups)
@@ -49,12 +51,19 @@ CONTAINS
     REAL*8 :: q_before(number_species,number_groups,2)
 
     ! Precompute conversion factors in cgs units!
-    IntegrationFactor(:) = SQRT(2.0d0) * fermi0 * (clite / hbarc_mevcm) &
+    IntegrationFactor(:) = SQRT(2.0d0) * fermi0 / (hbarc_mevcm)**3 &
          / (8.0d0 * pi**3) * nulibtable_ewidths(:) * &
-         nulibtable_energies(:)**2 / nulib_energy_gf**2
+         nulibtable_energies(:)**2 / nulib_energy_gf**2 * mev_to_erg
+    
+    ! Precompute conversion factors in natural units
+    ! Frist factor of two pi is for the integration of G_of_n in dphi
+    IntegrationFactor(:) = 2.0d0*pi * SQRT(2.0d0) * fermi0 / hbarc_mevcm * clite &
+        / (8.0d0 * pi**3) * nulibtable_ewidths(:) * &
+        (nulibtable_energies(:) / nulib_energy_gf)**2 &
+        / time_gf ! because you need to convert dts
 
     !$OMP PARALLEL DO PRIVATE(k, ang_distr, ang_distr_asy, &
-    !$OMP I_plus, I_minus, Gamma_plus, Gamma_minus, q_before, &
+    !$OMP I_plus, I_minus, Gamma_minus, q_before, &
     !$OMP G_of_n, P_of_n, growth_rate, modulation_term, &
     !$OMP new_f, mom0, mom1, i, l, j, mu, alpha, eta)
     !DO k = 140, 141
@@ -62,7 +71,6 @@ CONTAINS
       I_plus = 0.0d0
       I_minus = 0.0d0
       Gamma_minus(:) = .false.
-      Gamma_plus(:) = .false.
       G_of_n(:) = 0.0d0
       P_of_n(:) = 0.0d0
       ang_distr(:,:,:) = 0.0d0
@@ -98,34 +106,38 @@ CONTAINS
       DO l = 1, Lmax
         IF (G_of_n(l) >= 0.0d0) THEN
           I_plus = I_plus + G_of_n(l) * GPQ_Lmax_weights(l)
-          Gamma_plus(l) = .true.
+          Gamma_minus(l) = .false.
         ELSE
           I_minus = I_minus - G_of_n(l) * GPQ_Lmax_weights(l)
           Gamma_minus(l) = .true.
         ENDIF
       ENDDO
-      
-      CALL SurvivalProbability(I_minus, I_plus, Gamma_minus, P_of_n)
-      if (Keep_FFC_P_fixed) P_of_n(:) = FFC_Pn_value
+     
+      IF ( (I_minus == 0.0d0) .and. (I_plus == 0.0d0) ) THEN
+        P_of_n(:) = 1.0d0
+      ELSE
+        CALL SurvivalProbability(I_minus, I_plus, Gamma_minus, P_of_n)
+      ENDIF
+
+      IF (Keep_FFC_P_fixed) P_of_n(:) = FFC_Pn_value
       
       ! Compute asymptotic angular distributions
       DO j = 1, number_groups
         DO l = 1, Lmax
           ang_distr_asy(1, l, j) = P_of_n(l) * ang_distr(1, l, j) + (1.0d0 - P_of_n(l)) * ang_distr(3, l, j)
           ang_distr_asy(2, l, j) = P_of_n(l) * ang_distr(2, l, j) + (1.0d0 - P_of_n(l)) * ang_distr(3, l, j)
-          ! Divide by 4 at the beginning and then times 4 at the end because you have 4 heavy lepton neutrinos
-          ang_distr_asy(3, l, j) = ((1.0d0 - P_of_n(l)) * ang_distr(1, l, j) + &
-                                    (1.0d0 + P_of_n(l)) * ang_distr(3, l, j) + &
-                                    (1.0d0 - P_of_n(l)) * ang_distr(2, l, j) + &
-                                    (1.0d0 + P_of_n(l)) * ang_distr(3, l, j))
+          ang_distr_asy(3, l, j) = 0.25d0*((1.0d0 - P_of_n(l)) * ang_distr(1, l, j) + &
+                                          (1.0d0 + P_of_n(l)) * ang_distr(3, l, j) + &
+                                          (1.0d0 - P_of_n(l)) * ang_distr(2, l, j) + &
+                                          (1.0d0 + P_of_n(l)) * ang_distr(3, l, j))
         ENDDO
       ENDDO
 
       growth_rate = SQRT(I_plus * I_minus)
       modulation_term = (1.0d0 - EXP(-growth_rate * dts))
+        
+      if (Keep_FFC_P_fixed) modulation_term = 1.0d0 
 
-      if (Keep_FFC_P_fixed) modulation_term = 0.0d0 
-      
       DO i = 1, number_species
         DO j = 1, number_groups
           mom0 = 0.0d0
@@ -199,34 +211,17 @@ CONTAINS
     LOGICAL, INTENT(IN) :: n_in_Gamma_minus(Lmax)
     REAL*8, INTENT(OUT) :: P(Lmax)
     INTEGER :: l
-    REAL*8 :: ratio
-  
-    ! Precompute the ratio to avoid redundant calculations
-    IF (I_minus > 1.0d-30) THEN
-      ratio = twothirds * I_plus / I_minus
-    ELSE
-      ratio = 0.0d0
-    ENDIF
-  
-    ! Vectorized loop over Lmax
-    !$OMP SIMD
+      
     DO l = 1, Lmax
       IF (I_minus < I_plus) THEN
-        IF (n_in_Gamma_minus(l)) THEN
-          P(l) = 1.0d0 / 3.0d0
-        ELSE
-          P(l) = 1.0d0 - ratio
-        ENDIF
+        P(l) = 1.0d0 / 3.0d0
+        IF (.NOT. n_in_Gamma_minus(l)) P(l) = 1.0d0 - twothirds * I_minus / I_plus
       ELSE
-        IF (.not. n_in_Gamma_minus(l)) THEN
-          P(l) = 1.0d0 / 3.0d0
-        ELSE
-          P(l) = 1.0d0 - ratio
-        ENDIF
+        P(l) = 1.0d0 / 3.0d0
+        IF (n_in_Gamma_minus(l)) P(l) = 1.0d0 - twothirds * I_plus / I_minus
       ENDIF
     ENDDO
-    !$OMP END SIMD
-  
+
   END SUBROUTINE SurvivalProbability
 
 END MODULE FFC
