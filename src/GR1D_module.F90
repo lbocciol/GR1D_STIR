@@ -167,11 +167,11 @@ module GR1D_module
 
   !FFC
 #if defined HAVE_FFC
-  character*64 :: FFC_method
+  character*64 :: FFC_method, ang_int_method
   integer :: Lmax !Maximum index for Gauss-Legendre integration
   logical :: Keep_FFC_P_fixed
   real*8  :: FFC_Pn_value
-  real*8,allocatable,save :: GPQ_Lmax_weights(:), GPQ_Lmax_roots(:) !weights and roots for n=Lmax
+  real*8,allocatable,save :: GQ_weights(:), GQ_roots(:) !weights and roots for n=Lmax
 #endif
 
   !testcases variables

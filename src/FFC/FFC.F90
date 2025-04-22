@@ -4,7 +4,7 @@ MODULe FFC
     M1_moment_to_distro, q_M1, q_M1, &
     ghosts1, M1_imaxradii, number_groups, &
     number_species, Lmax, &
-    GPQ_Lmax_weights, GPQ_Lmax_roots, &
+    GQ_weights, GQ_roots, &
     clite, pi4, pi, M1_moment_to_distro_inverse, &
     twothirds, fermi0, energy_gf, length_gf, &
     nulib_energy_gf, hbarc_mevcm, mev_to_erg, &
@@ -41,6 +41,7 @@ CONTAINS
     REAL*8  :: I_plus, I_minus
     REAL*8 :: alpha, eta 
     REAL*8 :: mu, mom0, mom1, new_f, growth_rate, modulation_term
+    REAL*8 :: ratio, N_prime
     REAL*8 :: IntegrationFactor(number_groups)
     REAL*8 :: G_of_n(Lmax), P_of_n(Lmax)
     LOGICAL :: Gamma_minus(Lmax) 
@@ -65,7 +66,7 @@ CONTAINS
     !$OMP PARALLEL DO PRIVATE(k, ang_distr, ang_distr_asy, &
     !$OMP I_plus, I_minus, Gamma_minus, q_before, &
     !$OMP G_of_n, P_of_n, growth_rate, modulation_term, &
-    !$OMP new_f, mom0, mom1, i, l, j, mu, alpha, eta)
+    !$OMP new_f, mom0, mom1, i, l, j, mu, alpha, eta, N_prime, ratio )
     !DO k = 140, 141
     DO k = ghosts1+1, M1_imaxradii
       I_plus = 0.0d0
@@ -79,7 +80,7 @@ CONTAINS
       !q_before(:,:,:) = q_M1(k,:,:,1:2)
       ! Compute G_of_n values
       DO l = 1, Lmax
-        mu = GPQ_Lmax_roots(l)
+        mu = GQ_roots(l)
         DO j = 1, number_groups
 
           ! Nue 
@@ -105,10 +106,10 @@ CONTAINS
       ! Compute I_plus and I_minus
       DO l = 1, Lmax
         IF (G_of_n(l) >= 0.0d0) THEN
-          I_plus = I_plus + G_of_n(l) * GPQ_Lmax_weights(l)
+          I_plus = I_plus + G_of_n(l) * GQ_weights(l)
           Gamma_minus(l) = .false.
         ELSE
-          I_minus = I_minus - G_of_n(l) * GPQ_Lmax_weights(l)
+          I_minus = I_minus - G_of_n(l) * GQ_weights(l)
           Gamma_minus(l) = .true.
         ENDIF
       ENDDO
@@ -142,27 +143,21 @@ CONTAINS
         DO j = 1, number_groups
           mom0 = 0.0d0
           mom1 = 0.0d0
+          N_prime = 0.0d0
           DO l = 1, Lmax
             new_f = ang_distr(i, l, j) - modulation_term * &
                     (ang_distr(i, l, j) - ang_distr_asy(i, l, j))
 
-            mom0 = mom0 + new_f * GPQ_Lmax_weights(l)
-            mom1 = mom1 + new_f * GPQ_Lmax_weights(l) * GPQ_Lmax_roots(l)
+            N_prime = N_prime + ang_distr(i, l, j) * GQ_weights(l)
+            mom0 = mom0 + new_f * GQ_weights(l)
+            mom1 = mom1 + new_f * GQ_weights(l) * GQ_roots(l)
           ENDDO
           
           ! factor of two comes from angular terms
-          q_M1(k, i, j, 1) = mom0 * M1_moment_to_distro_inverse(j) / 2.0d0
-          ! add back extra momentum causing flux factor to be greater than one
-          q_M1(k, i, j, 2) = mom1 * M1_moment_to_distro_inverse(j) * X(k) / 2.0d0
+          ratio = q_M1(k, i, j, 1) / (N_prime * M1_moment_to_distro_inverse(j) / 2.0d0)
+          q_M1(k, i, j, 1) = ratio * mom0 * M1_moment_to_distro_inverse(j) / 2.0d0
+          q_M1(k, i, j, 2) = ratio * mom1 * M1_moment_to_distro_inverse(j) * X(k) / 2.0d0
           
-          !IF ( (ABS((q_M1(k,i,j,1) - q_before(i,j,1)) / q_before(i,j,1)) > 1.0d-2) .OR. &
-          !    (ABS((q_M1(k,i,j,2) - q_before(i,j,2)) / q_before(i,j,2)) > 1.0d-2) .AND.&
-          !    ABS(q_M1(k,i,j,2)/q_M1(k,i,j,1)) > 1.0d-6 ) THEN
-          !    WRITE(*,*) 'E', k,i,j, q_M1(k,i,j,1), q_before(i,j,1)
-          !    WRITE(*,*) 'F', k,i,j, q_M1(k,i,j,2), q_before(i,j,2), X(k), alp(k), W(k)
-          !    STOP
-          !ENDIF
-
         ENDDO
       ENDDO
 

@@ -130,6 +130,7 @@ tpb_for_turbulence      =       -1.0d0  # time post bounce after which you want 
 
 ###### FFC #######
 FFC_method              = 'Box3D' # How to calculate survival probability. Only Box3D supported for now
+ang_int_method          = 'Gauss Legendre' # How to integrate over angle. Either Gauss Legendre or Gauss Lobatto
 Keep_FFC_P_fixed        = 0       # Use fixed value of probability (for testing and comparison purposes)
 FFC_Pn_value            = -1.0d0  # only used if Keep_FFC_P_fixed = True
-Maximum_GL_index        = 32      # Lmax for Gaussian Quadrature integration (4,16,32,64,128)
+Maximum_GQ_index        = 32      # Lmax for Gaussian Quadrature integration

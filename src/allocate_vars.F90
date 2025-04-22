@@ -151,8 +151,8 @@ subroutine allocate_vars
   allocate(mgravi(n1))
   
 #if defined HAVE_FFC
-  allocate(GPQ_Lmax_weights(Lmax))
-  allocate(GPQ_Lmax_roots(Lmax))
+  allocate(GQ_weights(Lmax))
+  allocate(GQ_roots(Lmax))
 #endif
 
 end subroutine allocate_vars
