@@ -11,6 +11,8 @@ subroutine Step(dts)
   use FFC, only : ApplyFastFlavorConversions
 #endif
 
+  USE omp_lib
+
   implicit none
   
   real*8 dts !time step that is passed in
@@ -25,9 +27,11 @@ subroutine Step(dts)
   
   logical nan,inf
 
+  real*8 :: t1, t2
   !M1 stuff
   real*8 implicit_factor
 
+  t1 = omp_get_wtime()
   ! Is it time to turn on turbulence?
   if (do_turbulence) then
      if (tpb_for_turbulence .lt. 0.0d0) then
@@ -381,6 +385,8 @@ subroutine Step(dts)
  enddo
 
 123 continue
+ t2 = omp_get_wtime()
+ timer_hydro = timer_hydro + (t2 - t1)  
 
  !do operator split here
  !M1
@@ -413,12 +419,18 @@ subroutine Step(dts)
     !reconstruct energy and flux in space and energy
     call M1_reconstruct
 
+    t1 = omp_get_wtime()
     !0. update closure variables
     call M1_closure
-    
+    t2 = omp_get_wtime()
+    timer_M1_clo = timer_M1_clo + (t2 - t1)
+
+    t1 = omp_get_wtime()
     !1. get explicit fluxes at time t^(n)
     call M1_explicitterms(dts,implicit_factor)
-
+    t2 = omp_get_wtime()
+    timer_M1_exp = timer_M1_exp + (t2 - t1)
+      
     if (M1_do_backwardfix.eq.1) then
        do j=1,number_groups
           do i=1,number_species
@@ -437,8 +449,11 @@ subroutine Step(dts)
     C_M1 = -flux_M1_energy !explicit momentum flux, on the RHS now 
     D_M1 = flux_M1_scatter !explicit scattering, stays in the RHS
 
+    t1 = omp_get_wtime()
     !2. do implicit step for RHS source terms and calculate matter source terms
     call M1_implicitstep(dts,implicit_factor)
+    t2 = omp_get_wtime()
+    timer_M1_imp = timer_M1_imp + (t2 - t1)
 
     !3. update matter conservatively
     if (do_hydro.or.(M1_testcase_number.eq.1.and.time.gt.0.0012d0)) then
@@ -449,10 +464,18 @@ subroutine Step(dts)
     if (M1_do_backwardfix.eq.1) then
        !reconstruct energy and flux in space and energy
        call M1_reconstruct
+       
+       t1 = omp_get_wtime()
        !0. update closure variables
        call M1_closure
+       t2 = omp_get_wtime()
+       timer_M1_clo = timer_M1_clo + (t2 - t1)
+
+       t1 = omp_get_wtime()
        !1. get explicit fluxes at time t^(n)
        call M1_explicitterms(dts,implicit_factor)
+       t2 = omp_get_wtime()
+       timer_M1_exp = timer_M1_exp + (t2 - t1)
 
        do j=1,number_groups
           do i=1,number_species
@@ -507,9 +530,15 @@ subroutine Step(dts)
  endif
 
  ! Do the fast flavor conversion at the very end of the step
+
+ t1 = omp_get_wtime()
 #if defined HAVE_FFC
-  call ApplyFastFlavorConversions( M1closure, FFC_method, dts)
+  if (do_FFC) then
+    call ApplyFastFlavorConversions( M1closure, FFC_method, dts)
+  endif
 #endif
+ t2 = omp_get_wtime()
+ timer_FFC = timer_FFC + (t2 - t1)
 
 end subroutine Step
 

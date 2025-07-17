@@ -279,9 +279,9 @@ subroutine initialize_arrays
   mgravi(:) = 0.0d0
 
 #if defined HAVE_FFC
-  IF (trim(adjustl(ang_int_method)) == 'Gauss Legendre') THEN
+  IF (trim(adjustl(ang_int_method)) == 'Gauss_Legendre') THEN
     call GLegQ_weights_and_roots( Lmax, GQ_roots, GQ_weights)
-  ELSE IF (trim(adjustl(ang_int_method)) == 'Gauss LObatto') THEN
+  ELSE IF (trim(adjustl(ang_int_method)) == 'Gauss_Lobatto') THEN
     call GLobQ_weights_and_roots( Lmax, GQ_roots, GQ_weights)
   ELSE
     WRITE(*,*) 'Quadrature ', trim(adjustl(ang_int_method)), ' not known'

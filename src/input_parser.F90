@@ -268,11 +268,12 @@ subroutine input_parser
         call get_double_parameter('tpb_for_turbulence',tpb_for_turbulence)
      endif
 #if defined HAVE_FFC
-  call get_string_parameter ('FFC_method'      ,FFC_method)
-  call get_string_parameter ('ang_int_method'  ,ang_int_method)
-  call get_integer_parameter('Maximum_GQ_index',Lmax)
-  call get_logical_parameter('Keep_FFC_P_fixed',Keep_FFC_P_fixed)
-  call get_double_parameter ('FFC_Pn_value'    ,FFC_Pn_value)
+  call get_logical_parameter('do_FFC'          , do_FFC)
+  call get_string_parameter ('FFC_method'      , FFC_method)
+  call get_string_parameter ('ang_int_method'  , ang_int_method)
+  call get_integer_parameter('Maximum_GQ_index', Lmax)
+  call get_logical_parameter('Keep_FFC_P_fixed', Keep_FFC_P_fixed)
+  call get_double_parameter ('FFC_Pn_value'    , FFC_Pn_value)
 #endif
   endif
      

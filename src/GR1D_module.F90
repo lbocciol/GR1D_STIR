@@ -167,12 +167,26 @@ module GR1D_module
 
   !FFC
 #if defined HAVE_FFC
+  logical :: do_FFC
   character*64 :: FFC_method, ang_int_method
   integer :: Lmax !Maximum index for Gauss-Legendre integration
   logical :: Keep_FFC_P_fixed
   real*8  :: FFC_Pn_value
   real*8,allocatable,save :: GQ_weights(:), GQ_roots(:) !weights and roots for n=Lmax
 #endif
+
+  real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_FFC     = 0.0d0
+  real*8 :: timer_M1_exp  = 0.0d0
+  real*8 :: timer_M1_imp  = 0.0d0
+  real*8 :: timer_step    = 0.0d0
+  real*8 :: timer_M1_clo  = 0.0d0
+  real*8 :: timer_code    = 0.0d0
+  !real*8 :: timer_FFC_eta = 0.0d0
+  !real*8 :: timer_FFC_ang = 0.0d0
+  !real*8 :: timer_FFC_alp = 0.0d0
+  !real*8 :: timer_FFC_asy = 0.0d0
+  !real*8 :: timer_FFC_rec = 0.0d0
 
   !testcases variables
   integer :: shocktube_problem

@@ -1,9 +1,13 @@
 !-*-f90-*-
 program GR1D	
-    	  
+  
+  use OMP_LIB
   use GR1D_module
   implicit none
 
+  real*8 :: tstart, tfin, t1, t2
+  
+  timer_code = omp_get_wtime()
   !Welcome to GR1D
   write(*,*) "#################################################"
   write(*,*) "#################################################"
@@ -24,13 +28,19 @@ program GR1D
      call handle_output
 
 !!   Integrate
+     t1 = omp_get_wtime()
      call Step(dt)
+     t2 = omp_get_wtime()
+     timer_step = timer_step + (t2 - t1)
 
      call postStep_analysis
-     
+     call flush(6)
+
   enddo IntegrationLoop
       
   write(*,*) "Shutting down!"
   write(*,*) " "
+
+  call PrintTimers()
 
 end program GR1D

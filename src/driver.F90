@@ -95,7 +95,7 @@ subroutine handle_output
      call output_all(2)
      call output_timers
      call restart_output_h5
-     stop
+     call PrintTimers()
   endif
   
   if (time.ge.tend) then
@@ -107,7 +107,7 @@ subroutine handle_output
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
-     stop
+     call PrintTimers()
   endif
 
   !!   Output/Checking
@@ -216,6 +216,47 @@ subroutine postStep_analysis
   endif
 #endif
 
-
-
 end subroutine postStep_analysis
+
+subroutine PrintTimers
+
+  use GR1D_module
+  use OMP_LIB
+
+  real*8 :: tfinal, total_M1, frac_M1, frac_hydro, frac_FFC  
+
+  tfinal = omp_get_wtime()
+  timer_code = tfinal - timer_code
+
+  total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo
+  frac_M1    = total_M1   / timer_step
+  frac_hydro = timer_hydro / timer_step
+  frac_FFC   = timer_FFC   / timer_step
+
+  print *, '----------------- Timer Summary -----------------'
+  print '(A,F10.4)', 'Total code time        = ', timer_code
+  print '(A,F10.4)', 'Total step time        = ', timer_step
+  print '(A,F10.4)', '  M1 (explicit)        = ', timer_M1_exp
+  print '(A,F10.4)', '  M1 (implicit)        = ', timer_M1_imp
+  print '(A,F10.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F10.4)', '  Hydro                = ', timer_hydro
+  print '(A,F10.4)', '  FFC                  = ', timer_FFC
+  print *
+  print '(A,F6.2)',  'Fraction M1            = ', frac_M1
+  print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
+  print '(A,F6.2)',  'Fraction FFC           = ', frac_FFC
+  print *, '-------------------------------------------------'
+
+  !print *, '--- FFC Timing Summary ---'
+  !print '(A,F10.4,A,F6.2)', 'FindAlpha        = ', timer_FFC_alp, ' s (', 100.0*timer_FFC_alp/timer_FFC, '%)'
+  !print '(A,F10.4,A,F6.2)', 'FindEta          = ', timer_FFC_eta, ' s (', 100.0*timer_FFC_eta/timer_FFC,   '%)'
+  !print '(A,F10.4,A,F6.2)', 'ang_distr        = ', timer_FFC_ang, ' s (', 100.0*timer_FFC_ang/timer_FFC,   '%)'
+  !print '(A,F10.4,A,F6.2)', 'asymptotic       = ', timer_FFC_asy, ' s (', 100.0*timer_FFC_asy/timer_FFC,   '%)'
+  !print '(A,F10.4,A,F6.2)', 'recompute q_M1   = ', timer_FFC_rec, ' s (', 100.0*timer_FFC_rec/timer_FFC,   '%)'
+  !print '(A,F10.4)',        'Total FFC        = ', timer_FFC
+
+  stop
+
+end subroutine PrintTimers
+
+
