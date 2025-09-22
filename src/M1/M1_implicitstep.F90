@@ -11,8 +11,8 @@
 subroutine M1_implicitstep(dts,implicit_factor)
 
   use GR1D_module
-  use nulibtable, only : nulibtable_inv_energies,nulibtable_ewidths, &
-       nulibtable_energies,nulibtable_etop,nulibtable_ebottom, &
+  use nulibtable, only : nulibtable_inv_energies, &
+       nulibtable_energies,nulibtable_etop, &
        nulibtable_logenergies,nulibtable_logetop
   implicit none
   
@@ -41,9 +41,6 @@ subroutine M1_implicitstep(dts,implicit_factor)
   real*8 :: local_dMdF(2,2),local_dJdF(number_groups),local_dHdF(number_groups,2)
   real*8 :: local_dLdF(number_groups,2,2),local_dHdowndF(number_groups,2)
   real*8 :: local_dLtildedF(number_groups,2,2)
-  real*8 :: JoverE(number_groups)
-  real*8 :: JoverF(number_groups),HoverE(number_groups,2),HoverF(number_groups,2)
-  real*8 :: LoverE(number_groups,2,2),LoverF(number_groups,2,2)
 
   real*8 :: Z(6),Yupr(6),Xuprr(6),Xupff(6),heatterm_NL(6),heattermff_NL(6)
   real*8 :: velocity_coeffs(6,2)
@@ -73,7 +70,6 @@ subroutine M1_implicitstep(dts,implicit_factor)
   real*8 :: local_littlehupup(2,2)
 
   integer :: i,j,k,ii,jj,count,j_prime
-  integer :: location(1)
   integer :: info
 
   logical :: nothappenyet1,nothappenyet2,stillneedconvergence
@@ -141,18 +137,18 @@ subroutine M1_implicitstep(dts,implicit_factor)
         endif
 
         !get E and F for this species and grid point
-        M1en_Exp_term = B_M1(k,i,:,1) + C_M1(k,i,:,1) + D_M1(k,i,:,1) !on the RHS
-        M1flux_Exp_term = B_M1(k,i,:,2) + C_M1(k,i,:,2) + D_M1(k,i,:,2) !on the RHS
-        eddy(:) = q_M1(k,i,:,3)
-        eddytt(:) = q_M1_extra(k,i,:,1)
-        eddyff(:) = q_M1_extra(k,i,:,1)
-        chi(:) = q_M1_extra(k,i,:,4)
-        heatterm(:) = q_M1_extra(k,i,:,2)
-        heattermff(:) = q_M1_extra(k,i,:,3)
+        M1en_Exp_term = B_M1(:,k,i,1) + C_M1(:,k,i,1) + D_M1(:,k,i,1) !on the RHS
+        M1flux_Exp_term = B_M1(:,k,i,2) + C_M1(:,k,i,2) + D_M1(:,k,i,2) !on the RHS
+        eddy(:) = q_M1(:,k,i,3)
+        eddytt(:) = q_M1_extra(:,k,i,1)
+        eddyff(:) = q_M1_extra(:,k,i,1)
+        chi(:) = q_M1_extra(:,k,i,4)
+        heatterm(:) = q_M1_extra(:,k,i,2)
+        heattermff(:) = q_M1_extra(:,k,i,3)
         
         !initialize vector of variables to solve
-        NLsolve_x(1:number_groups) = q_M1(k,i,:,1)
-        NLsolve_x(number_groups+1:2*number_groups) = q_M1(k,i,:,2)
+        NLsolve_x(1:number_groups) = q_M1(:,k,i,1)
+        NLsolve_x(number_groups+1:2*number_groups) = q_M1(:,k,i,2)
                 
         !we'll compute the coefficients of the source terms first,
         !these do not need to be calculated each iteration
@@ -240,8 +236,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
            !that go as the LHS variable (i.e. dEg/dt + kEg ~= 0,
            !\bar{kappa}_E in thesis)
            sourceS(j,1) = implicit_factor*dts*onealp*W2*( &
-                eas(k,i,j,2)*oneW+eddy(j)*eas(k,i,j,2)*oneW*v2*invX2 - &
-                (eas(k,i,j,2)+eas(k,i,j,3))*v2*oneW*(1.0d0+eddy(j)*invX2))
+                eas(j,k,i,2)*oneW+eddy(j)*eas(j,k,i,2)*oneW*v2*invX2 - &
+                (eas(j,k,i,2)+eas(j,k,i,3))*v2*oneW*(1.0d0+eddy(j)*invX2))
            if (GR) then
               sourceG(j,1) = 1.0d0 - implicit_factor*dts*onealp*W2*( &
                    4.0d0*pi*x1(k)*rho(k)*h*onev*oneX*(1.0d0+eddy(j)*invX2))
@@ -253,16 +249,16 @@ subroutine M1_implicitstep(dts,implicit_factor)
            !that are independent of Eg and Fg, (i.e. dEg/dt ~=
            !\eta, \bar{\eta}_E in thesis) this also has the
            !spatial flux term (via B) in it and the old energy
-           sourceS(j,3) = implicit_factor*dts*onealp*eas(k,i,j,1)*oneW
-           sourceG(j,3) = M1en_Exp_term(j) + q_M1_old(k,i,j,1)
+           sourceS(j,3) = implicit_factor*dts*onealp*eas(j,k,i,1)*oneW
+           sourceG(j,3) = M1en_Exp_term(j) + q_M1_old(j,k,i,1)
 
            !these are terms from the RHS of the energy equation
            !that go as the flux of the same group (i.e. dEg/dt +
            !(k_a+k_s)Fg ~= 0, -\bar{\psi}_E in thesis, careful
            !of signs here, we are setting up the matrix)
            sourceS(j,2) = -implicit_factor*dts*onealp*W2*(- &
-                (eas(k,i,j,2)+eas(k,i,j,3))*oneW*onev*(1.0d0+v2)*invX + &
-                2.0d0*eas(k,i,j,2)*oneW*onev*invX)
+                (eas(j,k,i,2)+eas(j,k,i,3))*oneW*onev*(1.0d0+v2)*invX + &
+                2.0d0*eas(j,k,i,2)*oneW*onev*invX)
            if (GR) then
               sourceG(j,2) = implicit_factor*dts*onealp*W2* &
                    4.0d0*pi*x1(k)*rho(k)*h*(1.0d0+v2)
@@ -277,8 +273,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
            !these are terms from  the RHS of the flux equation
           !that go as the LHS variable (i.e. dfg/dt + (k_s+k_a)Fg ~= 0,
            !\bar{kappa}_F in thesis)
-           sourceS(j+number_groups,2) = implicit_factor*dts*(onealp*eas(k,i,j,3)* &
-                W2*oneW*(1.0d0+v2) + onealp*eas(k,i,j,2)*oneW)
+           sourceS(j+number_groups,2) = implicit_factor*dts*(onealp*eas(j,k,i,3)* &
+                W2*oneW*(1.0d0+v2) + onealp*eas(j,k,i,2)*oneW)
            if (GR) then
               sourceG(j+number_groups,2) = 1.0d0 - implicit_factor*dts* &
                    X(k)*4.0d0*pi*x1(k)*onealp*rho(k)*h*W(k)**2*onev
@@ -291,17 +287,17 @@ subroutine M1_implicitstep(dts,implicit_factor)
            !v*\eta, \bar{\eta}_F in thesis) this also has the
            !spatial flux term (via B) in it and the old Flux
            sourceS(j+number_groups,3) = implicit_factor*dts*onealp* &
-                oneX*eas(k,i,j,1)*oneW*onev
-           sourceG(j+number_groups,3) = M1flux_Exp_term(j) + q_M1_old(k,i,j,2)
+                oneX*eas(j,k,i,1)*oneW*onev
+           sourceG(j+number_groups,3) = M1flux_Exp_term(j) + q_M1_old(j,k,i,2)
            
            !these are terms from the RHS of the flux equation
            !that go as the energy of the same group (i.e. dFg/dt
            !+ -k_a*v*Eg ~= 0, -\bar{\psi}_F in thesis, careful
            !of signs here, we are setting up the matrix)
            sourceS(j+number_groups,1) = -implicit_factor*dts*onealp*(-&
-                oneX*eas(k,i,j,2)*W2*oneW*onev - &
-                eas(k,i,j,2)*eddy(j)*W2*oneW*v2*onev*invX + &
-                oneX*(eas(k,i,j,2)+eas(k,i,j,3))*W2*oneW*onev* &
+                oneX*eas(j,k,i,2)*W2*oneW*onev - &
+                eas(j,k,i,2)*eddy(j)*W2*oneW*v2*onev*invX + &
+                oneX*(eas(j,k,i,2)+eas(j,k,i,3))*W2*oneW*onev* &
                 (1.0d0+eddy(j)*invX2))
 
            if (GR) then
@@ -372,7 +368,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
               else if (i.eq.3.and.number_species.eq.3) then
                  Ebar(:) = NLsolve_x(1:number_groups) !nux at time (n)
                  Fbar(:) =  NLsolve_x(number_groups+1:2*number_groups)!nux at time (n)
-                 eddybar(:) = q_M1(k,i,:,3) !nux at time (n)
+                 eddybar(:) = q_M1(:,k,i,3) !nux at time (n)
               else
                  stop "add in i>3 species support for thermal processes"
               endif
@@ -523,11 +519,11 @@ subroutine M1_implicitstep(dts,implicit_factor)
                     nucubed = M1_moment_to_distro_inverse(j) 
                     nucubedprime = M1_moment_to_distro_inverse(j_prime)
 
-                    R0pro = 0.5d0*epannihil(k,i,j,j_prime,1)
-                    R0ann = 0.5d0*epannihil(k,i,j,j_prime,2)
+                    R0pro = 0.5d0*epannihil(j_prime,j,k,i,1)
+                    R0ann = 0.5d0*epannihil(j_prime,j,k,i,2)
 
-                    R1pro = 1.5d0*epannihil(k,i,j,j_prime,3)
-                    R1ann = 1.5d0*epannihil(k,i,j,j_prime,4)
+                    R1pro = 1.5d0*epannihil(j_prime,j,k,i,3)
+                    R1ann = 1.5d0*epannihil(j_prime,j,k,i,4)
 
                     if (R0pro.lt.0.0d0) stop "R0pro should not be less than 0"
                     if (R0ann.lt.0.0d0) stop "R0ann should not be less than 0"
@@ -605,8 +601,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
                          nulibtable_inv_energies(j_prime)
 
                  enddo
-                 epannihil_sourceterm(k,i,j,1) = epannihil_sourceterms(j)/(implicit_factor*dts*alp2)
-                 epannihil_sourceterm(k,i,j,2) = epannihil_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
+                 epannihil_sourceterm(j,k,i,1) = epannihil_sourceterms(j)/(implicit_factor*dts*alp2)
+                 epannihil_sourceterm(j,k,i,2) = epannihil_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
               enddo
               
            endif
@@ -637,11 +633,11 @@ subroutine M1_implicitstep(dts,implicit_factor)
                     nucubed = M1_moment_to_distro_inverse(j) 
                     nucubedprime = M1_moment_to_distro_inverse(j_prime)
 
-                    R0out = 0.5d0*ies(k,i,j,j_prime,1)
-                    R1out = 1.5d0*ies(k,i,j,j_prime,2)
+                    R0out = 0.5d0*ies(j_prime,j,k,i,1)
+                    R1out = 1.5d0*ies(j_prime,j,k,i,2)
                     if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                    R0in = 0.5d0*ies(k,i,j_prime,j,1)
-                    R1in = 1.5d0*ies(k,i,j_prime,j,2)
+                    R0in = 0.5d0*ies(j_prime,j,k,i,1)
+                    R1in = 1.5d0*ies(j_prime,j,k,i,2)
 
                     !shibata eq. 4.14, alpha=t , evaluate, time by 4*pi*dt*alp^2 and move to LHS for RF
                     ies_temp = -species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
@@ -750,8 +746,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
                          nulibtable_inv_energies(j_prime)                         
                     
                  enddo
-                 ies_sourceterm(k,i,j,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
-                 ies_sourceterm(k,i,j,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
+                 ies_sourceterm(j,k,i,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
+                 ies_sourceterm(j,k,i,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
               enddo
            endif
 
@@ -1161,7 +1157,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
                        !first time in here, try making energy coupling implcit
                        if (.not.trouble_brewing) then
                           sourceG(problem_zone,3) = q_M1_old(k,i,problem_zone,1) + &
-                               B_M1(k,i,j,1) + D_M1(k,i,j,1)
+                               B_M1(j,k,i,1) + D_M1(j,k,i,1)
                           sourceG(problem_zone,1) = sourceG(problem_zone,1) - &
                                C_M1(k,i,problem_zone,1)/q_M1_old(k,i,problem_zone,1)
                        endif
@@ -1170,7 +1166,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
                        if (trouble_brewing) then
                           sourceG(problem_zone,3) = q_M1_old(k,i,problem_zone,1)
                           sourceG(problem_zone,1) = sourceG(problem_zone,1) - &
-                               ( D_M1(k,i,j,1) + B_M1(k,i,j,1) )/q_M1_old(k,i,problem_zone,1)
+                               ( D_M1(j,k,i,1) + B_M1(j,k,i,1) )/q_M1_old(k,i,problem_zone,1)
                           changedtwice = .true.
                        endif
 
@@ -1179,17 +1175,17 @@ subroutine M1_implicitstep(dts,implicit_factor)
                        !sometimes the highest energy bin want to send
                        !out more energy flux than it has, fix that!
                        if (M1en_Exp_term(j).lt.0.0d0) then 
-                          q_M1_old(k,i,j,1) = 2.0d0*abs(M1en_Exp_term(j))
+                          q_M1_old(j,k,i,1) = 2.0d0*abs(M1en_Exp_term(j))
                        endif
-                       sourceG(j,3) = M1en_Exp_term(j) + q_M1_old(k,i,j,1)                       
+                       sourceG(j,3) = M1en_Exp_term(j) + q_M1_old(j,k,i,1)                       
                        !be wary of this, ensure energy conservation is not too violated
 
                     endif
                  endif
               enddo
               !reset all variables to original
-              NLsolve_x(1:number_groups) = q_M1(k,i,:,1)
-              NLsolve_x(number_groups+1:2*number_groups) = q_M1(k,i,:,2)
+              NLsolve_x(1:number_groups) = q_M1(:,k,i,1)
+              NLsolve_x(number_groups+1:2*number_groups) = q_M1(:,k,i,2)
 
            endif
 
@@ -1251,43 +1247,43 @@ subroutine M1_implicitstep(dts,implicit_factor)
 
         !set and check new neutrino variables.
         do j=1,number_groups
-           q_M1(k,i,j,1) = NLsolve_x(j)
-           q_M1(k,i,j,2) = NLsolve_x(j+number_groups)
+           q_M1(j,k,i,1) = NLsolve_x(j)
+           q_M1(j,k,i,2) = NLsolve_x(j+number_groups)
 
-           if (q_M1(k,i,j,1).le.0.0d0) then
-              write(*,*) k,i,j,nt
+           if (q_M1(j,k,i,1).le.0.0d0) then
+              write(*,*) j,k,i,nt
               stop "do_implicit_step: new en RHS is < 0.0"
            endif
 
-           if (abs(q_M1(k,i,j,2)/oneX).gt.q_M1(k,i,j,1)) then
+           if (abs(q_M1(j,k,i,2)/oneX).gt.q_M1(j,k,i,1)) then
               if (nothappenyet1.and.k.lt.M1_imaxradii) then
                  nothappenyet1 = .false.
                  !this will happen a lot.  output is supressed to at most once per 10 time steps.
-                 if (mod(nt,10).eq.0) write(*,*) "warning: do_implicit_step: flux>en",i,j,k,nt,q_M1(k,i,j,2)/oneX,q_M1(k,i,j,1)
+                 if (mod(nt,10).eq.0) write(*,*) "warning: do_implicit_step: flux>en",i,j,k,nt,q_M1(j,k,i,2)/oneX,q_M1(j,k,i,1)
               endif
               !fix it
-              q_M1(k,i,j,2) = oneX*q_M1(k,i,j,2) / abs((1.0d0+1.0d-8)*q_M1(k,i,j,2)/q_M1(k,i,j,1))
+              q_M1(j,k,i,2) = oneX*q_M1(j,k,i,2) / abs((1.0d0+1.0d-8)*q_M1(j,k,i,2)/q_M1(j,k,i,1))
               
            endif
 
-           if (q_M1(k,i,j,1).ne.q_M1(k,i,j,1)) then
-              write(*,*) k,i,j,nt
+           if (q_M1(j,k,i,1).ne.q_M1(j,k,i,1)) then
+              write(*,*) j,k,i,nt
               stop "do_implicit_step: new en RHS is NaNing"
            endif
 
-           if (q_M1(k,i,j,2).ne.q_M1(k,i,j,2)) then
-              write(*,*) k,i,j
+           if (q_M1(j,k,i,2).ne.q_M1(j,k,i,2)) then
+              write(*,*) j,k,i
               stop "do_implicit_step: new flux RHS is NaNing"
            endif
 
-           q_M1_fluid(k,i,j,1) = q_M1(k,i,j,1)*W2 - &
-                2.0d0*q_M1(k,i,j,2)*W2*onev*invX + &
-                q_M1(k,i,j,3)*q_M1(k,i,j,1)*W2*v2*invX2
+           q_M1_fluid(j,k,i,1) = q_M1(j,k,i,1)*W2 - &
+                2.0d0*q_M1(j,k,i,2)*W2*onev*invX + &
+                q_M1(j,k,i,3)*q_M1(j,k,i,1)*W2*v2*invX2
            
-           q_M1_fluid(k,i,j,2) = -(q_M1(k,i,j,1)*oneW - &
-                q_M1(k,i,j,2)*oneW*onev/oneX)*W2*onev*invX + &
-                W2*oneW*q_M1(k,i,j,2)*invX2 - &
-                q_M1(k,i,j,3)*q_M1(k,i,j,1)*invX2**2*W2*oneW*onev*oneX
+           q_M1_fluid(j,k,i,2) = -(q_M1(j,k,i,1)*oneW - &
+                q_M1(j,k,i,2)*oneW*onev/oneX)*W2*onev*invX + &
+                W2*oneW*q_M1(j,k,i,2)*invX2 - &
+                q_M1(j,k,i,3)*q_M1(j,k,i,1)*invX2**2*W2*oneW*onev*oneX
 
         enddo
 
@@ -1297,8 +1293,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
         Stnum = 0.0d0
         do j=1,number_groups
 
-           oneM1en =  q_M1(k,i,j,1)
-           oneM1flux =  q_M1(k,i,j,2)
+           oneM1en =  q_M1(j,k,i,1)
+           oneM1flux =  q_M1(j,k,i,2)
            oneeddy = eddy(j)
 
            !note, be careful with signs and alphas here
@@ -1306,10 +1302,10 @@ subroutine M1_implicitstep(dts,implicit_factor)
                 sourceS(j,3))/(implicit_factor*dts*alp2)
            
            if (include_Ielectron_imp.or.include_Ielectron_exp) then
-              Stnalpha = Stnalpha - onealp*ies_sourceterm(k,i,j,1)
+              Stnalpha = Stnalpha - onealp*ies_sourceterm(j,k,i,1)
            endif
            if (include_epannihil_kernels) then
-              Stnalpha = Stnalpha - onealp*epannihil_sourceterm(k,i,j,1)
+              Stnalpha = Stnalpha - onealp*epannihil_sourceterm(j,k,i,1)
            endif
            Stnalpha = Stnalpha - Stzone*onealp
            
@@ -1318,10 +1314,10 @@ subroutine M1_implicitstep(dts,implicit_factor)
                 sourceS(j+number_groups,3))/(implicit_factor*dts*onealp*X2)
               
            if (include_Ielectron_imp.or.include_Ielectron_exp) then
-              Sr = Sr + ies_sourceterm(k,i,j,2)
+              Sr = Sr + ies_sourceterm(j,k,i,2)
            endif
            if (include_epannihil_kernels) then
-              Sr = Sr + epannihil_sourceterm(k,i,j,2)
+              Sr = Sr + epannihil_sourceterm(j,k,i,2)
            endif
            Sr = Sr + Srzone
            
@@ -1330,10 +1326,10 @@ subroutine M1_implicitstep(dts,implicit_factor)
            if (i.gt.2) sign_one = 0.0d0
               
            !find source term in fluid frame / energy
-           Stnum = Stnum - sign_one*(eas(k,i,j,1) - eas(k,i,j,2)*q_M1_fluid(k,i,j,1))*nulibtable_inv_energies(j)
+           Stnum = Stnum - sign_one*(eas(j,k,i,1) - eas(j,k,i,2)*q_M1_fluid(j,k,i,1))*nulibtable_inv_energies(j)
 
            !$OMP CRITICAL
-           ynu(k) = ynu(k) + sign_one*q_M1_fluid(k,i,j,1)*4.0d0*pi/rho(k)* &
+           ynu(k) = ynu(k) + sign_one*q_M1_fluid(j,k,i,1)*4.0d0*pi/rho(k)* &
                 nulibtable_inv_energies(j)*(amu_cgs*mass_gf)
 
            press_nu(k) = press_nu(k) + oneeddy*oneM1en*4.0d0*pi*invX2**2

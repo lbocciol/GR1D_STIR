@@ -6,7 +6,7 @@
 subroutine M1_explicitterms(dts,implicit_factor)
   
   use GR1D_module
-  use nulibtable, only : nulibtable_inv_energies,nulibtable_ewidths, &
+  use nulibtable, only : nulibtable_inv_energies, &
        nulibtable_energies,nulibtable_etop,nulibtable_ebottom, &
        nulibtable_logenergies,nulibtable_logetop
   implicit none
@@ -16,21 +16,21 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: implicit_factor !time step
 
   !local, spatial
-  real*8 :: M1en_space(n1),M1flux_space(n1)
-  real*8 :: M1chi_space(n1),M1eddy_space(n1)
-  real*8 :: M1en_space_plus(n1),M1en_space_minus(n1)
-  real*8 :: M1flux_space_plus(n1),M1flux_space_minus(n1)
-  real*8 :: M1chi_space_plus(n1),M1chi_space_minus(n1)
-  real*8 :: M1eddy_space_plus(n1),M1eddy_space_minus(n1)
+  real*8 :: M1en_space(nM1),M1flux_space(nM1)
+  real*8 :: M1chi_space(nM1),M1eddy_space(nM1)
+  real*8 :: M1en_space_plus(nM1),M1en_space_minus(nM1)
+  real*8 :: M1flux_space_plus(nM1),M1flux_space_minus(nM1)
+  real*8 :: M1chi_space_plus(nM1),M1chi_space_minus(nM1)
+  real*8 :: M1eddy_space_plus(nM1),M1eddy_space_minus(nM1)
   real*8 :: l_min_thin(2),l_max_thin(2)
   real*8 :: l_min_thick(2),l_max_thick(2) 
   real*8 :: l_min(3),l_max(3)
   real*8 :: p,discrim,sqrtdiscrim
-  real*8 :: M1flux_interface(n1,2),M1flux_diff(n1,2)
+  real*8 :: M1flux_interface(M1_imaxradii,2),M1flux_diff(M1_imaxradii,2)
   real*8 :: rm,rp,dx
 
   !local, energy
-  real*8 :: div_v(n1),dvdt(n1)
+  real*8 :: div_v(nM1),dvdt(nM1)
   real*8 :: h,dmdr,dmdt,dXdr,dXdt,Kdownrr,dWdt,dWdr,dWvuprdt,dWvuprdr
   real*8 :: Z(6),Yupr(6),Xuprr(6),Xupff(6),heatterm_NL(6),heattermff_NL(6)
   real*8 :: velocity_coeffs(6,2)
@@ -38,21 +38,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: M1eddy_energy(number_groups),M1pff_energy(number_groups)
   real*8 :: M1en_energy_fluid(number_groups),M1chi_energy(number_groups)
   real*8 :: M1qrrr_energy(number_groups),M1qffr_energy(number_groups)
-  real*8 :: littlefactors_int(number_groups,6)
   real*8 :: littlefactors(number_groups,6)
   real*8 :: velocity(number_groups,2)
-  real*8 :: velocity_top(number_groups,2)
-  real*8 :: log_distro(number_groups)
-  real*8 :: log_energy_interface_distroj(number_groups)
-  real*8 :: energy_interface_distroj(number_groups)
-  real*8 :: energy_interface_M1en(number_groups)
   real*8 :: M1flux_energy_interface(number_groups,2)
   real*8 :: em,ep,de,enext
   real*8 :: M1flux_diff_energy(number_groups,2)
-  real*8 :: M1_moment_to_distro_nobinwidth(number_groups) 
-  real*8 :: M1_moment_to_distro_top_nobinwidth(number_groups) 
-  real*8 :: nulibtable_etop_logged(number_groups)
-  real*8 :: nulibtable_energies_logged(number_groups)
 
   real*8 :: a_asym,kappa_inter,ipeclet_mean
   real*8 :: Jkplus1,Jk,diffusive_flux,advected_energy
@@ -74,8 +64,6 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: xi(number_groups)
   real*8 :: FL(number_groups,2),FR(number_groups,2)
   real*8 :: temp_term
-  
-  real*8 :: fluxtemp_1,fluxtemp_2
   real*8 :: limitingflux
 
   ! turbulence
@@ -85,6 +73,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
   !counters
   integer i,j,k,j_prime,jj,ii
 
+  ! how close are we to one
+  
   !reset flux to zero
   flux_M1 = 0.0d0
   flux_M1_energy = 0.0d0
@@ -109,20 +99,20 @@ subroutine M1_explicitterms(dts,implicit_factor)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 
-        M1en_space = q_M1(:,i,j,1)
-        M1flux_space = q_M1(:,i,j,2)
-        M1chi_space = q_M1_extra(:,i,j,4)
-        M1eddy_space = q_M1(:,i,j,3)
+        M1en_space = q_M1(j,:,i,1)
+        M1flux_space = q_M1(j,:,i,2)
+        M1chi_space = q_M1_extra(j,:,i,4)
+        M1eddy_space = q_M1(j,:,i,3)
 
-        M1en_space_plus = q_M1p(:,i,j,1,1)
-        M1en_space_minus = q_M1m(:,i,j,1,1)
-        M1flux_space_plus = q_M1p(:,i,j,2,1)
-        M1flux_space_minus = q_M1m(:,i,j,2,1)
+        M1en_space_plus = q_M1p(j,:,i,1,1)
+        M1en_space_minus = q_M1m(j,:,i,1,1)
+        M1flux_space_plus = q_M1p(j,:,i,2,1)
+        M1flux_space_minus = q_M1m(j,:,i,2,1)
 
-        M1eddy_space_plus = q_M1p(:,i,j,3,1)
-        M1eddy_space_minus = q_M1m(:,i,j,3,1)
-        M1chi_space_plus = q_M1_extrap(:,i,j,1,1)
-        M1chi_space_minus = q_M1_extram(:,i,j,1,1)
+        M1eddy_space_plus = q_M1p(j,:,i,3,1)
+        M1eddy_space_minus = q_M1m(j,:,i,3,1)
+        M1chi_space_plus = q_M1_extrap(j,:,i,1,1)
+        M1chi_space_minus = q_M1_extram(j,:,i,1,1)
 
         !now find speeds at each interface
         do k=ghosts1,M1_imaxradii
@@ -132,7 +122,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
            oneWp = 1.0d0/sqrt(1.0d0-v1p(k)**2)
 
            !determine the regime for the flux calculation
-           kappa_inter = sqrt((eas(k,i,j,2)+eas(k,i,j,3))*(eas(k+1,i,j,2)+eas(k+1,i,j,3)))
+           kappa_inter = sqrt((eas(j,k,i,2)+eas(j,k,i,3))*(eas(j,k+1,i,2)+eas(j,k+1,i,3)))
            if (v_order.eq.-1) then
               if (GR) then
                  ipeclet_mean = 1.0d0/(Wm(k+1)**3*(1.0d0+vm(k+1))*Xm(k+1)**2* &
@@ -287,7 +277,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
 
            !check for NaNs
            if (l_min(1).ne.l_min(1)) then
-              write(*,*) "NaNs in speeds 1",M1chi_space_minus(k+1),l_min_thin(1),l_min_thick(1),k,i,j
+              write(*,*) "NaNs in speeds 1",M1chi_space_minus(k+1),l_min_thin(1),l_min_thick(1),j,k,i
               stop
            else if(l_min(2).ne.l_min(2)) then
               write(*,*) "NaNs in speeds 2"
@@ -464,8 +454,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
               endif
            endif
 
-           flux_M1(k,i,j,1) = dts*implicit_factor*M1flux_diff(k,1)
-           flux_M1(k,i,j,2) = dts*implicit_factor*M1flux_diff(k,2)
+           flux_M1(j,k,i,1) = dts*implicit_factor*M1flux_diff(k,1)
+           flux_M1(j,k,i,2) = dts*implicit_factor*M1flux_diff(k,2)
 
         enddo
      enddo
@@ -651,13 +641,13 @@ subroutine M1_explicitterms(dts,implicit_factor)
            !\Delta_\epsilon to get it back in the right units (since
            !there is a / \Delta_\epsilon from the derivative, these
            !terms actually just cancel)
-           M1en_energy = q_M1(k,i,:,1)/(nulibtable_etop(:)-nulibtable_ebottom(:))
-           M1en_energy_fluid = q_M1_fluid(k,i,:,1)
-           M1flux_energy = q_M1(k,i,:,2)/(nulibtable_etop(:)-nulibtable_ebottom(:))
-           M1eddy_energy = q_M1(k,i,:,3)
-           M1pff_energy = q_M1_extra(k,i,:,1)
-           M1qrrr_energy = q_M1_extra(k,i,:,2)/(nulibtable_etop(:)-nulibtable_ebottom(:))
-           M1qffr_energy = q_M1_extra(k,i,:,3)/(nulibtable_etop(:)-nulibtable_ebottom(:))
+           M1en_energy = q_M1(:,k,i,1)/(nulibtable_etop(:)-nulibtable_ebottom(:))
+           M1en_energy_fluid = q_M1_fluid(:,k,i,1)
+           M1flux_energy = q_M1(:,k,i,2)/(nulibtable_etop(:)-nulibtable_ebottom(:))
+           M1eddy_energy = q_M1(:,k,i,3)
+           M1pff_energy = q_M1_extra(:,k,i,1)
+           M1qrrr_energy = q_M1_extra(:,k,i,2)/(nulibtable_etop(:)-nulibtable_ebottom(:))
+           M1qffr_energy = q_M1_extra(:,k,i,3)/(nulibtable_etop(:)-nulibtable_ebottom(:))
 
            do j=1,number_groups
 
@@ -753,8 +743,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
            enddo
 
            !set cell fluxes, add to existing value
-           flux_M1_energy(k,i,:,1) = dts*implicit_factor*M1flux_diff_energy(:,1)
-           flux_M1_energy(k,i,:,2) = dts*implicit_factor*M1flux_diff_energy(:,2)
+           flux_M1_energy(:,k,i,1) = dts*implicit_factor*M1flux_diff_energy(:,1)
+           flux_M1_energy(:,k,i,2) = dts*implicit_factor*M1flux_diff_energy(:,2)
         enddo
      enddo
      !$OMP END PARALLEL DO! end do
@@ -786,13 +776,13 @@ subroutine M1_explicitterms(dts,implicit_factor)
               species_factor = 1.0d0
            endif
            
-           M1en_energy = q_M1(k,i,:,1)/species_factor
-           M1flux_energy = q_M1(k,i,:,2)/species_factor
-           M1eddy_energy = q_M1(k,i,:,3)
-           M1pff_energy = q_M1_extra(k,i,:,1)
-           M1qrrr_energy = q_M1_extra(k,i,:,2)/species_factor
-           M1qffr_energy = q_M1_extra(k,i,:,3)/species_factor
-           M1chi_energy = q_M1_extra(k,i,:,4)
+           M1en_energy = q_M1(:,k,i,1)/species_factor
+           M1flux_energy = q_M1(:,k,i,2)/species_factor
+           M1eddy_energy = q_M1(:,k,i,3)
+           M1pff_energy = q_M1_extra(:,k,i,1)
+           M1qrrr_energy = q_M1_extra(:,k,i,2)/species_factor
+           M1qffr_energy = q_M1_extra(:,k,i,3)/species_factor
+           M1chi_energy = q_M1_extra(:,k,i,4)
 
            local_M = 0.0d0
            local_J = 0.0d0
@@ -976,11 +966,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  nucubed = M1_moment_to_distro_inverse(j) 
                  nucubedprime = M1_moment_to_distro_inverse(j_prime)
 
-                 R0out = 0.5d0*ies(k,i,j,j_prime,1)
-                 R1out = 1.5d0*ies(k,i,j,j_prime,2)
+                 R0out = 0.5d0*ies(j_prime,j,k,i,1)
+                 R1out = 1.5d0*ies(j_prime,j,k,i,2)
                  if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                 R0in = 0.5d0*ies(k,i,j_prime,j,1)
-                 R1in = 1.5d0*ies(k,i,j_prime,j,2)
+                 R0in = 0.5d0*ies(j_prime,j,k,i,1)
+                 R1in = 1.5d0*ies(j_prime,j,k,i,2)
                  
                  !Note, I quickly tested the values of these cutoffs.
                  !Turns out, 1e13 works better than 5e12.  It does not
@@ -989,11 +979,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  !density.  5e13 gives instability in the core right
                  !when rho_c gets to ~few*10^13
                  if (rho(k).gt.5.0d12*rho_gf) then
-                    R0out = 0.5d0*ies(k,i,j,j_prime,1)*(5.0d12*rho_gf/rho(k))**1.5d0
-                    R1out = 1.5d0*ies(k,i,j,j_prime,2)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R0out = 0.5d0*ies(j_prime,j,k,i,1)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R1out = 1.5d0*ies(j_prime,j,k,i,2)*(5.0d12*rho_gf/rho(k))**1.5d0
                     if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                    R0in = 0.5d0*ies(k,i,j_prime,j,1)*(5.0d12*rho_gf/rho(k))**1.5d0
-                    R1in = 1.5d0*ies(k,i,j_prime,j,2)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R0in = 0.5d0*ies(j_prime,j,k,i,1)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R1in = 1.5d0*ies(j_prime,j,k,i,2)*(5.0d12*rho_gf/rho(k))**1.5d0
                  endif
 
                  !implicit terms for j equation for energy density,
@@ -1113,11 +1103,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
               enddo
         
               !set cell fluxes, add to existing value
-              flux_M1_scatter(k,i,j,1) = ies_sourceterms(j)
-              flux_M1_scatter(k,i,j,2) = ies_sourceterms(j+number_groups)        
+              flux_M1_scatter(j,k,i,1) = ies_sourceterms(j)
+              flux_M1_scatter(j,k,i,2) = ies_sourceterms(j+number_groups)        
               
-              ies_sourceterm(k,i,j,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
-              ies_sourceterm(k,i,j,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
+              ies_sourceterm(j,k,i,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
+              ies_sourceterm(j,k,i,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
 
            enddo
         enddo

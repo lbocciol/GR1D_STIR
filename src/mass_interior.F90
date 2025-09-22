@@ -9,13 +9,12 @@ subroutine mass_interior
   implicit none
   
   integer i
-  real*8 dmass,dx1,dx2,discrim
 
-  real*8 h,rhot,massint,phi_bound
+  real*8 phi_bound
   real*8 include_nus
   
   mass(:) = 0.0d0
-  if (GR) then	
+  if (GR) then
      mass1 = X * rho * W * volume
   else
      mass1 = rho * volume

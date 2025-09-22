@@ -10,8 +10,8 @@ subroutine tvd_reconstruction(nx, ghosts1a, orig, bextp, bextm,tvd_lim)
   character*(*) tvd_lim
 
   real*8, dimension(nx) :: orig, bextp, bextm
-  real*8 dupw, dloc, delta, ratio, hdelta
-  real*8 dupwdx, dlocdx, dxl,dxr,dx 
+  real*8 dupw, dloc, delta
+  real*8 dupwdx, dlocdx, dxl, dxr
   real*8 minmod
 
   bextp = 0.0d0

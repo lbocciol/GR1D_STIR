@@ -35,8 +35,7 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
 
 
   ! local variables
-  real*8 :: lr,lt,y,xx,xeps,leps,xs
-  real*8 :: d1,d2,d3
+  real*8 :: lr,lt,y,xeps,leps,xs
   real*8 :: ff(nvars)
   integer :: keyerrt = 0
 
@@ -176,8 +175,8 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   integer, intent(out)  :: keyerr
 
   ! local variables
-  real*8 :: lr,lt,y,xx,xeps,leps,xs
-  real*8 :: d1,d2,d3,ff(8)
+  real*8 :: lr,lt,y,xeps,leps,xs
+  real*8 :: ff(8)
   integer :: keyerrt = 0
 
   if(xrho.gt.eos_rhomax) then
@@ -269,10 +268,6 @@ subroutine findthis(lr,lt,y,value,array,d1,d2,d3)
 
   implicit none
 
-  integer rip,rim
-  integer tip,tim
-  integer yip,yim
-
   real*8 lr,lt,y,value,d1,d2,d3
   real*8 array(*)
 
@@ -291,7 +286,6 @@ subroutine findall(lr,lt,y,ff)
   real*8 ff(nvars)
   real*8 ffx(nvars,1)
   real*8 lr,lt,y
-  integer i
 
 ! Ewald's interpolator           
   call intp3d_many(lr,lt,y,ffx,1,alltables,&
@@ -310,7 +304,6 @@ subroutine findall_short(lr,lt,y,ff)
   real*8 ffx(8,1)
   real*8 ff(8)
   real*8 lr,lt,y
-  integer i
   integer :: nvarsx = 8
 
 

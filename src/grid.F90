@@ -12,8 +12,6 @@ subroutine grid(xmin,xmax,mindx)
   integer :: nconstant, nlog
   
   ! setup innermost updated zone
-  real*8 :: inner_grid
-  real*8 :: increment
   real*8 :: cellwidth
   
   if(gridtype .eq. "unigrid") then

@@ -4,7 +4,7 @@ subroutine output_control
   use GR1D_module
   implicit none
 
-  real*8 t_pb, minalp
+  real*8 t_pb
   integer i,ig
   character*1024 filename
   logical temp_vs_mass

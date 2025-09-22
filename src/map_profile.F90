@@ -8,7 +8,7 @@ subroutine map_profile(lprofile_name)
   character*(*) lprofile_name
   integer profile_zones
   
-  real*8 buffer, dmass, dx
+  real*8 buffer
   integer i,ibuffer
   
   integer keytemp,keyerr,eosflag
@@ -194,7 +194,7 @@ subroutine map_find_index(zones,array,goal,upper_index,lower_index)
 ! bisection search
   implicit none
   
-  integer zones,i
+  integer zones
   real*8 array(*)
   real*8 goal
   integer middle_index,upper_index,lower_index
@@ -261,19 +261,14 @@ subroutine map_limit(lprofile_name)
   character*(*) lprofile_name
   integer profile_zones
   
-  real*8 buffer, dmass, dx
+  real*8 buffer
   integer i,ibuffer
-  
-  integer keytemp,keyerr,eosflag
   
   real*8, allocatable :: pradius(:), &
        pmass(:),prho(:),ptemp(:), &
        ppress(:),peps(:),pvel(:),&
        pye(:),pomega(:)
   
-  
-  real*8 :: kboltz_cgs = 1.380662d-16
-
 ! read profile      
   open(666,file=trim(lprofile_name),status='unknown', & 
        form='formatted',action='read')

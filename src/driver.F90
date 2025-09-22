@@ -167,8 +167,10 @@ subroutine postStep_analysis
   implicit none
 
   !for local EOS calls
+#if HAVE_NUC_EOS
   real*8 lrho,ltemp,lye,eosdummy(14)
   integer i,keytemp,keyerr
+#endif
   
   if (initial_data.eq."Collapse".or.initial_data.eq."Collapse_inflow") then
      call get_shock_radius

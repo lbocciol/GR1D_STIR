@@ -164,7 +164,7 @@ subroutine QuadraticInterpolation1D(xOld, yOld, nX, &
 
   else
 
-    do i = 1,nX
+    do i = 2,nX-1
 
       if( xOld(i) >= X_New ) then
 

@@ -6,10 +6,9 @@ subroutine output_all(modeflag)
   implicit none
 
   character*1024 filename
-  character*256 basename
   integer modeflag
 
-  integer i,tempghosts
+  integer i
   real*8, allocatable :: cs(:)
   real*8 alp_ana(n1),rho_ana(n1),vel_ana(n1),X_ana(n1)
   real*8 maxr
@@ -44,7 +43,7 @@ subroutine output_all(modeflag)
   real*8 fluxfactor_fluxweighted(n1,number_species)
   real*8 eddingtonfactor_enweighted(n1,number_species)
   real*8 eddingtonfactor_fluxweighted(n1,number_species)
-  real*8 total_nu_energy,total_matter_energy,total_energy
+  real*8 total_nu_energy
   
   integer k,j
 
@@ -205,36 +204,36 @@ subroutine output_all(modeflag)
         average_energy_rad = 0.0d0
         rms_energy_rad = 0.0d0
 
-        do k=1,number_species
-           do i=ghosts1+1,M1_imaxradii
-              luminosity_rad(i,k,1) = sum(q_M1_fluid(i,k,:,2))*(4.0d0*pi)**2*x1(i)**2*(clite**5/ggrav)
-              enden_rad(i,k,1) = sum(q_M1_fluid(i,k,:,1))*4.0d0*pi*length_gf**3/energy_gf
-              fluxden_rad(i,k,1) = sum(q_M1_fluid(i,k,:,2))*4.0d0*pi*length_gf**3/energy_gf
-              num_luminosity_rad(i,k,1) = sum(q_M1_fluid(i,k,:,2)/nulibtable_energies(:))* &
-                   (4.0d0*pi)**2*x1(i)**2*(clite**3/ggrav*mass_gf)
-              average_energy_rad(i,k,1) = sum(q_M1_fluid(i,k,:,1))/ &
-                   sum(q_M1_fluid(i,k,:,1)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
-              rms_energy_rad(i,k,1) = sqrt(sum(q_M1_fluid(i,k,:,1)*nulibtable_energies(:))/ &
-                   sum(q_M1_fluid(i,k,:,1)/nulibtable_energies(:))) / (mev_to_erg*energy_gf)
+        do i=1,number_species
+           do k=ghosts1+1,M1_imaxradii
+              luminosity_rad(k,i,1) = sum(q_M1_fluid(:,k,i,2))*(4.0d0*pi)**2*x1(k)**2*(clite**5/ggrav)
+              enden_rad(k,i,1) = sum(q_M1_fluid(:,k,i,1))*4.0d0*pi*length_gf**3/energy_gf
+              fluxden_rad(k,i,1) = sum(q_M1_fluid(:,k,i,2))*4.0d0*pi*length_gf**3/energy_gf
+              num_luminosity_rad(k,i,1) = sum(q_M1_fluid(:,k,i,2)/nulibtable_energies(:))* &
+                   (4.0d0*pi)**2*x1(k)**2*(clite**3/ggrav*mass_gf)
+              average_energy_rad(k,i,1) = sum(q_M1_fluid(:,k,i,1))/ &
+                   sum(q_M1_fluid(:,k,i,1)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
+              rms_energy_rad(k,i,1) = sqrt(sum(q_M1_fluid(:,k,i,1)*nulibtable_energies(:))/ &
+                   sum(q_M1_fluid(:,k,i,1)/nulibtable_energies(:))) / (mev_to_erg*energy_gf)
 
-              luminosity_rad(i,k,2) = sum(q_M1(i,k,:,2))*(4.0d0*pi)**2*x1(i)**2*(clite**5/ggrav)
-              enden_rad(i,k,2) = sum(q_M1(i,k,:,1))*4.0d0*pi*length_gf**3/energy_gf
-              fluxden_rad(i,k,2) = sum(q_M1(i,k,:,2))*4.0d0*pi*length_gf**3/energy_gf
-              num_luminosity_rad(i,k,2) = sum(q_M1(i,k,:,2)/nulibtable_energies(:))* &
-                   (4.0d0*pi)**2*x1(i)**2*(clite**3/ggrav*mass_gf)
-              average_energy_rad(i,k,2) = sum(q_M1(i,k,:,1))/ &
-                   sum(q_M1(i,k,:,1)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
-              rms_energy_rad(i,k,2) = sqrt(sum(q_M1(i,k,:,1)*nulibtable_energies(:))/ &
-                   sum(q_M1(i,k,:,1)/nulibtable_energies(:))) / (mev_to_erg*energy_gf)
+              luminosity_rad(k,i,2) = sum(q_M1(:,k,i,2))*(4.0d0*pi)**2*x1(k)**2*(clite**5/ggrav)
+              enden_rad(k,i,2) = sum(q_M1(:,k,i,1))*4.0d0*pi*length_gf**3/energy_gf
+              fluxden_rad(k,i,2) = sum(q_M1(:,k,i,2))*4.0d0*pi*length_gf**3/energy_gf
+              num_luminosity_rad(k,i,2) = sum(q_M1(:,k,i,2)/nulibtable_energies(:))* &
+                   (4.0d0*pi)**2*x1(k)**2*(clite**3/ggrav*mass_gf)
+              average_energy_rad(k,i,2) = sum(q_M1(:,k,i,1))/ &
+                   sum(q_M1(:,k,i,1)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
+              rms_energy_rad(k,i,2) = sqrt(sum(q_M1(:,k,i,1)*nulibtable_energies(:))/ &
+                   sum(q_M1(:,k,i,1)/nulibtable_energies(:))) / (mev_to_erg*energy_gf)
            enddo
         enddo
 
         tau = 0.0d0
         ave_tau = 0.0d0
-        do k=1,number_species
-           do i=M1_imaxradii,ghosts1+1,-1
-              ave_tau(i,k) = ave_tau(i+1,k) + (x1i(i+1)-x1i(i))/ &
-                   (sum(q_M1(i,k,:,1)/(eas(i,k,:,2)+eas(i,k,:,3)))/sum(q_M1(i,k,:,1)))
+        do i=1,number_species
+           do k=M1_imaxradii,ghosts1+1,-1
+              ave_tau(k,i) = ave_tau(k+1,i) + (x1i(k+1)-x1i(k))/ &
+                   (sum(q_M1(:,k,i,1)/(eas(:,k,i,2)+eas(:,k,i,3)))/sum(q_M1(:,k,i,1)))
            enddo
         enddo
 
@@ -242,26 +241,26 @@ subroutine output_all(modeflag)
         fluxfactor_fluxweighted = 0.0d0
         eddingtonfactor_enweighted = 0.0d0
         eddingtonfactor_fluxweighted = 0.0d0
-        do k=1,number_species
-           do i=ghosts1+1,M1_imaxradii
+        do i=1,number_species
+           do k=ghosts1+1,M1_imaxradii
               do j=1,number_groups
-                 fluxfactor_enweighted(i,k) = fluxfactor_enweighted(i,k) &
-                      + q_M1(i,k,j,1)*q_M1(i,k,j,2)/q_M1(i,k,j,1)
-                 fluxfactor_fluxweighted(i,k) = fluxfactor_fluxweighted(i,k) &
-                      + q_M1(i,k,j,2)*q_M1(i,k,j,2)/q_M1(i,k,j,1)
-                 eddingtonfactor_enweighted(i,k) = eddingtonfactor_enweighted(i,k) &
-                      + q_M1(i,k,j,1)*q_M1(i,k,j,3)
-                 eddingtonfactor_fluxweighted(i,k) = eddingtonfactor_fluxweighted(i,k) &
-                      + q_M1(i,k,j,2)*q_M1(i,k,j,3)
+                 fluxfactor_enweighted(k,i) = fluxfactor_enweighted(k,i) &
+                      + q_M1(j,k,i,1)*q_M1(j,k,i,2)/q_M1(j,k,i,1)
+                 fluxfactor_fluxweighted(k,i) = fluxfactor_fluxweighted(k,i) &
+                      + q_M1(j,k,i,2)*q_M1(j,k,i,2)/q_M1(j,k,i,1)
+                 eddingtonfactor_enweighted(k,i) = eddingtonfactor_enweighted(k,i) &
+                      + q_M1(j,k,i,1)*q_M1(j,k,i,3)
+                 eddingtonfactor_fluxweighted(k,i) = eddingtonfactor_fluxweighted(k,i) &
+                      + q_M1(j,k,i,2)*q_M1(j,k,i,3)
               enddo
-              fluxfactor_enweighted(i,k) = fluxfactor_enweighted(i,k) & 
-                   / sum(q_M1(i,k,:,1))
-              fluxfactor_fluxweighted(i,k) = fluxfactor_fluxweighted(i,k) &
-                   / sum(q_M1(i,k,:,2))
-              eddingtonfactor_enweighted(i,k) = eddingtonfactor_enweighted(i,k) & 
-                   / sum(q_M1(i,k,:,1)) / X(k)**2
-              eddingtonfactor_fluxweighted(i,k) = eddingtonfactor_fluxweighted(i,k) &
-                   / sum(q_M1(i,k,:,2)) / X(k)**2
+              fluxfactor_enweighted(k,i) = fluxfactor_enweighted(k,i) & 
+                   / sum(q_M1(:,k,i,1))
+              fluxfactor_fluxweighted(k,i) = fluxfactor_fluxweighted(k,i) &
+                   / sum(q_M1(:,k,i,2))
+              eddingtonfactor_enweighted(k,i) = eddingtonfactor_enweighted(k,i) & 
+                   / sum(q_M1(:,k,i,1)) / X(k)**2
+              eddingtonfactor_fluxweighted(k,i) = eddingtonfactor_fluxweighted(k,i) &
+                   / sum(q_M1(:,k,i,2)) / X(k)**2
            enddo
         enddo
 
@@ -436,59 +435,59 @@ subroutine output_all(modeflag)
         average_energy_fluid = 0.0d0
         rms_energy_fluid = 0.0d0
 
-         do k=1,number_species
-           luminosity(k)     = sum(q_M1(M1_iextractradii,k,:,2))&
+         do i=1,number_species
+           luminosity(i)     = sum(q_M1(:,M1_iextractradii,i,2))&
                 * (4.0d0*pi)**2*x1(M1_iextractradii)**2 * (clite**5/ggrav)
-           luminosity_fluid(k) = sum(q_M1_fluid(M1_iextractradii,k,:,2))&
+           luminosity_fluid(i) = sum(q_M1_fluid(:,M1_iextractradii,i,2))&
                 * (4.0d0*pi)**2*x1(M1_iextractradii)**2 * (clite**5/ggrav)
-           num_luminosity_fluid(k) = sum(q_M1_fluid(M1_iextractradii,k,:,2)/nulibtable_energies(:))&
+           num_luminosity_fluid(i) = sum(q_M1_fluid(:,M1_iextractradii,i,2)/nulibtable_energies(:))&
                 * (4.0d0*pi)**2*x1(M1_iextractradii)**2 * (clite**3/ggrav*mass_gf)
-           average_energy_fluid(k) = sum(q_M1_fluid(M1_iextractradii,k,:,2))&
-                / sum(q_M1_fluid(M1_iextractradii,k,:,2)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
-           rms_energy_fluid(k)     = sqrt( sum(q_M1_fluid(M1_iextractradii,k,:,2)*nulibtable_energies(:))&
-                / sum(q_M1_fluid(M1_iextractradii,k,:,2)/nulibtable_energies(:)) ) / (mev_to_erg*energy_gf)
-           average_energy(k) = average_energy_fluid(k)/sqrt(1.0d0-v(M1_iextractradii)**2)*(1.0d0+v(M1_iextractradii))
-           rms_energy(k)     = rms_energy_fluid(k)/sqrt(1.0d0-v(M1_iextractradii)**2)*(1.0d0+v(M1_iextractradii))
-           num_luminosity(k) = luminosity(k)/(average_energy(k)*mev_to_erg)
+           average_energy_fluid(i) = sum(q_M1_fluid(:,M1_iextractradii,i,2))&
+                / sum(q_M1_fluid(:,M1_iextractradii,i,2)/nulibtable_energies(:)) / (mev_to_erg*energy_gf)
+           rms_energy_fluid(i)     = sqrt( sum(q_M1_fluid(:,M1_iextractradii,i,2)*nulibtable_energies(:))&
+                / sum(q_M1_fluid(:,M1_iextractradii,i,2)/nulibtable_energies(:)) ) / (mev_to_erg*energy_gf)
+           average_energy(i) = average_energy_fluid(i)/sqrt(1.0d0-v(M1_iextractradii)**2)*(1.0d0+v(M1_iextractradii))
+           rms_energy(i)     = rms_energy_fluid(i)/sqrt(1.0d0-v(M1_iextractradii)**2)*(1.0d0+v(M1_iextractradii))
+           num_luminosity(i) = luminosity(i)/(average_energy(i)*mev_to_erg)
         enddo
 
         total_nu_energy = 0.0d0
-        do i=ghosts1+1,M1_imaxradii
-           total_nu_energy = total_nu_energy + sum(q_M1(i,1,:,1)*4.0d0*pi*volume(i)/energy_gf) + &
-                sum(q_M1(i,2,:,1)*4.0d0*pi*volume(i)/energy_gf) + &
-                sum(q_M1(i,3,:,1)*4.0d0*pi*volume(i)/energy_gf)
+        do k=ghosts1+1,M1_imaxradii
+           total_nu_energy = total_nu_energy + sum(q_M1(:,k,1,1)*4.0d0*pi*volume(k)/energy_gf) + &
+                sum(q_M1(:,k,2,1)*4.0d0*pi*volume(k)/energy_gf) + &
+                sum(q_M1(:,k,3,1)*4.0d0*pi*volume(k)/energy_gf)
         enddo
 
         tau = 0.0d0
         ave_tau = 0.0d0
         nusphere_not_found = .true.
         ave_nusphere_not_found = .true.
-        do k=1,number_species
-           do i=M1_imaxradii,ghosts1+1,-1
-              ave_tau(i,k) = ave_tau(i+1,k) + (x1i(i+1)-x1i(i))/ &
-                   (sum(q_M1(i,k,:,1)/(eas(i,k,:,2)+eas(i,k,:,3)))/sum(q_M1(i,k,:,1)))
-              if (ave_nusphere_not_found(k).and.ave_tau(i,k).gt.0.66666666d0) then
-                 ave_nusphere_not_found(k) = .false.
-                 ave_nusphere(k,1) = x1i(i)/length_gf
-                 ave_nusphere(k,2) = rho(i)/rho_gf
-                 ave_nusphere(k,3) = temp(i)
-                 ave_nusphere(k,4) = ye(i)
-                 ave_nusphere(k,5) = entropy(i)
+        do i=1,number_species
+           do k=M1_imaxradii,ghosts1+1,-1
+              ave_tau(k,i) = ave_tau(k+1,i) + (x1i(k+1)-x1i(k))/ &
+                   (sum(q_M1(:,k,i,1)/(eas(:,k,i,2)+eas(:,k,i,3)))/sum(q_M1(:,k,i,1)))
+              if (ave_nusphere_not_found(i).and.ave_tau(k,i).gt.0.66666666d0) then
+                 ave_nusphere_not_found(i) = .false.
+                 ave_nusphere(i,1) = x1i(k)/length_gf
+                 ave_nusphere(i,2) = rho(k)/rho_gf
+                 ave_nusphere(i,3) = temp(k)
+                 ave_nusphere(i,4) = ye(k)
+                 ave_nusphere(i,5) = entropy(k)
               endif
            enddo
 
            do j=1,number_groups
               tau = 0.0d0
-              do i=M1_imaxradii,ghosts1+1,-1
-                 tau(i,1) = tau(i+1,1) + (x1i(i+1)-x1i(i))*(eas(i,k,j,2)+eas(i,k,j,3))
-                 tau(i,2) = tau(i+1,2) + (x1i(i+1)-x1i(i))*eas(i,k,j,2)
-                 if (nusphere_not_found(k,j,1).and.tau(i,1).gt.0.66666666d0) then
-                    nusphere_not_found(k,j,1) = .false.
-                    nusphere(k,j,1) = x1i(i)
+              do k=M1_imaxradii,ghosts1+1,-1
+                 tau(k,1) = tau(k+1,1) + (x1i(k+1)-x1i(k))*(eas(j,k,i,2)+eas(j,k,i,3))
+                 tau(k,2) = tau(k+1,2) + (x1i(k+1)-x1i(k))*eas(j,k,i,2)
+                 if (nusphere_not_found(i,j,1).and.tau(k,1).gt.0.66666666d0) then
+                    nusphere_not_found(i,j,1) = .false.
+                    nusphere(i,j,1) = x1i(k)
                  endif
-                 if (nusphere_not_found(k,j,2).and.tau(i,2).gt.0.66666666d0) then
-                    nusphere_not_found(k,j,2) = .false.
-                    nusphere(k,j,2) = x1i(i)
+                 if (nusphere_not_found(i,j,2).and.tau(k,2).gt.0.66666666d0) then
+                    nusphere_not_found(i,j,2) = .false.
+                    nusphere(i,j,2) = x1i(k)
                  endif
               enddo
            enddo
@@ -603,56 +602,56 @@ subroutine output_all(modeflag)
         call output_many_scalars(scalars,nscalars0,nscalars,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,1,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,M1_iextractradii,1,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,2,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,M1_iextractradii,2,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,3,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,M1_iextractradii,3,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nue_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,1,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,M1_iextractradii,1,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_anue_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,2,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,M1_iextractradii,2,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nux_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,3,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,M1_iextractradii,3,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,1,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,ghosts1+1,1,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,2,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,ghosts1+1,2,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,3,:,2)*M1_moment_to_distro(:)
+        spectrum = q_M1(:,ghosts1+1,3,2)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_nue_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,1,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,ghosts1+1,1,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/M1_anue_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,2,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,ghosts1+1,2,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
         
         filename = trim(adjustl(outdir))//"/M1_nux_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,3,:,1)*M1_moment_to_distro(:)
+        spectrum = q_M1_fluid(:,ghosts1+1,3,1)*M1_moment_to_distro(:)
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/capturing_factors.xg"
-        spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
-             q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
+        spectrum = alp(ghosts1+1)*(1.0d0-eas(:,ghosts1+1,1,2)* &
+             q_M1_fluid(:,ghosts1+1,1,1)/eas(:,ghosts1+1,1,1))
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/dyedt_neutrino_c_t.dat"
@@ -753,7 +752,6 @@ subroutine output_single(var,filename)
   implicit none
   real*8 var(n1)
   character(len=100) filename
-  integer nt
   integer i
   
   open(unit=666,file=trim(adjustl(filename)),status="unknown",&
@@ -793,7 +791,6 @@ end subroutine output_single
       implicit none
       real*8 var(number_groups)
       character(len=100) filename
-      integer nt
       integer i
 
       open(unit=666,file=trim(adjustl(filename)),status="unknown",&
@@ -819,13 +816,11 @@ end subroutine output_single
 
 subroutine output_central(var,filename)
   
-  use GR1D_module, only: x1,time,n1,ghosts1
+  use GR1D_module, only: time,n1,ghosts1
   
   implicit none
   real*8 var(n1)
   character(len=100) filename
-  integer nt
-  integer i
   
   open(unit=666,file=filename,status="unknown",form='formatted',position="append")
   
@@ -842,8 +837,6 @@ subroutine output_scalar(var,filename)
   implicit none
   real*8 var
   character(len=100) filename
-  integer nt
-  integer i
   
   open(unit=666,file=filename,status="unknown",form='formatted',position="append")
   
@@ -860,8 +853,6 @@ subroutine output_many_scalars(var,n0,n,filename)
   integer n,n0
   real*8 var(n0)
   character(len=100) filename
-  integer nt
-  integer i
   
   open(unit=666,file=filename,status="unknown",form='formatted',position="append")
   
@@ -870,41 +861,15 @@ subroutine output_many_scalars(var,n0,n,filename)
   close(666)
   
 end subroutine output_many_scalars
-! *******************************************************************
-subroutine generate_filename(varname,outdir,time,nt,suffix,fname)
-  
-  implicit none
-  
-  real*8 time
-  integer nt
-  character(*) varname
-  character(len=128) outdir
-  character*(*) suffix
-  character*(*) fname
-  character*(400) aa
-  character(len=100) outtime
-  character(len=20) outnt
-  integer i,ii
-  
-  aa=" "
-  fname=" "
-  write(outnt,"(i10.10)") nt
-  
-  fname = trim(adjustl(outdir))//"/"//trim(adjustl(varname))//"_nt_"//outnt
-  write(outtime,"(f9.7)") time
-  
-  fname = trim(adjustl(fname))//"_time_"//trim(adjustl(outtime))//".dat"
-  
-end subroutine generate_filename
+
 ! ******************************************************************
 subroutine output_singlemod(var,filename,maxr)
   
-  use GR1D_module, only: x1,time,n1,length_gf,ghosts1
+  use GR1D_module, only: x1,time,n1,ghosts1
   
   implicit none
   real*8 var(*)
   character(*) filename
-  integer nt
   real*8 maxr
   integer i
   

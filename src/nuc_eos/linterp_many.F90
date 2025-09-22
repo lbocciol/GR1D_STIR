@@ -33,8 +33,6 @@
 
       real*8 x(kt),y(kt),z(kt),f(kt,nvars)
       real*8 xt(nx),yt(ny),zt(nz)
-      real*8 d1,d2,d3
-!
 !
       integer,parameter :: ktx = 1
       real*8  fh(ktx,8,nvars), delx(ktx), dely(ktx), delz(ktx), &

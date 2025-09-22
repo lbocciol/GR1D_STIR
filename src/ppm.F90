@@ -113,7 +113,7 @@ contains
     real*8 delta_q_sign
     ! for TVD near the origin:
     real*8 dupw, dloc, delta
-    real*8 dupwdx, dlocdx, dxl, dxr, dx    
+    real*8 dupwdx, dlocdx, dxl, dxr    
 
     ppm_tmp(:) = 0.0d0
     qm(:) = 0.0d0
@@ -184,7 +184,7 @@ contains
     !Steepening of the density profile
     !near contact discontiuities.
     use GR1D_module,only: rho,rhop,rhom, &
-         n1,ghosts1,x1,x1i,press,cs2,eps, GR
+         n1,ghosts1,x1,press,cs2,eps, GR
 
     integer i
     real*8 delta_2_rho_minus,delta_2_rho_plus
@@ -193,7 +193,6 @@ contains
     real*8 tmp, gamma_eos_tmp
     real*8 :: tiny = 1.0d-10
     real*8 delta_q(n1) ! put on the stack
-    real*8 delta_a(n1), alphaleftD, alpharightD
     
     ! first set up delta_rho:
     do i=ghosts1-2,n1-2
@@ -268,8 +267,8 @@ contains
 
     ! using a lot of module vars:
     use GR1D_module, only: press,v1,v,      &
-         v1p,v1m,vp,vm,eps,epsp,epsm,ye,   &
-         yem,yep,rho,rhop,rhom,n1,ghosts1, &
+         v1p,v1m,vp,vm,eps,epsp,epsm,   &
+         rho,rhop,rhom,n1,ghosts1, &
          x1, geometry
 
     implicit none

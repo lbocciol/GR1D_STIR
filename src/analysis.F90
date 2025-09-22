@@ -235,8 +235,6 @@ subroutine get_shock_radius
 
   implicit none
 
-  integer i
-
   if (.not.bounce) then
      ishock(1) = ghosts1+1
      shock_radius = 0.0d0
@@ -311,19 +309,17 @@ subroutine map_envelope_binding_energy(lprofile_name)
   
   !this is the binding energy of the envelope not included in our grid
 
-  use GR1D_module, only : mgrav, n1,ghosts1,grid_rmax,binding_energy_envelope, &
-       energy_gf,mass_gf,rho_cut,rho_gf,rho,length_gf
+  use GR1D_module, only : mgrav, n1, ghosts1, binding_energy_envelope, &
+       energy_gf, mass_gf, rho_gf, rho, length_gf
   implicit none
   
   character*(*) lprofile_name
   integer profile_zones
 
-  real*8 buffer, dmass, dx
+  real*8 buffer
   integer i,ibuffer
-  real*8 radius_cut
   integer rho_cut_i
   
-  integer keytemp,keyerr,eosflag
   real*8 binding_energy_total
   real*8 binding_energy_shell
 
@@ -332,8 +328,6 @@ subroutine map_envelope_binding_energy(lprofile_name)
        ppress(:),peps(:),pvel(:),&
        pye(:),pomega(:)
 
-
-  real*8 :: kboltz_cgs = 1.380662d-16
   real*8 :: mgrav_interior
 
 ! read profile      
@@ -415,7 +409,6 @@ subroutine analytic_OSC_alpha(time,radius_o,M,alpha,rho,vel,X,maxr)
   real*8 radius_t
   
   integer i,gi,counter
-  integer index
   logical cont
 
   tol = 1.0d-8
@@ -548,7 +541,6 @@ end subroutine get_OSC_ana_time
 
 subroutine get_OSC_ana_r(chi_guess,radius_o,eta_c,chi_s,radius_guess)
 
-  use GR1D_module, only : pi
   implicit none
 
   real*8 chi_guess

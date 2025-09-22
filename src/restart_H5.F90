@@ -9,22 +9,15 @@ subroutine restart_output_h5
 #endif
   implicit none
 
-  integer i,j
-  double precision x1_16,D_16,S_16,T_16,press_16,X_16,Y_16,temp_16
   integer sw1,sw2,sw3,sw4,sw7,sw8,sw9,sw10,sw11,b1
   character(len=1024) filename
   character(len=1024) filenamelist
   character(len=256) basename
-  character(len=1024) formatname
-  real*8 test_ye
 
   integer error,rank,cerror
-  integer(HID_T) file_id,dset_id,dspace_id,aspace_id,attr_id
-  integer(HID_T) atype_id
-  integer(SIZE_T) attrlen
+  integer(HID_T) file_id,dset_id,dspace_id
   
-  integer(HSIZE_T) dims1(1), dims2(2), dims3(3), dims4(4)
-
+  integer(HSIZE_T) dims1(1), dims2(2), dims4(4)
 
   !This routine outputs all the necessary variables needed to restart from any given point in time in HDF5 format
   sw1 = 0
@@ -626,9 +619,9 @@ subroutine restart_output_h5
   if (do_M1) then
 
      rank=4
-     dims4(1) = n1
+     dims4(1) = number_groups
      dims4(2) = number_species
-     dims4(3) = number_groups
+     dims4(3) = M1_imaxradii
      dims4(4) = 3
      
      call h5screate_simple_f(rank, dims4, dspace_id, error)
@@ -668,28 +661,26 @@ subroutine restart_output_h5
 
 
 contains
-     subroutine generate_filename(varname,outdir,time,nt,suffix,fname)
+     subroutine generate_filename(varname,outdir_loc,time_loc,nt_loc,suffix,fname)
 
       implicit none
 
-
-      real*8 time
-      integer nt
+      real*8 time_loc
+      integer nt_loc
       character(*) varname
-      character(len=128) outdir
+      character(len=128) outdir_loc
       character*(*) suffix
       character*(*) fname
       character*(400) aa
       character(len=100) outtime
       character(len=20) outnt
-      integer i,ii
 
       aa=" "
       fname=" "
-      write(outnt,"(i10.10)") nt
-      fname = trim(adjustl(outdir))//"/"//trim(adjustl(varname))&
+      write(outnt,"(i10.10)") nt_loc
+      fname = trim(adjustl(outdir_loc))//"/"//trim(adjustl(varname))&
            &//"_nt_"//outnt
-      write(outtime,"(f11.7)") time
+      write(outtime,"(f11.7)") time_loc
       fname = trim(adjustl(fname))//"_time_"//trim(adjustl(outtime))&
            &//"."//trim(adjustl(suffix))
 
@@ -707,19 +698,14 @@ subroutine restart_init_h5
 #endif
   implicit none
 
-  real*8 temp_time
   integer sw1,sw2,sw3,sw4,sw7,sw8,sw9,sw10,sw11,b1,ibuffer,lbuffer
-  real*8 x1_16,D_16,S_16,T_16,press_16,X_16,Y_16,temp_16
 
-  integer :: tint, dtint, tdumpint, tmsint
   real*8 :: ttemp
   
   integer error,rank,cerror
-  integer(HID_T) file_id,dset_id,dspace_id,aspace_id,attr_id
-  integer(HID_T) atype_id,i,j
-  integer(SIZE_T) attrlen
+  integer(HID_T) file_id,dset_id
   
-  integer(HSIZE_T) dims1(1), dims2(2), dims3(3), dims4(4)
+  integer(HSIZE_T) dims1(1), dims2(2), dims4(4)
 
   cerror = 0
 
@@ -1138,9 +1124,9 @@ subroutine restart_init_h5
   !4D arrays
   if (do_M1) then
      rank=3
-     dims4(1) = n1
+     dims4(1) = number_groups
      dims4(2) = number_species
-     dims4(3) = number_groups
+     dims4(3) = M1_imaxradii
      dims4(4) = 2
      
      dims4(4) = 3

@@ -7,7 +7,7 @@ subroutine M1_updateeas
   implicit none
 
   real*8 :: xrho,xtemp,xye,xeta
-  integer :: k,i,j
+  integer :: j,k,i,j_prime
 
   real*8 :: tempspectrum(number_species,number_groups,number_eas)
   real*8 :: singlespecies_tempspectrum(number_groups,number_eas)
@@ -65,8 +65,8 @@ subroutine M1_updateeas
         endif
 
         if (.true.) then
-           eas(k,:,:,2) = tempspectrum(:,:,2)
-           eas(k,:,:,3) = tempspectrum(:,:,3)
+           eas(:,k,:,2) = TRANSPOSE(tempspectrum(:,:,2))
+           eas(:,k,:,3) = TRANSPOSE(tempspectrum(:,:,3))
 
            !re calculate emmisivity from black body.
            keytemp = 1 !keep temperature
@@ -98,15 +98,19 @@ subroutine M1_updateeas
                    (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x))
            enddo
 
-           eas(k,1,:,1) = (blackbody_spectra(1,:)*tempspectrum(1,:,2)* &
+           eas(:,k,1,1) = (blackbody_spectra(1,:)*tempspectrum(1,:,2)* &
                 nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
-           eas(k,2,:,1) = (blackbody_spectra(2,:)*tempspectrum(2,:,2)* &
+           eas(:,k,2,1) = (blackbody_spectra(2,:)*tempspectrum(2,:,2)* &
                 nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
-           eas(k,3,:,1) = 4.0d0*(blackbody_spectra(3,:)*tempspectrum(3,:,2)* &
+           eas(:,k,3,1) = 4.0d0*(blackbody_spectra(3,:)*tempspectrum(3,:,2)* &
                 nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
 
         else
-           eas(k,:,:,:) = tempspectrum(:,:,:)
+          do i=1,number_species
+            do j=1,number_groups
+                eas(j,k,i,:) = tempspectrum(i,j,2)
+            enddo
+          enddo
         endif
 
         !get electron chemical potential if scattering/epannihil is turned on
@@ -164,7 +168,13 @@ subroutine M1_updateeas
            endif
            
            !set new ies variables
-           ies(k,:,:,:,:) = inelastic_tempspectrum(:,:,:,:)
+           do i=1,number_species
+             do j=1,number_groups
+               do j_prime=1,number_groups
+                  ies(j_prime,j,k,i,:) = inelastic_tempspectrum(i,j_prime,j,:)
+               enddo
+             enddo
+           enddo
 
         endif
 
@@ -195,8 +205,14 @@ subroutine M1_updateeas
            endif
            
            !set new ep annihilation variables
-           epannihil(k,:,:,:,:) = epannihil_tempspectrum(:,:,:,:)
-
+           do i=1,number_species
+            do j=1,number_groups
+              do j_prime=1,number_groups
+                epannihil(j_prime,j,k,i,:) = epannihil_tempspectrum(i,j_prime,j,:)
+              enddo
+            enddo
+          enddo
+          
         endif
 
      enddo

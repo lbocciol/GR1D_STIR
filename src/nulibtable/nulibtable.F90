@@ -116,7 +116,6 @@ subroutine nulibtable_single_species_range_energy(xrho,xtemp,xye,lns,eas,eas_n1,
   integer, intent(in) :: lns
   integer, intent(in) :: eas_n1,eas_n2
   real*8, intent(out) :: eas(eas_n1,eas_n2)
-  integer :: ing
   real*8 :: xeas(eas_n1)
   integer :: startindex,endindex
 
@@ -421,8 +420,6 @@ subroutine nulibtable_epannihil_range_species_range_energy2(xtemp,xeta, &
   integer :: ins,ing_this,ing_that
   real*8 :: xeas(eas_n1*eas_n2*eas_n3*2)
   integer :: index
-  real*8 :: energy_conversion = 1.60217733d-6*5.59424238d-55
-
 
   if(size(eas,1).ne.nulibtable_number_species) then
      stop "nulibtable_epannihil_range_species_range_energy: supplied array dimensions (1) is not commensurate with table"
@@ -503,7 +500,6 @@ subroutine nulibtable_epannihil_single_species_range_energy2(xtemp,xeta, &
   integer :: ing_this,ing_that
   real*8 :: xeas(eas_n1*eas_n2*2)
   integer :: index
-  real*8 :: energy_conversion = 1.60217733d-6*5.59424238d-55
   integer :: startindex,endindex
 
   if(size(eas,1).ne.nulibtable_number_groups) then

@@ -12,8 +12,6 @@ subroutine reconstruct_1
   use GR1D_module
   implicit none
   
-  integer i,m
-  real*8 discrim
   real*8 temp_cell(n1)
   
   !piecewise constant...
@@ -140,7 +138,6 @@ subroutine reconstruct_with_tvd
   
   integer i
   real*8 discrim
-  real*8 tvdomega(n1),tvdomegap(n1),tvdomegam(n1)
   
   call tvd_reconstruction(n1,ghosts1,rho,rhop,rhom,tvd_limiter)
   call tvd_reconstruction(n1,ghosts1,eps,epsp,epsm,tvd_limiter)
@@ -374,14 +371,12 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
   use GR1D_module
   implicit none
   
-  integer keytemp,keyerr,eosflag
+  integer keytemp,keyerr
   integer i,idir,itc,j
   real*8 eosdummy(20)
   real*8 rhoin(n1),tempin(n1),yein(n1),epsin(n1),pressin(n1),cs2in(n1)
   real*8 epsin0
   real*8 rfeps
-     
-  character(len=256) warnline
 
   do i=ghosts1,n1-ghosts1+1
 

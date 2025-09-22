@@ -3,10 +3,10 @@
 subroutine M1_init
   
   use GR1D_module, only : opacity_table,nulib_opacity_gf,nulib_emissivity_gf, &
-       energy_gf, mev_to_erg,M1_maxradii,M1_imaxradii,length_gf,n1,x1,ghosts1, &
-       ye,temp,rho_gf,x1i,number_groups,rho,eas,ghosts1,q_M1,nulib_energy_gf, &
-       temp_mev_to_kelvin,number_species,volume,pi,M1_moment_to_distro,clite, &
-       hbarc_mevcm,M1_testcase_number,v_order,include_nes_kernels, &
+       mev_to_erg,M1_imaxradii,length_gf,n1,x1,ghosts1, &
+       ghosts1,nulib_energy_gf, &
+       number_species,pi,M1_moment_to_distro,clite, &
+       hbarc_mevcm,v_order,include_nes_kernels, &
        M1_moment_to_distro_inverse,nulib_kernel_gf,number_species_to_evolve, &
        include_epannihil_kernels,M1_extractradii,M1_iextractradii
   use nulibtable
@@ -54,11 +54,6 @@ subroutine M1_init
   !set the log based version for time savings
   nulibtable_logenergies = log(nulibtable_energies)
   nulibtable_logetop = log(nulibtable_etop)
-
-  !find zone that matches maximum radii
-  do i=1,n1
-     if (x1(i)/length_gf.lt.M1_maxradii) M1_imaxradii = i
-  enddo
 
   !find zone to extract
   do i=1,n1

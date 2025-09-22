@@ -6,7 +6,6 @@ subroutine sedov
 
   integer i
 
-  real*8 rho1,rho2
   real*8 rchange
   real*8 rblast, eblast, gammablast, rhoblast, chi
   real*8 buffer, buffer2

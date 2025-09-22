@@ -5,8 +5,7 @@ subroutine flux_differences_hlle
   use timers, only: t_fdhlle
   implicit none
   
-  integer(kind=4) :: eosflag,keyerr,keytemp
-  integer(kind=4) :: i1,i,mw,m
+  integer(kind=4) :: i,m
   
   real(kind=8), allocatable :: smin(:),smax(:), dspeed(:), acl(:), acr(:)
   real(kind=8), allocatable :: flux(:,:), fluxl(:,:), fluxr(:,:)
@@ -34,7 +33,7 @@ subroutine flux_differences_hlle
   allocate(acr(n1))
   allocate(dthx(n1))
   allocate(eigenvaluesl(n1,n_cons))
-  allocate(eigenvaluesr(n1,n_cons))		
+  allocate(eigenvaluesr(n1,n_cons))
   
   ! Set left and right sound speeds, velocities and 
   ! eigenvalues (characteristic speeds) in Romero et al. (1996).
@@ -108,8 +107,8 @@ subroutine flux_differences_hlle
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*vm(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*vp(i)
-	   fluxr(i,6) = qm(i+1,6)*vm(i+1)
+           fluxl(i,6) = qp(i,6)*vp(i)
+           fluxr(i,6) = qm(i+1,6)*vm(i+1)
         endif  
      else
         fluxl(i,1) = qp(i,1)*v1p(i)
@@ -134,8 +133,8 @@ subroutine flux_differences_hlle
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*v1m(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*v1p(i) 
-	   fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
+           fluxl(i,6) = qp(i,6)*v1p(i) 
+           fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
         endif     
      endif
   enddo

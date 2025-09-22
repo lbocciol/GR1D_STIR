@@ -12,11 +12,10 @@ subroutine findtemp(lr,lt0,y,epsin,keyerrt,rfeps)
   real*8 eps0,eps1,lt1
 
   real*8 ltn,ltmax,ltmin
-  real*8 tinput,rfeps
+  real*8 rfeps
 
   integer :: rl = 0
   integer itmax,i,keyerrt
-  integer ii,jj,kk
   
   keyerrt=0
 
@@ -132,11 +131,10 @@ subroutine findtemp_entropy(lr,lt0,y,sin,keyerrt,rfeps)
   real*8 s0,s1,lt1
 
   real*8 ltn,ltmax,ltmin
-  real*8 tinput,rfeps
+  real*8 rfeps
 
   integer :: rl = 0
   integer itmax,i,keyerrt
-  integer ii,jj,kk
 
   keyerrt=0
 

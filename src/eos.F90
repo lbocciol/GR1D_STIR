@@ -188,9 +188,8 @@ subroutine eos(i,ri,tio,y,eio,xx,keytemp,keyerr,eosflag,eoskey,rfeps)
   real*8, intent(inout) :: ri,eio, tio
   real*8, intent(out)    :: xx
 
-  real*8 r,e,p_th,tp
-  real*8 px,sx,cs2x,gammax,dedt,ex
-  integer eosflag,eoskey,keytemp,keyerr,keyerrt
+  real*8 r,e,p_th
+  integer eosflag,eoskey,keytemp,keyerr
   !internal
   real*8 prs,soundsqr
   real*8 dpdrho,dpde

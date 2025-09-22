@@ -11,7 +11,7 @@ subroutine start
   character(len=128) cpstring
   character(len=128) rmstring
   logical :: outdirthere
-  integer :: num_args
+  integer :: num_args, i
 
   num_args = command_argument_count()
   if ( num_args .eq. 0 ) then
@@ -44,8 +44,9 @@ subroutine start
   n_cons = 6
   
   !allocate & initialize variables
-  call allocate_vars
   call initialize_vars
+  call allocate_vars
+  call initialize_arrays
 
   !this time to set all variables requested values
   call input_parser
@@ -76,6 +77,15 @@ subroutine start
 
   !setting up initial data
   call problem
+
+  if (do_M1) then
+    !find zone that matches maximum radii
+    do i=1,n1
+      if (x1(i)/length_gf.lt.M1_maxradii) M1_imaxradii = i
+    enddo
+    call allocate_M1_arrays
+    call initialize_M1_arrays
+  endif
 
   !Collapse specific setups
   if(initial_data.eq."Collapse") then

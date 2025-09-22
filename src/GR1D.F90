@@ -1,5 +1,5 @@
 !-*-f90-*-
-program GR1D	
+program GR1D
     	  
   use GR1D_module
   implicit none

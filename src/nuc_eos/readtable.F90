@@ -13,13 +13,10 @@ subroutine readtable(eos_filename)
   character(len=100) message
 
 ! HDF5 vars
-  integer(HID_T) file_id,dset_id,dspace_id
+  integer(HID_T) file_id,dset_id
   integer(HSIZE_T) dims1(1), dims3(3)
-  integer error,rank,accerr
-  integer i,j,k
+  integer error,accerr
 
-  real*8 amu_cgs_andi
-  real*8 buffer1,buffer2,buffer3,buffer4
   accerr=0
 
   write(*,*) "Reading Nuclear EOS Table"

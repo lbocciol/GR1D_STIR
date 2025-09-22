@@ -11,15 +11,15 @@ subroutine nulibtable_reader(filename,include_Ielectron,include_epannihil_kernel
 
   !H5 stuff
   integer :: error,rank,cerror
-  integer(HID_T) :: file_id,dset_id,dspace_id
-  integer(HSIZE_T) :: dims1(1), dims2(2), dims3(3), dims4(4), dims5(5), dims6(6)!, etc....
+  integer(HID_T) :: file_id,dset_id
+  integer(HSIZE_T) :: dims1(1), dims5(5), dims6(6)!, etc....
 
   !local
   real*8, allocatable :: nulibtable_temp(:,:,:,:,:)
   real*8, allocatable :: nulibtable_temp2(:,:,:,:,:,:)
   real*8 :: timestamp
   integer :: startindex,endindex,index
-  integer :: i,j,k,l,m
+  integer :: i,j,k,m
 
   cerror = 0
 

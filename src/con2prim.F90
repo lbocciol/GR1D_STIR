@@ -18,9 +18,8 @@ subroutine con2prim_1
   use timers, only: t_c2p
   implicit none
   
-  real*8 tol, err, h, discrim
+  real*8 tol, err, discrim
   real*8 low_tol
-  real*8 pplus,pminus
   real*8 dpdrh, dpde,dedpress,drhodpress,temp1
   real*8 vv,rrho,eeps,pp,ww,op(n1),fp,dfdp
   ! *** for rotation
@@ -30,7 +29,7 @@ subroutine con2prim_1
   real*8 :: t1 = 0.0d0
   real*8 :: t2 = 0.0d0
   integer iminb,imaxb
-  integer i,j,it
+  integer i,it
   integer :: max_iterations = 1000
   integer success,pt_counter
 
@@ -81,7 +80,7 @@ subroutine con2prim_1
            v(i) = 0.0d0
            rho(i) = 0.0d0
            eps(i) = 0.0d0
-	   press(i) = 0.0d0
+           press(i) = 0.0d0
         else
            ! atmosphere handling:
            if(rho(i).eq.atmo_rho) then
@@ -90,7 +89,7 @@ subroutine con2prim_1
               q(i,3) = rho(i)*eps(i)
               W(i) = 1.0d0
            endif
- 	   if (q(i,2).eq.0.0d0) then
+           if (q(i,2).eq.0.0d0) then
               v1(i) = 0.0d0
               v(i) = 0.0d0
               W(i) = 1.0d0
@@ -205,7 +204,7 @@ subroutine con2prim_1
               W(i) = 1.0d0/sqrt(discrim)
               rho(i) = q(i,1)/X(i)/W(i)
               eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
-	   endif
+          endif
         endif
      enddo
 
@@ -227,7 +226,7 @@ subroutine con2prim_1
            vphi(i) = 0.0d0
            rho(i) = 0.0d0
            eps(i) = 0.0d0
-	   press(i) = 0.0d0
+           press(i) = 0.0d0
            W(i) = 1.0d0
         else
            ! atmosphere handling:
@@ -240,7 +239,7 @@ subroutine con2prim_1
            endif
            ! special case in which both radial and
            ! angular momenta are zero
- 	   if (q(i,2).eq.0.0d0.and.q(i,5).eq.0.0d0) then
+           if (q(i,2).eq.0.0d0.and.q(i,5).eq.0.0d0) then
               v1(i) = 0.0d0
               v(i) = 0.0d0
               vphi(i) = 0.0d0
@@ -333,7 +332,7 @@ subroutine con2prim_1
                  else
                     stop "Problems in dfdp"
                  endif
-                 err = abs(1.0d0-press(i)/op(i))	
+                 err = abs(1.0d0-press(i)/op(i))
               enddo
               if(it.ge.max_iterations) then
                  do while(success.eq.0.and.pt_counter.lt.7)
@@ -376,7 +375,7 @@ subroutine con2prim_1
               rho(i) = q(i,1)/X(i)/W(i)
               eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
 
-	   endif
+          endif
          endif
       enddo
    else   
@@ -424,15 +423,12 @@ subroutine con2prim_pt(tol,i,success)
   use GR1D_module
   use atmos
   use omp_lib
-  use timers, only: t_c2p
+
   implicit none
   
-  real*8 tol, err, h, discrim
-  real*8 pplus,pminus
+  real*8 tol, err, discrim
   real*8 dpdrh, dpde,dedpress,drhodpress,temp1
   real*8 vv,rrho,eeps,pp,ww,op(n1),fp,dfdp
-  real*8 :: t1 = 0.0d0
-  real*8 :: t2 = 0.0d0
   integer i,j,it
   integer :: max_iterations = 1000
   integer success
@@ -527,7 +523,7 @@ subroutine con2prim_pt(tol,i,success)
         else
            stop "Problems in dfdp"
         endif
-        err = abs(1.0d0-press(i)/op(i))	
+        err = abs(1.0d0-press(i)/op(i))
      enddo
      if(it.ge.max_iterations) then
         success = 0
@@ -562,16 +558,13 @@ subroutine con2prim_pt_rot(tol,i,success)
   use GR1D_module
   use atmos
   use omp_lib
-  use timers, only: t_c2p
+
   implicit none
   
-  real*8 tol, err, h, discrim
-  real*8 pplus,pminus
+  real*8 tol, err, discrim
   real*8 dpdrh, dpde,dedpress,drhodpress,temp1
   real*8 vv,vpv,rrho,eeps,pp,ww,op(n1),fp,dfdp
-  real*8 :: t1 = 0.0d0
-  real*8 :: t2 = 0.0d0
-  integer i,j,it
+  integer i,it
   integer :: max_iterations = 1000
   integer success
 
@@ -659,7 +652,7 @@ subroutine con2prim_pt_rot(tol,i,success)
         else
            stop "Problems in dfdp"
         endif
-        err = abs(1.0d0-press(i)/op(i))	
+        err = abs(1.0d0-press(i)/op(i))
      enddo
      if(it.ge.max_iterations) then
         success = 0

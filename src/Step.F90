@@ -19,8 +19,6 @@ subroutine Step(dts)
   real*8 tempeps1(n1), tempeps2(n1)
   real*8 epsin0
   
-  logical nan,inf
-
   !M1 stuff
   real*8 implicit_factor
 
@@ -273,7 +271,7 @@ subroutine Step(dts)
      do m=1,n_cons
         if (GR) then
            q(:,m) = q_hat(:,m)
-	else 
+        else
            q(:,m) = q_hat(:,m) / sqrt_gamma(:)
         endif
      enddo
@@ -419,10 +417,10 @@ subroutine Step(dts)
        do j=1,number_groups
           do i=1,number_species
              do k=ghosts1+1,M1_imaxradii
-                if ((eas(k,i,j,2)+eas(k,i,j,3))*(x1i(k+1)-x1i(k)).lt.0.01d0) then
-                   B_M1(k,i,j,1:2) = -flux_M1(k,i,j,1:2)*0.5d0 !on the RHS now   
+                if ((eas(j,k,i,2)+eas(j,k,i,3))*(x1i(k+1)-x1i(k)).lt.0.01d0) then
+                   B_M1(j,k,i,1:2) = -flux_M1(j,k,i,1:2)*0.5d0 !on the RHS now   
                 else
-                   B_M1(k,i,j,1:2) = -flux_M1(k,i,j,1:2) !on the RHS now       
+                   B_M1(j,k,i,1:2) = -flux_M1(j,k,i,1:2) !on the RHS now       
                 endif
              enddo
           enddo
@@ -453,17 +451,17 @@ subroutine Step(dts)
        do j=1,number_groups
           do i=1,number_species
              do k=ghosts1+1,M1_imaxradii
-                if ((eas(k,i,j,2)+eas(k,i,j,3))*(x1i(k+1)-x1i(k)).lt.0.01d0) then
-                   q_M1(k,i,j,1:2) = q_M1(k,i,j,1:2) - B_M1(k,i,j,1:2) - &
-                        flux_M1(k,i,j,1:2)
-                   if (q_M1(k,i,j,1).lt.0.0d0) then
-                      write(*,*) k,i,j,q_M1(k,i,j,1)
+                if ((eas(j,k,i,2)+eas(j,k,i,3))*(x1i(k+1)-x1i(k)).lt.0.01d0) then
+                   q_M1(j,k,i,1:2) = q_M1(j,k,i,1:2) - B_M1(j,k,i,1:2) - &
+                        flux_M1(j,k,i,1:2)
+                   if (q_M1(j,k,i,1).lt.0.0d0) then
+                      write(*,*) j,k,i,q_M1(j,k,i,1)
                       stop "negative en after flux correct"
                    endif
 
-                   if (abs(q_M1(k,i,j,2)/X(k)).gt.q_M1(k,i,j,1)) then
+                   if (abs(q_M1(j,k,i,2)/X(k)).gt.q_M1(j,k,i,1)) then
                       !fix it
-                      q_M1(k,i,j,2) = X(k)*q_M1(k,i,j,2) / abs((1.0d0+1.0d-10)*q_M1(k,i,j,2)/q_M1(k,i,j,1))
+                      q_M1(j,k,i,2) = X(k)*q_M1(j,k,i,2) / abs((1.0d0+1.0d-10)*q_M1(j,k,i,2)/q_M1(j,k,i,1))
                    endif
                 endif
              enddo

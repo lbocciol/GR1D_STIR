@@ -13,7 +13,7 @@ subroutine M1_conservativeupdate(dts)
   real*8 :: dDye,dtau,dSr,dts
   integer k
   real*8 :: oneX,maxye
-  integer gaintracker,maxyeloc
+  integer maxyeloc
   logical nogain 
   integer keyerr,keytemp
   real*8 eosdummy(14)
@@ -37,8 +37,8 @@ subroutine M1_conservativeupdate(dts)
         oneX = 1.0d0
      endif
 
-     passfluxtest = sum(abs(q_M1(k,1,:,2))/X(k))/sum(q_M1(k,1,:,1)).gt.0.5d0
-     passfluxtest = passfluxtest.and.(sum(abs(q_M1(k,2,:,2))/X(k))/sum(q_M1(k,2,:,1)).gt.0.5d0)
+     passfluxtest = sum(abs(q_M1(:,k,1,2))/X(k))/sum(q_M1(:,k,1,1)).gt.0.5d0
+     passfluxtest = passfluxtest.and.(sum(abs(q_M1(:,k,2,2))/X(k))/sum(q_M1(:,k,2,1)).gt.0.5d0)
 
      passfluxtest = rho(k)/rho_gf.lt.3.0d10
 

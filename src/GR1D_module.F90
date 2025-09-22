@@ -286,6 +286,7 @@ module GR1D_module
   real*8,allocatable,save :: q_hat(:,:)
 
   !M1 conserved variables and such
+  integer :: nM1
   real*8,allocatable,save :: q_M1(:,:,:,:) !energy density, flux,
   !and pressure tensor
   !(for each species and

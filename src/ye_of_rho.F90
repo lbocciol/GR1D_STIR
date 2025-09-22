@@ -91,7 +91,7 @@ contains
     logical proceed
     real*8,allocatable :: profileye(:)
     real*8,allocatable :: profilerho(:)
-    real*8 tempvar, tempvar2, tempvar3
+    real*8 tempvar
     real*8 slope
 
     filename = trim(adjustl(yeprofile_name))

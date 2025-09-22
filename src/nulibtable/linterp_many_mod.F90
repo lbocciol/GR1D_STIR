@@ -31,15 +31,13 @@
 
       real*8 x,y,z,f(nvars)
       real*8 xt(nx),yt(ny),zt(nz)
-      real*8 d1,d2,d3
-!
 !
       real*8  fh(8,nvars), delx, dely, delz, &
            a1(nvars), a2(nvars), a3(nvars), a4(nvars), &
            a5(nvars), a6(nvars), a7(nvars), a8(nvars)
 
       real*8 dx,dy,dz,dxi,dyi,dzi,dxyi,dxzi,dyzi,dxyzi
-      integer n,ix,iy,iz
+      integer ix,iy,iz
 
 !
 !------  determine spacing parameters of (equidistant!!!) table
@@ -140,13 +138,11 @@
 
       real*8 x,y,f(nvars)
       real*8 xt(nx),yt(ny)
-      real*8 d1,d2
-!
 !
       real*8  fh(4,nvars), delx, dely, &
            a1(nvars), a2(nvars), a3(nvars), a4(nvars)
       real*8 dx,dy,dxi,dyi,dxyi
-      integer n,ix,iy
+      integer ix,iy
 
 !
 !------  determine spacing parameters of (equidistant!!!) table

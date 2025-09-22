@@ -97,31 +97,6 @@ subroutine allocate_vars
   allocate(q_hat(n1,n_cons))
   allocate(q_hat_old(n1,n_cons))
 
-  !M1 arrays
-  allocate(eas(n1,number_species,number_groups,number_eas)) !emissivity,absorpive crosssection, scattering crosssection
-  allocate(ies(n1,number_species,number_groups,number_groups,2)) ! scattering kernel \phis
-  allocate(ies_sourceterm(n1,number_species,number_groups,2)) !source terms for matter
-  allocate(epannihil(n1,number_species,number_groups,number_groups,4)) ! scattering kernel \phis
-  allocate(epannihil_sourceterm(n1,number_species,number_groups,2)) !source terms for matter
-  allocate(q_M1(n1,number_species,number_groups,3)) !conserved variables
-  allocate(q_M1_prev(n1,number_species,number_groups,3)) !conserved variables
-  allocate(q_M1p(n1,number_species,number_groups,3,2)) !conserved variables
-  allocate(q_M1m(n1,number_species,number_groups,3,2)) !conserved variables
-  allocate(q_M1_extra(n1,number_species,number_groups,4)) !closure variables
-  allocate(q_M1_extrap(n1,number_species,number_groups,1,2)) !closure variables
-  allocate(q_M1_extram(n1,number_species,number_groups,1,2)) !closure variables
-  allocate(q_M1_old(n1,number_species,number_groups,3)) !conserved variables
-  allocate(B_M1(n1,number_species,number_groups,3)) !conserved variables
-  allocate(C_M1(n1,number_species,number_groups,3)) !conserved variables
-  allocate(D_M1(n1,number_species,number_groups,3)) !conserved variables
-  allocate(flux_M1(n1,number_species,number_groups,3)) !conserved variables
-  allocate(flux_M1_energy(n1,number_species,number_groups,3)) !conserved variables
-  allocate(flux_M1_scatter(n1,number_species,number_groups,3)) !conserved variables
-  allocate(q_M1_fluid(n1,number_species,number_groups,3)) !neutrino variables in the fluid frame
-  allocate(M1_matter_source(n1,4)) !matter source terms
-  allocate(M1_moment_to_distro(number_groups))
-  allocate(M1_moment_to_distro_inverse(number_groups))
-
   allocate(sqrt_gamma(n1))
 
   allocate(flux_diff(n1,n_cons))
@@ -151,3 +126,35 @@ subroutine allocate_vars
   allocate(mgravi(n1))
   
 end subroutine allocate_vars
+
+subroutine allocate_M1_arrays
+
+  use GR1D_module
+  
+  nM1 = M1_imaxradii+ghosts1-1
+  !M1 arrays
+  allocate(eas(number_groups,nM1,number_species,number_eas)) !emissivity,absorpive crosssection, scattering crosssection
+  allocate(ies(number_groups,number_groups,nM1,number_species,2)) ! scattering kernel \phis
+  allocate(ies_sourceterm(number_groups,nM1,number_species,2)) !source terms for matter
+  allocate(epannihil(number_groups,number_groups,nM1,number_species,4)) ! scattering kernel \phis
+  allocate(epannihil_sourceterm(number_groups,nM1,number_species,2)) !source terms for matter
+  allocate(q_M1(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(q_M1_prev(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(q_M1p(number_groups,nM1,number_species,3,2)) !conserved variables
+  allocate(q_M1m(number_groups,nM1,number_species,3,2)) !conserved variables
+  allocate(q_M1_extra(number_groups,nM1,number_species,4)) !closure variables
+  allocate(q_M1_extrap(number_groups,nM1,number_species,1,2)) !closure variables
+  allocate(q_M1_extram(number_groups,nM1,number_species,1,2)) !closure variables
+  allocate(q_M1_old(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(B_M1(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(C_M1(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(D_M1(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(flux_M1(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(flux_M1_energy(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(flux_M1_scatter(number_groups,nM1,number_species,3)) !conserved variables
+  allocate(q_M1_fluid(number_groups,nM1,number_species,3)) !neutrino variables in the fluid frame
+  allocate(M1_matter_source(n1,4)) !matter source terms
+  allocate(M1_moment_to_distro(number_groups))
+  allocate(M1_moment_to_distro_inverse(number_groups))
+
+end subroutine allocate_M1_arrays

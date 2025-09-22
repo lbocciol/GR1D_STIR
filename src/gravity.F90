@@ -103,14 +103,14 @@ subroutine con2GR
         write(*,*) "We have a black hole in GR_terms c", mgravi(i),x1i(i)
         stop
      endif
-     Xm(i) = 1.0d0/sqrt(discrim)	  
+     Xm(i) = 1.0d0/sqrt(discrim)
   enddo
   discrim = 1.0d0 - 2.0d0*mgravi(n1)/x1i(n1)
   if (discrim.lt.0.0d0) then
      write(*,*) "We have a black hole in GR_terms d", mgravi(n1),x1i(n1)
      stop
   endif
-  Xm(n1) = 1.0d0/sqrt(discrim)	
+  Xm(n1) = 1.0d0/sqrt(discrim)
 
 end subroutine con2GR
 
@@ -268,8 +268,8 @@ subroutine GR_terms_initial
 
   real*8 discrim
   real*8 err, tol
-  real*8 Xo(n1), mgrav1(n1), phi_bound
-  integer i,gi
+  real*8 Xo(n1), mgrav1(n1)
+  integer i
   real*8 tau(n1)
 
   tol = 1.0d-12
@@ -350,13 +350,13 @@ subroutine GR_terms_initial
     if (discrim.lt.0.0d0) then
       stop "We have a black hole in GR_terms"
     endif
-    Xm(i) = 1.0d0/sqrt(discrim)	  
+    Xm(i) = 1.0d0/sqrt(discrim)
   enddo
   discrim = 1.0d0 - 2.0d0*mgravi(n1)/x1i(n1)
   if (discrim.lt.0.0d0) then
     stop "We have a black hole in GR_terms"
   endif
-  Xm(n1) = 1.0d0/sqrt(discrim)	  
+  Xm(n1) = 1.0d0/sqrt(discrim)
 
   !Now do lapse  
   call GR_alp

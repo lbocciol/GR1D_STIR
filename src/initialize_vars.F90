@@ -65,7 +65,6 @@ subroutine initialize_vars
   total_net_deintdt = 0.0d0
 
   shock_radius = 0.0d0      
-  ishock(1) = ghosts1+1
   mgravX = 0.0d0
   mgrav12 = 0.0d0
   mbaryX = 0.0d0
@@ -81,7 +80,6 @@ subroutine initialize_vars
   internal_energy = 0.0d0
   omega_c = 0.0d0
   omega_A = 1.0d0
-  ToverW(:) = 0.0d0
 
   eoskey = 0
  
@@ -109,8 +107,6 @@ subroutine initialize_vars
   grid_custom_rad1 = 0.0d0
   grid_custom_number = 0
   
-  call initialize_arrays
-
 end subroutine initialize_vars
 
 subroutine initialize_arrays
@@ -118,6 +114,9 @@ subroutine initialize_arrays
   use GR1D_module
   
   implicit none
+
+  ToverW(:) = 0.0d0
+  ishock(1) = ghosts1+1
 
   mass(:) = 0.0d0
   mass1(:) = 0.0d0
@@ -206,25 +205,6 @@ subroutine initialize_arrays
   q_hat_old(:,:) = 0.0d0
   q_hat(:,:) = 0.0d0
 
-  eas(:,:,:,:) = 0.0d0
-  ies(:,:,:,:,:) = 0.0d0
-  ies_sourceterm(:,:,:,:) = 0.0d0
-  epannihil(:,:,:,:,:) = 0.0d0
-  epannihil_sourceterm(:,:,:,:) = 0.0d0
-  q_M1(:,:,:,1) = 1.0d-100
-  q_M1(:,:,:,2) = 1.0d-110
-  q_M1(:,:,:,3) = 0.5
-  q_M1p(:,:,:,:,:) = 0.0d0
-  q_M1m(:,:,:,:,:) = 0.0d0
-  q_M1_extra(:,:,:,:) = 1.0d-90
-  q_M1_extrap(:,:,:,:,:) = 0.0d0
-  q_M1_extram(:,:,:,:,:) = 0.0d0
-  q_M1_fluid(:,:,:,1) = 1.0d-90
-  q_M1_fluid(:,:,:,2) = 1.0d-110
-  M1_matter_source(:,:) = 0.0d0
-  M1_moment_to_distro(:) = 0.0d0
-  M1_moment_to_distro_inverse(:) = 0.0d0
-
   nuchem(:) = 0.0d0
   elechem(:) = 0.0d0
   massfrac_n(:) = 0.0d0
@@ -233,25 +213,6 @@ subroutine initialize_arrays
   massfrac_h(:) = 0.0d0
   massfrac_abar(:) = 0.0d0
   massfrac_zbar(:) = 0.0d0
-
-  eas(:,:,:,:) = 0.0d0
-  ies(:,:,:,:,:) = 0.0d0
-  ies_sourceterm(:,:,:,:) = 0.0d0
-  epannihil(:,:,:,:,:) = 0.0d0
-  epannihil_sourceterm(:,:,:,:) = 0.0d0
-  q_M1(:,:,:,1) = 1.0d-100
-  q_M1(:,:,:,2) = 1.0d-110
-  q_M1(:,:,:,3) = 0.5
-  q_M1p(:,:,:,:,:) = 0.0d0
-  q_M1m(:,:,:,:,:) = 0.0d0
-  q_M1_extra(:,:,:,:) = 1.0d-90
-  q_M1_extrap(:,:,:,:,:) = 0.0d0
-  q_M1_extram(:,:,:,:,:) = 0.0d0
-  q_M1_fluid(:,:,:,1) = 1.0d-90
-  q_M1_fluid(:,:,:,2) = 1.0d-110
-  M1_matter_source(:,:) = 0.0d0
-  M1_moment_to_distro(:) = 0.0d0
-  M1_moment_to_distro_inverse(:) = 0.0d0
 
   sqrt_gamma(:) = 0.0d0
   
@@ -280,4 +241,47 @@ subroutine initialize_arrays
 
 end subroutine initialize_arrays
   
+subroutine initialize_M1_arrays
 
+  use GR1D_module
+  
+  implicit none
+
+  eas(:,:,:,:) = 0.0d0
+  ies(:,:,:,:,:) = 0.0d0
+  ies_sourceterm(:,:,:,:) = 0.0d0
+  epannihil(:,:,:,:,:) = 0.0d0
+  epannihil_sourceterm(:,:,:,:) = 0.0d0
+  q_M1(:,:,:,1) = 1.0d-100
+  q_M1(:,:,:,2) = 1.0d-110
+  q_M1(:,:,:,3) = 0.5
+  q_M1p(:,:,:,:,:) = 0.0d0
+  q_M1m(:,:,:,:,:) = 0.0d0
+  q_M1_extra(:,:,:,:) = 1.0d-90
+  q_M1_extrap(:,:,:,:,:) = 0.0d0
+  q_M1_extram(:,:,:,:,:) = 0.0d0
+  q_M1_fluid(:,:,:,1) = 1.0d-90
+  q_M1_fluid(:,:,:,2) = 1.0d-110
+  M1_matter_source(:,:) = 0.0d0
+  M1_moment_to_distro(:) = 0.0d0
+  M1_moment_to_distro_inverse(:) = 0.0d0
+  eas(:,:,:,:) = 0.0d0
+  ies(:,:,:,:,:) = 0.0d0
+  ies_sourceterm(:,:,:,:) = 0.0d0
+  epannihil(:,:,:,:,:) = 0.0d0
+  epannihil_sourceterm(:,:,:,:) = 0.0d0
+  q_M1(:,:,:,1) = 1.0d-100
+  q_M1(:,:,:,2) = 1.0d-110
+  q_M1(:,:,:,3) = 0.5
+  q_M1p(:,:,:,:,:) = 0.0d0
+  q_M1m(:,:,:,:,:) = 0.0d0
+  q_M1_extra(:,:,:,:) = 1.0d-90
+  q_M1_extrap(:,:,:,:,:) = 0.0d0
+  q_M1_extram(:,:,:,:,:) = 0.0d0
+  q_M1_fluid(:,:,:,1) = 1.0d-90
+  q_M1_fluid(:,:,:,2) = 1.0d-110
+  M1_matter_source(:,:) = 0.0d0
+  M1_moment_to_distro(:) = 0.0d0
+  M1_moment_to_distro_inverse(:) = 0.0d0
+
+end subroutine initialize_M1_arrays

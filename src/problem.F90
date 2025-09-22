@@ -6,10 +6,7 @@ subroutine problem
   use poly_eos_module
   use ideal_eos_module
   implicit none
-  
-  integer i
-  
-  real*8 xmin,xmax,mindx
+
   character(len=100) outfilename
   
   ! which eos do we want to use; eos scalars
