@@ -165,6 +165,14 @@ module GR1D_module
   real*8,parameter :: alpha_turb_K = 1.0/6.0
   real*8,parameter :: alpha_turb_nu = 1.0/6.0
 
+  ! Add some useful timers
+  real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_M1_exp  = 0.0d0
+  real*8 :: timer_M1_imp  = 0.0d0
+  real*8 :: timer_step    = 0.0d0
+  real*8 :: timer_M1_clo  = 0.0d0
+  real*8 :: timer_code    = 0.0d0
+
   !testcases variables
   integer :: shocktube_problem
 

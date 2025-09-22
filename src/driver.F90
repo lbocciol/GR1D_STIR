@@ -95,6 +95,7 @@ subroutine handle_output
      call output_all(2)
      call output_timers
      call restart_output_h5
+     call PrintTimers()
      stop
   endif
   
@@ -107,6 +108,7 @@ subroutine handle_output
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
+     call PrintTimers()
      stop
   endif
 
@@ -218,6 +220,35 @@ subroutine postStep_analysis
   endif
 #endif
 
-
-
 end subroutine postStep_analysis
+
+subroutine PrintTimers
+
+  use GR1D_module
+  use OMP_LIB
+
+  real*8 :: tfinal, total_M1, frac_M1, frac_hydro
+
+  tfinal = omp_get_wtime()
+  timer_code = tfinal - timer_code
+
+  total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo
+  frac_M1    = total_M1   / timer_step
+  frac_hydro = timer_hydro / timer_step
+
+  print *, '----------------- Timer Summary -----------------'
+  print '(A,F10.4)', 'Total code time        = ', timer_code
+  print '(A,F10.4)', 'Total step time        = ', timer_step
+  print '(A,F10.4)', '  M1 (explicit)        = ', timer_M1_exp
+  print '(A,F10.4)', '  M1 (implicit)        = ', timer_M1_imp
+  print '(A,F10.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F10.4)', '  Hydro                = ', timer_hydro
+  print *
+  print '(A,F6.2)',  'Fraction M1            = ', frac_M1
+  print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
+  print *, '-------------------------------------------------'
+
+  stop
+end subroutine PrintTimers
+
+
