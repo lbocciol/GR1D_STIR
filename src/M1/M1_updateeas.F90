@@ -108,7 +108,7 @@ subroutine M1_updateeas
         else
           do i=1,number_species
             do j=1,number_groups
-                eas(j,k,i,:) = tempspectrum(i,j,2)
+                eas(j,k,i,:) = tempspectrum(i,j,:)
             enddo
           enddo
         endif
@@ -171,7 +171,7 @@ subroutine M1_updateeas
            do i=1,number_species
              do j=1,number_groups
                do j_prime=1,number_groups
-                  ies(j_prime,j,k,i,:) = inelastic_tempspectrum(i,j_prime,j,:)
+                  ies(j_prime,j,k,i,:) = inelastic_tempspectrum(i,j,j_prime,:)
                enddo
              enddo
            enddo
@@ -208,7 +208,7 @@ subroutine M1_updateeas
            do i=1,number_species
             do j=1,number_groups
               do j_prime=1,number_groups
-                epannihil(j_prime,j,k,i,:) = epannihil_tempspectrum(i,j_prime,j,:)
+                epannihil(j_prime,j,k,i,:) = epannihil_tempspectrum(i,j,j_prime,:)
               enddo
             enddo
           enddo

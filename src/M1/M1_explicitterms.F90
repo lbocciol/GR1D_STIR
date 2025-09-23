@@ -16,17 +16,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: implicit_factor !time step
 
   !local, spatial
-  real*8 :: M1en_space(nM1),M1flux_space(nM1)
-  real*8 :: M1chi_space(nM1),M1eddy_space(nM1)
-  real*8 :: M1en_space_plus(nM1),M1en_space_minus(nM1)
-  real*8 :: M1flux_space_plus(nM1),M1flux_space_minus(nM1)
-  real*8 :: M1chi_space_plus(nM1),M1chi_space_minus(nM1)
-  real*8 :: M1eddy_space_plus(nM1),M1eddy_space_minus(nM1)
   real*8 :: l_min_thin(2),l_max_thin(2)
   real*8 :: l_min_thick(2),l_max_thick(2) 
   real*8 :: l_min(3),l_max(3)
   real*8 :: p,discrim,sqrtdiscrim
-  real*8 :: M1flux_interface(M1_imaxradii,2),M1flux_diff(M1_imaxradii,2)
+  real*8 :: M1flux_interface(number_groups,nM1,number_species,2), M1flux_diff(M1_imaxradii,2)
   real*8 :: rm,rp,dx
 
   !local, energy
@@ -79,6 +73,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
   flux_M1 = 0.0d0
   flux_M1_energy = 0.0d0
   flux_M1_scatter = 0.0d0
+  M1flux_interface = 0.0d0
 
 !#################################################################
 !#################################################################
@@ -89,31 +84,12 @@ subroutine M1_explicitterms(dts,implicit_factor)
   !first spatial. This is essentially a reimann solve + corrections
   !over all the radial zones. Variables are already interpolated
 
-  !$OMP PARALLEL DO PRIVATE(i,M1en_space,M1flux_space,M1chi_space,M1eddy_space, &
-  !$OMP M1en_space_plus,M1flux_space_plus,M1chi_space_plus,M1eddy_space_plus, &
-  !$OMP M1en_space_minus,M1flux_space_minus,M1chi_space_minus,M1eddy_space_minus, &
-  !$OMP k,oneWm,oneWp,kappa_inter,ipeclet_mean,a_asym,l_min_thin,l_max_thin, &
+  !$OMP PARALLEL DO PRIVATE(i,k,oneWm,oneWp,kappa_inter,ipeclet_mean,a_asym,l_min_thin,l_max_thin, &
   !$OMP p,discrim,sqrtdiscrim,l_min_thick,l_max_thick,l_min,l_max,Jkplus1,Jk,diffusive_flux, &
-  !$OMP advected_energy,M1flux_interface,limitingflux,rm,rp,dx,M1flux_diff, &
-  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp)
+  !$OMP advected_energy,limitingflux,rm,rp,dx,M1flux_diff, &
+  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp) COLLAPSE(3)
   do j=1,number_groups
      do i=1,number_species_to_evolve
-
-        M1en_space = q_M1(j,:,i,1)
-        M1flux_space = q_M1(j,:,i,2)
-        M1chi_space = q_M1_extra(j,:,i,4)
-        M1eddy_space = q_M1(j,:,i,3)
-
-        M1en_space_plus = q_M1p(j,:,i,1,1)
-        M1en_space_minus = q_M1m(j,:,i,1,1)
-        M1flux_space_plus = q_M1p(j,:,i,2,1)
-        M1flux_space_minus = q_M1m(j,:,i,2,1)
-
-        M1eddy_space_plus = q_M1p(j,:,i,3,1)
-        M1eddy_space_minus = q_M1m(j,:,i,3,1)
-        M1chi_space_plus = q_M1_extrap(j,:,i,1,1)
-        M1chi_space_minus = q_M1_extram(j,:,i,1,1)
-
         !now find speeds at each interface
         do k=ghosts1,M1_imaxradii
 
@@ -206,11 +182,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
            endif
 
            !actual speed
-           l_min(1) = (3.0d0*M1chi_space(k+1)-1.0d0)*0.5d0*l_min_thin(1) + &
-                (1.0d0 - M1chi_space(k+1))*1.5d0*l_min_thick(1)
+           l_min(1) = (3.0d0*q_M1_extra(j,k+1,i,2)-1.0d0)*0.5d0*l_min_thin(1) + &
+                (1.0d0 - q_M1_extra(j,k+1,i,2))*1.5d0*l_min_thick(1)
 
-           l_max(1) = (3.0d0*M1chi_space(k+1)-1.0d0)*0.5d0*l_max_thin(1) + &
-                (1.0d0 - M1chi_space(k+1))*1.5d0*l_max_thick(1)
+           l_max(1) = (3.0d0*q_M1_extra(j,k+1,i,2)-1.0d0)*0.5d0*l_max_thin(1) + &
+                (1.0d0 - q_M1_extra(j,k+1,i,2))*1.5d0*l_max_thick(1)
 
            !plus interface (k zone)
            !thin limit:
@@ -269,15 +245,15 @@ subroutine M1_explicitterms(dts,implicit_factor)
            endif
            
            !actualy speed
-           l_min(2) = (3.0d0*M1chi_space(k)-1.0d0)*0.5d0*l_min_thin(2) + &
-                (1.0d0 - M1chi_space(k))*1.5d0*l_min_thick(2)
-           l_max(2) = (3.0d0*M1chi_space(k)-1.0d0)*0.5d0*l_max_thin(2) + &
-                (1.0d0 - M1chi_space(k))*1.5d0*l_max_thick(2)
+           l_min(2) = (3.0d0*q_M1_extra(j,k,i,2)-1.0d0)*0.5d0*l_min_thin(2) + &
+                (1.0d0 - q_M1_extra(j,k,i,2))*1.5d0*l_min_thick(2)
+           l_max(2) = (3.0d0*q_M1_extra(j,k,i,2)-1.0d0)*0.5d0*l_max_thin(2) + &
+                (1.0d0 - q_M1_extra(j,k,i,2))*1.5d0*l_max_thick(2)
 
 
            !check for NaNs
            if (l_min(1).ne.l_min(1)) then
-              write(*,*) "NaNs in speeds 1",M1chi_space_minus(k+1),l_min_thin(1),l_min_thick(1),j,k,i
+              write(*,*) "NaNs in speeds 1",q_M1_extram(j,k+1,i,1,1),l_min_thin(1),l_min_thick(1),j,k,i
               stop
            else if(l_min(2).ne.l_min(2)) then
               write(*,*) "NaNs in speeds 2"
@@ -296,16 +272,16 @@ subroutine M1_explicitterms(dts,implicit_factor)
            !Lukes idea/suggestion
            if (v_order.eq.-1) then
               if (GR) then
-!                 Jkplus1 = W(k+1)**2*(M1en_space(k+1)*(1.0d0+v(k+1)**2* &
-!                      M1eddy_space(k+1)/X(k+1)**2)-2.0d0*M1flux_space(k+1)*v(k+1)/X(k+1))
-!                 Jk = W(k)**2*(M1en_space(k)*(1.0d0+v(k)**2* &
-!                      M1eddy_space(k)/X(k)**2)-2.0d0*M1flux_space(k)*v(k)/X(k))
+!                 Jkplus1 = W(k+1)**2*(q_M1(j,k+1,i,1)*(1.0d0+v(k+1)**2* &
+!                      q_M1(j,k+1,i,3)/X(k+1)**2)-2.0d0*q_M1(j,k+1,i,2)*v(k+1)/X(k+1))
+!                 Jk = W(k)**2*(q_M1(j,k,i,1)*(1.0d0+v(k)**2* &
+!                      q_M1(j,k,i,3)/X(k)**2)-2.0d0*q_M1(j,k,i,2)*v(k)/X(k))
 
                  !shibata's approximation to above, probably should use above.
-                 Jk = 3.0d0/(2.0d0*W(k)**2+1.0d0)*((2.0d0*W(k)**2-1.0d0)*M1en_space(k) - &
-                      2.0d0*W(k)**2*v(k)/X(k)*M1flux_space(k))
-                 Jkplus1 = 3.0d0/(2.0d0*W(k+1)**2+1.0d0)*((2.0d0*W(k+1)**2-1.0d0)*M1en_space(k+1) - &
-                      2.0d0*W(k+1)**2*v(k+1)/X(k+1)*M1flux_space(k+1))
+                 Jk = 3.0d0/(2.0d0*W(k)**2+1.0d0)*((2.0d0*W(k)**2-1.0d0)*q_M1(j,k,i,1) - &
+                      2.0d0*W(k)**2*v(k)/X(k)*q_M1(j,k,i,2))
+                 Jkplus1 = 3.0d0/(2.0d0*W(k+1)**2+1.0d0)*((2.0d0*W(k+1)**2-1.0d0)*q_M1(j,k+1,i,1) - &
+                      2.0d0*W(k+1)**2*v(k+1)/X(k+1)*q_M1(j,k+1,i,2))
 
                  if (a_asym.eq.1.0d0) then
                     diffusive_flux = 0.0d0
@@ -325,10 +301,10 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  
               else
 
-                 Jk = (1.0d0/(1.0d0-v1(k)**2))*(M1en_space(k)*(1.0d0+v1(k)**2* &
-                      M1eddy_space(k))-2.0d0*M1flux_space(k)*v1(k))
-                 Jkplus1 = (1.0d0/(1.0d0-v1(k+1)**2))*(M1en_space(k+1)*(1.0d0+v1(k+1)**2* &
-                      M1eddy_space(k+1))-2.0d0*M1flux_space(k+1)*v1(k+1))
+                 Jk = (1.0d0/(1.0d0-v1(k)**2))*(q_M1(j,k,i,1)*(1.0d0+v1(k)**2* &
+                      q_M1(j,k,i,3))-2.0d0*q_M1(j,k,i,2)*v1(k))
+                 Jkplus1 = (1.0d0/(1.0d0-v1(k+1)**2))*(q_M1(j,k+1,i,1)*(1.0d0+v1(k+1)**2* &
+                      q_M1(j,k+1,i,3))-2.0d0*q_M1(j,k+1,i,2)*v1(k+1))
 
               
                  if (a_asym.eq.1.0d0) then
@@ -350,8 +326,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
               endif
                  
            else if (v_order.eq.0) then
-              Jkplus1 = M1en_space(k+1)
-              Jk = M1en_space(k)
+              Jkplus1 = q_M1(j,k+1,i,1)
+              Jk = q_M1(j,k,i,1)
               
               if (a_asym.eq.1.0d0) then
                  diffusive_flux = 0.0d0
@@ -376,7 +352,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  Lambda_mixp = alpha_turb * pressp(k) / (rhop(k) * dphidr(k))
                  Lambda_mixp = min(Lambda_mixp,x1(k))
 
-                 grad_Enu = (M1en_space(k+1) - M1en_space(k))/(x1(k+1) - x1(k))
+                 grad_Enu = (q_M1(j,k+1,i,1) - q_M1(j,k,i,1))/(x1(k+1) - x1(k))
                  D_nu_turb = alpha_turb_nu * v_turbp(k) * Lambda_mixp
                  diffusive_turb_flux = - D_nu_turb * grad_Enu
                  ! what happens with GR???? Probably nothing
@@ -397,10 +373,10 @@ subroutine M1_explicitterms(dts,implicit_factor)
            !endif
 
            !flux at interface has two componants, asympotic part, free streaming part.
-           M1flux_interface(k,1) = a_asym*( &
-                ((l_max(3)*M1flux_space_plus(k)-&
-                l_min(3)*M1flux_space_minus(k+1)) + l_max(3)*l_min(3)* &
-                (M1en_space_minus(k+1)-M1en_space_plus(k)))/(l_max(3)-l_min(3)) &
+           M1flux_interface(j,k,i,1) = a_asym*( &
+                ((l_max(3)*q_M1p(j,k+1,i,2,1)-&
+                l_min(3)*q_M1m(j,k+1,i,2,1)) + l_max(3)*l_min(3)* &
+                (q_M1m(j,k+1,i,1,1)-q_M1p(j,k,i,1,1)))/(l_max(3)-l_min(3)) &
                 ) + &
                 (1.0d0-a_asym)*( &
                 diffusive_flux + advected_energy) + &
@@ -410,47 +386,52 @@ subroutine M1_explicitterms(dts,implicit_factor)
            !shift interface flux to geometric mean is the difference
            !is too large.  This helps the deleptonziation burst
            !stablely evolve
-           if (M1en_space_plus(k)/M1en_space_minus(k+1).gt.10.0d0) then
-              limitingflux = sqrt(M1eddy_space_plus(k)*M1en_space_plus(k)* &
-                   M1eddy_space_minus(k+1)*M1en_space_minus(k+1))
+           if (q_M1p(j,k,i,1,1)/q_M1m(j,k+1,i,1,1).gt.10.0d0) then
+              limitingflux = sqrt(q_M1p(j,k,i,3,1)*q_M1p(j,k,i,1,1)* &
+                   q_M1m(j,k+1,i,3,1)*q_M1m(j,k+1,i,1,1))
            else
-              limitingflux = (M1eddy_space_plus(k)*M1en_space_plus(k)+ &
-                   M1eddy_space_minus(k+1)*M1en_space_minus(k+1))/2.0d0
+              limitingflux = (q_M1p(j,k,i,3,1)*q_M1p(j,k,i,1,1)+ &
+                   q_M1m(j,k+1,i,3,1)*q_M1m(j,k+1,i,1,1))/2.0d0
            endif
 
-           M1flux_interface(k,2) = ( &
-                a_asym*((l_max(3)*M1eddy_space_plus(k)*M1en_space_plus(k)- &
-                l_min(3)*M1eddy_space_minus(k+1)*M1en_space_minus(k+1)) + &
-                l_max(3)*l_min(3)*(M1flux_space_minus(k+1)- &
-                M1flux_space_plus(k)))/(l_max(3)-l_min(3)) &
+           M1flux_interface(j,k,i,2) = ( &
+                a_asym*((l_max(3)*q_M1p(j,k,i,3,1)*q_M1p(j,k,i,1,1)- &
+                l_min(3)*q_M1m(j,k+1,i,3,1)*q_M1m(j,k+1,i,1,1)) + &
+                l_max(3)*l_min(3)*(q_M1m(j,k+1,i,2,1)- &
+                q_M1p(j,k+1,i,2,1)))/(l_max(3)-l_min(3)) &
                 ) + &
                 (1.0d0-a_asym)*( &
                 limitingflux &
                 )
            
         enddo
+     enddo
+  enddo
 
+  !$OMP PARALLEL DO PRIVATE(i,j,k,rm,rp,dx,M1flux_diff) COLLAPSE(3)
+  do j=1,number_groups
+     do i=1,number_species_to_evolve
         do k=ghosts1+1,M1_imaxradii
            rm = x1i(k)
            rp = x1i(k+1)
            dx = (rp-rm)
 
            if (GR) then
-              M1flux_diff(k,1) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(k,1)- &
-                   alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(k-1,1))/(dx*x1(k)**2)
-              M1flux_diff(k,2) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(k,2)- &
-                   alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(k-1,2))/(dx*x1(k)**2)
+              M1flux_diff(k,1) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+                   alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
+              M1flux_diff(k,2) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+                   alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
            else
               if (do_effectivepotential) then
-                 M1flux_diff(k,1) = (alpp(k)*x1i(k+1)**2*M1flux_interface(k,1)- &
-                      alpm(k)*x1i(k)**2*M1flux_interface(k-1,1))/(dx*x1(k)**2)
-                 M1flux_diff(k,2) = (alpp(k)*x1i(k+1)**2*M1flux_interface(k,2)- &
-                      alpm(k)*x1i(k)**2*M1flux_interface(k-1,2))/(dx*x1(k)**2)
+                 M1flux_diff(k,1) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+                      alpm(k)*x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
+                 M1flux_diff(k,2) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+                      alpm(k)*x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
               else
-                 M1flux_diff(k,1) = (x1i(k+1)**2*M1flux_interface(k,1)- &
-                      x1i(k)**2*M1flux_interface(k-1,1))/(dx*x1(k)**2)
-                 M1flux_diff(k,2) = (x1i(k+1)**2*M1flux_interface(k,2)- &
-                      x1i(k)**2*M1flux_interface(k-1,2))/(dx*x1(k)**2)
+                 M1flux_diff(k,1) = (x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+                      x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
+                 M1flux_diff(k,2) = (x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+                      x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
               endif
            endif
 
@@ -764,7 +745,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
      !$OMP invX,invX2,X2,oneX,W2,oneW,v2,onev,invr,invr2,local_u,local_uup, &
      !$OMP local_littleh,local_littlehupup,local_Hdown,local_Ltilde,JoverE, &
      !$OMP JoverF,HoverE,HoverF,LoverE,LoverF,j,j_prime,nucubed,nucubedprime, &
-     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor)
+     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor) COLLAPSE(2)
      do k=ghosts1+1,M1_imaxradii
         do i=1,number_species_to_evolve
 

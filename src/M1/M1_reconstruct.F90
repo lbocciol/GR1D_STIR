@@ -15,7 +15,7 @@ subroutine M1_reconstruct
   real*8 :: M1_testcase_travelling_pulse,M1_testcase_diffusion_wave !function calls for test case boundary conditions
 
   !$OMP PARALLEL DO PRIVATE(i,k,M1en_space,M1en_space_plus,M1en_space_minus, &
-  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus) 
+  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus) COLLAPSE(2)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 

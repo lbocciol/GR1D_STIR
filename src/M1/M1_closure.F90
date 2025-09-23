@@ -33,7 +33,7 @@ subroutine M1_closure
      q_M1m(:,:,:,3,1) = justshyofone !P_{rr}/E
      q_M1_extram(:,:,:,1,1) = justshyofone
      q_M1(:,:,:,3) = justshyofone !P_{rr}/E
-     q_M1_extra(:,:,:,1) =0.0d0 !P_{phi}^{phi}/E,P_{\theta}^{\theta}/E
+     q_M1_extra(:,:,:,1) = 0.0d0 !P_{phi}^{phi}/E,P_{\theta}^{\theta}/E
      q_M1_extra(:,:,:,4) = justshyofone
      q_M1_extra(:,:,:,2) = justshyofone*q_M1(:,:,:,2)
      q_M1_extra(:,:,:,3) = 0.0d0
@@ -94,7 +94,7 @@ subroutine M1_closure
   littlehupdown(1,2,:) = -udown(1,:)*invalp2(:)*udown(2,:)
   littlehupdown(2,2,:) = W2(:) !1.0d0+udown(2,:)*udown(2,:)*invX2(:)
 
-  !$OMP PARALLEL DO PRIVATE(h,i,j,oneM1en,oneM1flux,oneM1eddy_guess, &
+  !$OMP PARALLEL DO PRIVATE(k,h,i,j,oneM1en,oneM1flux,oneM1eddy_guess, &
   !$OMP err,count,Tupmunu,localJ,Hup,Kup,ii,jj,H2,ff2,ff3,ff4,chi,Kthin,Kthick,oldprrguess, &
   !$OMP Lthin,Lthick,Luprrr,Ldownfupfr,Wuprrr,Wdownfupfr) COLLAPSE(4)
   do k=ghosts1+1,M1_imaxradii
