@@ -4,16 +4,18 @@ subroutine M1_init
   
   use GR1D_module, only : opacity_table,nulib_opacity_gf,nulib_emissivity_gf, &
        mev_to_erg,M1_imaxradii,length_gf,n1,x1,ghosts1, &
-       ghosts1,nulib_energy_gf, &
+       ghosts1,nulib_energy_gf, timer_M1_eas, &
        number_species,pi,M1_moment_to_distro,clite, &
        hbarc_mevcm,v_order,include_nes_kernels, &
        M1_moment_to_distro_inverse,nulib_kernel_gf,number_species_to_evolve, &
        include_epannihil_kernels,M1_extractradii,M1_iextractradii
   use nulibtable
+  use omp_lib
 
   implicit none
 
   integer i
+  real*8 :: t1, t2
 
   call nulibtable_reader(opacity_table,include_nes_kernels,include_epannihil_kernels)
   
@@ -79,6 +81,9 @@ subroutine M1_init
      number_species_to_evolve = number_species
   endif
 
+  t1 = omp_get_wtime()
   call M1_updateeas
+  t2 = omp_get_wtime()
+  timer_M1_eas = timer_M1_eas + (t2 - t1)
 
 end subroutine M1_init

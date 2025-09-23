@@ -167,10 +167,13 @@ module GR1D_module
 
   ! Add some useful timers
   real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_c2p     = 0.0d0
   real*8 :: timer_M1_exp  = 0.0d0
   real*8 :: timer_M1_imp  = 0.0d0
   real*8 :: timer_step    = 0.0d0
   real*8 :: timer_M1_clo  = 0.0d0
+  real*8 :: timer_M1_rec  = 0.0d0
+  real*8 :: timer_M1_eas  = 0.0d0
   real*8 :: timer_code    = 0.0d0
 
   !testcases variables

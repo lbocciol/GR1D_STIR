@@ -7,7 +7,8 @@
 subroutine M1_conservativeupdate(dts)
 
   use GR1D_module
-
+  use omp_lib
+  
   implicit none
 
   real*8 :: dDye,dtau,dSr,dts
@@ -19,6 +20,7 @@ subroutine M1_conservativeupdate(dts)
   real*8 eosdummy(14)
   logical ::  passfluxtest
   real*8 :: oldeps_forheat(n1)
+  real*8 :: t1, t2
 
   nogain = .true.
   total_net_heating = 0.0d0
@@ -105,7 +107,10 @@ subroutine M1_conservativeupdate(dts)
   !reconstruct primatives
   !but first, retain old eps to determined heating rate
   oldeps_forheat = eps
+  t1 = omp_get_wtime()
   call con2prim
+  t2 = omp_get_wtime()
+  timer_c2p = timer_c2p + (t2 - t1)
 
   ! eos update, eps fixed, find temp,entropy,cs2 etc.
   do k=ghosts1+1,n1-ghosts1

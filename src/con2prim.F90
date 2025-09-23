@@ -49,7 +49,6 @@ subroutine con2prim_1
   call cpu_time(t1)
   oeps = eps
 
-
   !test in shocktube or similar
   if (GR.and.(gravity_active.eqv..false.)) then
      do i=1,n1
@@ -65,6 +64,9 @@ subroutine con2prim_1
   endif
 
   if (GR.and. .not. do_rotation) then
+    !$OMP PARALLEL DO PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
+    !$OMP vv,rrho,eeps,pp,ww,op,fp,dfdp,vpv,oeps,old_press,iminb,imaxb,it,success,&
+    !$OMP eosdummy,keyerr,keytemp,pt_counter)
      do i=iminb,imaxb 
 
         err = 1.0d0
@@ -207,8 +209,12 @@ subroutine con2prim_1
           endif
         endif
      enddo
+     !$OMP END PARALLEL DO
 
   else if (GR.and.do_rotation) then
+    !$OMP PARALLEL DO PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
+    !$OMP vv,rrho,eeps,pp,ww,op,fp,dfdp,vpv,oeps,old_press,iminb,imaxb,it,success,&
+    !$OMP eosdummy,keyerr,keytemp,pt_counter)
      do i=iminb,imaxb 
 
         err = 1.0d0
@@ -378,9 +384,10 @@ subroutine con2prim_1
           endif
          endif
       enddo
+      !$OMP END PARALLEL DO
    else   
       rho(iminb:imaxb) = q(iminb:imaxb,1) 
-      v1(iminb:imaxb)  =  q(iminb:imaxb,2) / q(iminb:imaxb,1)
+      v1(iminb:imaxb)  = q(iminb:imaxb,2) / q(iminb:imaxb,1)
       eps(iminb:imaxb) = q(iminb:imaxb,3)/rho(iminb:imaxb) & 
            - 0.5d0*(v1(iminb:imaxb)**2)
       eps_kin(:) = 0.5d0 * v1(:)**2

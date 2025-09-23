@@ -232,7 +232,7 @@ subroutine PrintTimers
   tfinal = omp_get_wtime()
   timer_code = tfinal - timer_code
 
-  total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo
+  total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo + timer_M1_rec + timer_M1_eas
   frac_M1    = total_M1   / timer_step
   frac_hydro = timer_hydro / timer_step
 
@@ -242,7 +242,10 @@ subroutine PrintTimers
   print '(A,F10.4)', '  M1 (explicit)        = ', timer_M1_exp
   print '(A,F10.4)', '  M1 (implicit)        = ', timer_M1_imp
   print '(A,F10.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F10.4)', '  M1 (reconstruction)  = ', timer_M1_rec
+  print '(A,F10.4)', '  M1 (updateeas)       = ', timer_M1_eas
   print '(A,F10.4)', '  Hydro                = ', timer_hydro
+  print '(A,F10.4)', '  con2prim             = ', timer_c2p
   print *
   print '(A,F6.2)',  'Fraction M1            = ', frac_M1
   print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
@@ -250,5 +253,3 @@ subroutine PrintTimers
 
   stop
 end subroutine PrintTimers
-
-

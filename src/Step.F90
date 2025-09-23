@@ -25,8 +25,9 @@ subroutine Step(dts)
   real*8 implicit_factor
   
   !timers
-  real*8 t1, t2
+  real*8 ttop, t1, t2
 
+  ttop = omp_get_wtime()
   ! Is it time to turn on turbulence?
   if (do_turbulence) then
      if (tpb_for_turbulence .lt. 0.0d0) then
@@ -287,7 +288,10 @@ subroutine Step(dts)
      endif
      
      !reconstruct primatives
+     t1 = omp_get_wtime()
      call con2prim
+     t2 = omp_get_wtime()
+     timer_c2p = timer_c2p + (t2 - t1)
 
      ! eos update, eps fixed, find temp,entropy,cs2 etc.
      do i=ghosts1+1,n1-ghosts1
@@ -381,7 +385,7 @@ subroutine Step(dts)
 
 123 continue
  t2 = omp_get_wtime()
- timer_hydro = timer_hydro + (t2 - t1)
+ timer_hydro = timer_hydro + (t2 - ttop)
 
  !do operator split here
  !M1
@@ -409,10 +413,16 @@ subroutine Step(dts)
     M1_matter_source = 0.0d0
 
     !update interaction rates
+    t1 = omp_get_wtime()
     call M1_updateeas
+    t2 = omp_get_wtime()
+    timer_M1_eas = timer_M1_eas + (t2 - t1)
 
     !reconstruct energy and flux in space and energy
+    t1 = omp_get_wtime()
     call M1_reconstruct
+    t2 = omp_get_wtime()
+    timer_M1_rec = timer_M1_rec + (t2 - t1)
 
     t1 = omp_get_wtime()
     !0. update closure variables
@@ -458,7 +468,10 @@ subroutine Step(dts)
     !code for backward euler explicit flux fix
     if (M1_do_backwardfix.eq.1) then
        !reconstruct energy and flux in space and energy
+       t1 = omp_get_wtime()
        call M1_reconstruct
+       t2 = omp_get_wtime()
+       timer_M1_rec = timer_M1_rec + (t2 - t1)
 
        t1 = omp_get_wtime()
        !0. update closure variables

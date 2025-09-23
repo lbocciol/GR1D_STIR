@@ -97,10 +97,10 @@ subroutine M1_closure
   !$OMP PARALLEL DO PRIVATE(k,h,i,j,oneM1en,oneM1flux,oneM1eddy_guess, &
   !$OMP err,count,Tupmunu,localJ,Hup,Kup,ii,jj,H2,ff2,ff3,ff4,chi,Kthin,Kthick,oldprrguess, &
   !$OMP Lthin,Lthick,Luprrr,Ldownfupfr,Wuprrr,Wdownfupfr) COLLAPSE(4)
-  do k=ghosts1+1,M1_imaxradii
-     do h=1,3 !minus,center,plus
-        do i=1,number_species_to_evolve
-           do j=1,number_groups
+  do i = 1, number_species_to_evolve
+     do k = ghosts1+1, M1_imaxradii
+        do h = 1, 3
+           do j = 1, number_groups
 
               if (h.eq.1) then !minus state
                  oneM1en = q_M1m(j,k,i,1,1)/q_M1m(j,k,i,1,1)

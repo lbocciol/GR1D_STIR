@@ -88,10 +88,10 @@ subroutine M1_explicitterms(dts,implicit_factor)
   !$OMP p,discrim,sqrtdiscrim,l_min_thick,l_max_thick,l_min,l_max,Jkplus1,Jk,diffusive_flux, &
   !$OMP advected_energy,limitingflux,rm,rp,dx,M1flux_diff, &
   !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp) COLLAPSE(3)
-  do j=1,number_groups
-     do i=1,number_species_to_evolve
-        !now find speeds at each interface
-        do k=ghosts1,M1_imaxradii
+  do i=1,number_species_to_evolve
+     !now find speeds at each interface
+     do k=ghosts1,M1_imaxradii
+        do j=1,number_groups
 
            !only used in when GR.eq.0 and v_order.eq.-1
            oneWm = 1.0d0/sqrt(1.0d0-v1m(k+1)**2)
@@ -408,9 +408,9 @@ subroutine M1_explicitterms(dts,implicit_factor)
   enddo
 
   !$OMP PARALLEL DO PRIVATE(i,j,k,rm,rp,dx,M1flux_diff) COLLAPSE(3)
-  do j=1,number_groups
-     do i=1,number_species_to_evolve
-        do k=ghosts1+1,M1_imaxradii
+  do i=1,number_species_to_evolve
+    do k=ghosts1+1,M1_imaxradii
+      do j=1,number_groups
            rm = x1i(k)
            rp = x1i(k+1)
            dx = (rp-rm)
@@ -745,8 +745,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
      !$OMP local_littleh,local_littlehupup,local_Hdown,local_Ltilde,JoverE, &
      !$OMP JoverF,HoverE,HoverF,LoverE,LoverF,j,j_prime,nucubed,nucubedprime, &
      !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor) COLLAPSE(2)
-     do k=ghosts1+1,M1_imaxradii
-        do i=1,number_species_to_evolve
+     do i=1,number_species_to_evolve
+       do k=ghosts1+1,M1_imaxradii
 
            if (i.eq.3.and.number_species.eq.3) then
               species_factor = 4.0d0
