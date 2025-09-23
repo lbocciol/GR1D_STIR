@@ -131,7 +131,7 @@ subroutine allocate_M1_arrays
 
   use GR1D_module
   
-  nM1 = M1_imaxradii+ghosts1-1
+  nM1 = M1_imaxradii+ghosts1
   !M1 arrays
   allocate(eas(number_groups,nM1,number_species,number_eas)) !emissivity,absorpive crosssection, scattering crosssection
   allocate(ies(number_groups,number_groups,nM1,number_species,2)) ! scattering kernel \phis

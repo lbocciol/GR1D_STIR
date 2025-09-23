@@ -357,14 +357,14 @@ subroutine M1_implicitstep(dts,implicit_factor)
 
               if (i.eq.1) then
                  !implicit neutrino pair production/annihilation isn't tested for i.eq.1 or i.eq.2
-                 Ebar(:) = q_M1_old(k,2,:,1) !antinue at time (n), because order of species loop
-                 Fbar(:) = q_M1_old(k,2,:,2) !antinue at time (n), because order of species loop
-                 eddybar(:) = q_M1_old(k,2,:,3) !antinue at time (n), because order of species loop
+                 Ebar(:) = q_M1_old(:,2,k,1) !antinue at time (n), because order of species loop
+                 Fbar(:) = q_M1_old(:,2,k,2) !antinue at time (n), because order of species loop
+                 eddybar(:) = q_M1_old(:,2,k,3) !antinue at time (n), because order of species loop
               else if (i.eq.2) then
                  !implicit neutrino pair production/annihilation isn't tested for i.eq.1 or i.eq.2
-                 Ebar(:) = q_M1_old(k,1,:,1) !nue at time (n+1), because order of species loop
-                 Fbar(:) = q_M1_old(k,1,:,2) !nue at time (n+1), because order of species loop
-                 eddybar(:) = q_M1_old(k,1,:,3) !nue at time (n+1), because order of species loop
+                 Ebar(:) = q_M1_old(:,1,k,1) !nue at time (n+1), because order of species loop
+                 Fbar(:) = q_M1_old(:,1,k,2) !nue at time (n+1), because order of species loop
+                 eddybar(:) = q_M1_old(:,1,k,3) !nue at time (n+1), because order of species loop
               else if (i.eq.3.and.number_species.eq.3) then
                  Ebar(:) = NLsolve_x(1:number_groups) !nux at time (n)
                  Fbar(:) =  NLsolve_x(number_groups+1:2*number_groups)!nux at time (n)
@@ -636,9 +636,9 @@ subroutine M1_implicitstep(dts,implicit_factor)
                     R0out = 0.5d0*ies(j_prime,j,k,i,1)
                     R1out = 1.5d0*ies(j_prime,j,k,i,2)
                     if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                    R0in = 0.5d0*ies(j_prime,j,k,i,1)
-                    R1in = 1.5d0*ies(j_prime,j,k,i,2)
-
+                    R0in = 0.5d0*ies(j,j_prime,k,i,1)
+                    R1in = 1.5d0*ies(j,j_prime,k,i,2)
+                    
                     !shibata eq. 4.14, alpha=t , evaluate, time by 4*pi*dt*alp^2 and move to LHS for RF
                     ies_temp = -species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
                          ((nucubed-local_J(j))*local_uup(1) - local_H(j,1))*R0in*local_J(j_prime) + &
@@ -744,7 +744,6 @@ subroutine M1_implicitstep(dts,implicit_factor)
                          sum(local_Ltilde(j,2,:)*local_dHdF(j_prime,:)))*(R1in-R1out) + &
                          (local_J(j)*local_uup(2)+local_H(j,2))*local_dJdF(j_prime)*R0out)* &
                          nulibtable_inv_energies(j_prime)                         
-                    
                  enddo
                  ies_sourceterm(j,k,i,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
                  ies_sourceterm(j,k,i,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
@@ -1099,14 +1098,14 @@ subroutine M1_implicitstep(dts,implicit_factor)
                  write(*,*) "c = ",new_NL_jacobian(problem_zone+number_groups,:)
                  write(*,*) "original RF(PZ) = ",old_RF(problem_zone)
                  write(*,*) "original RF(PZ+ng) = ",old_RF(problem_zone+number_groups)
-                 write(*,*) "explicit en flux, B,C,D", B_M1(k,i,problem_zone,1), &
-                      C_M1(k,i,problem_zone,1),D_M1(k,i,problem_zone,1), &
-                      B_M1(k,i,problem_zone,1)+C_M1(k,i,problem_zone,1)+ &
-                      D_M1(k,i,problem_zone,1)
-                 write(*,*) "explicit flux flux, B,C,D", B_M1(k,i,problem_zone,2), &
-                      C_M1(k,i,problem_zone,2),D_M1(k,i,problem_zone,2), &
-                      B_M1(k,i,problem_zone,2)+C_M1(k,i,problem_zone,2)+ &
-                      D_M1(k,i,problem_zone,2)
+                 write(*,*) "explicit en flux, B,C,D", B_M1(problem_zone,k,i,1), &
+                      C_M1(problem_zone,k,i,1),D_M1(problem_zone,k,i,1), &
+                      B_M1(problem_zone,k,i,1)+C_M1(problem_zone,k,i,1)+ &
+                      D_M1(problem_zone,k,i,1)
+                 write(*,*) "explicit flux flux, B,C,D", B_M1(problem_zone,k,i,2), &
+                      C_M1(problem_zone,k,i,2),D_M1(problem_zone,k,i,2), &
+                      B_M1(problem_zone,k,i,2)+C_M1(problem_zone,k,i,2)+ &
+                      D_M1(problem_zone,k,i,2)
                  write(*,*) "Se = ",new_RF(problem_zone)
                  write(*,*) "Sf = ",new_RF(problem_zone+number_groups)
                  
@@ -1122,7 +1121,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
               endif
 
               problem_fixing = .true.
-              
+
               do j=1,number_groups
                  if (NLsolve_x(j).lt.0.0d0) then
                     problem_zone = j
@@ -1138,6 +1137,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
                     !note these are on different sides of the equation
                     !we are solving).  The spatial flux for the energy
                     !will be dominated by F
+                    
                     if (nothappenyet2) then
                        write(*,*) "transferring terms to implicit",i,k,j,eddy(j),eddytt(j)
                        nothappenyet2 = .false.
@@ -1156,17 +1156,17 @@ subroutine M1_implicitstep(dts,implicit_factor)
 
                        !first time in here, try making energy coupling implcit
                        if (.not.trouble_brewing) then
-                          sourceG(problem_zone,3) = q_M1_old(k,i,problem_zone,1) + &
+                          sourceG(problem_zone,3) = q_M1_old(problem_zone,k,i,1) + &
                                B_M1(j,k,i,1) + D_M1(j,k,i,1)
                           sourceG(problem_zone,1) = sourceG(problem_zone,1) - &
-                               C_M1(k,i,problem_zone,1)/q_M1_old(k,i,problem_zone,1)
+                               C_M1(problem_zone,k,i,1)/q_M1_old(problem_zone,k,i,1)
                        endif
                        
                        !second time in here, make flux implicit
                        if (trouble_brewing) then
-                          sourceG(problem_zone,3) = q_M1_old(k,i,problem_zone,1)
+                          sourceG(problem_zone,3) = q_M1_old(problem_zone,k,i,1)
                           sourceG(problem_zone,1) = sourceG(problem_zone,1) - &
-                               ( D_M1(j,k,i,1) + B_M1(j,k,i,1) )/q_M1_old(k,i,problem_zone,1)
+                               ( D_M1(j,k,i,1) + B_M1(j,k,i,1) )/q_M1_old(problem_zone,k,i,1)
                           changedtwice = .true.
                        endif
 

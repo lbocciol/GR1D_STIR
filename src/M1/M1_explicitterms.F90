@@ -182,11 +182,11 @@ subroutine M1_explicitterms(dts,implicit_factor)
            endif
 
            !actual speed
-           l_min(1) = (3.0d0*q_M1_extra(j,k+1,i,2)-1.0d0)*0.5d0*l_min_thin(1) + &
-                (1.0d0 - q_M1_extra(j,k+1,i,2))*1.5d0*l_min_thick(1)
+           l_min(1) = (3.0d0*q_M1_extra(j,k+1,i,4)-1.0d0)*0.5d0*l_min_thin(1) + &
+                (1.0d0 - q_M1_extra(j,k+1,i,4))*1.5d0*l_min_thick(1)
 
-           l_max(1) = (3.0d0*q_M1_extra(j,k+1,i,2)-1.0d0)*0.5d0*l_max_thin(1) + &
-                (1.0d0 - q_M1_extra(j,k+1,i,2))*1.5d0*l_max_thick(1)
+           l_max(1) = (3.0d0*q_M1_extra(j,k+1,i,4)-1.0d0)*0.5d0*l_max_thin(1) + &
+                (1.0d0 - q_M1_extra(j,k+1,i,4))*1.5d0*l_max_thick(1)
 
            !plus interface (k zone)
            !thin limit:
@@ -245,11 +245,10 @@ subroutine M1_explicitterms(dts,implicit_factor)
            endif
            
            !actualy speed
-           l_min(2) = (3.0d0*q_M1_extra(j,k,i,2)-1.0d0)*0.5d0*l_min_thin(2) + &
-                (1.0d0 - q_M1_extra(j,k,i,2))*1.5d0*l_min_thick(2)
-           l_max(2) = (3.0d0*q_M1_extra(j,k,i,2)-1.0d0)*0.5d0*l_max_thin(2) + &
-                (1.0d0 - q_M1_extra(j,k,i,2))*1.5d0*l_max_thick(2)
-
+           l_min(2) = (3.0d0*q_M1_extra(j,k,i,4)-1.0d0)*0.5d0*l_min_thin(2) + &
+                (1.0d0 - q_M1_extra(j,k,i,4))*1.5d0*l_min_thick(2)
+           l_max(2) = (3.0d0*q_M1_extra(j,k,i,4)-1.0d0)*0.5d0*l_max_thin(2) + &
+                (1.0d0 - q_M1_extra(j,k,i,4))*1.5d0*l_max_thick(2)
 
            !check for NaNs
            if (l_min(1).ne.l_min(1)) then
@@ -268,7 +267,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
 
            l_max(3) = max(l_max(1),l_max(2))
            l_min(3) = max(l_min(1),l_min(2))
-
+           
            !Lukes idea/suggestion
            if (v_order.eq.-1) then
               if (GR) then
@@ -374,7 +373,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
 
            !flux at interface has two componants, asympotic part, free streaming part.
            M1flux_interface(j,k,i,1) = a_asym*( &
-                ((l_max(3)*q_M1p(j,k+1,i,2,1)-&
+                ((l_max(3)*q_M1p(j,k,i,2,1)-&
                 l_min(3)*q_M1m(j,k+1,i,2,1)) + l_max(3)*l_min(3)* &
                 (q_M1m(j,k+1,i,1,1)-q_M1p(j,k,i,1,1)))/(l_max(3)-l_min(3)) &
                 ) + &
@@ -382,7 +381,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
                 diffusive_flux + advected_energy) + &
                 !(1.0d0-a_asym) * diffusive_turb_flux
                 (1.0d0-a_asym)**4 * diffusive_turb_flux
-
+           
            !shift interface flux to geometric mean is the difference
            !is too large.  This helps the deleptonziation burst
            !stablely evolve
@@ -398,7 +397,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
                 a_asym*((l_max(3)*q_M1p(j,k,i,3,1)*q_M1p(j,k,i,1,1)- &
                 l_min(3)*q_M1m(j,k+1,i,3,1)*q_M1m(j,k+1,i,1,1)) + &
                 l_max(3)*l_min(3)*(q_M1m(j,k+1,i,2,1)- &
-                q_M1p(j,k+1,i,2,1)))/(l_max(3)-l_min(3)) &
+                q_M1p(j,k,i,2,1)))/(l_max(3)-l_min(3)) &
                 ) + &
                 (1.0d0-a_asym)*( &
                 limitingflux &
@@ -950,8 +949,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  R0out = 0.5d0*ies(j_prime,j,k,i,1)
                  R1out = 1.5d0*ies(j_prime,j,k,i,2)
                  if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                 R0in = 0.5d0*ies(j_prime,j,k,i,1)
-                 R1in = 1.5d0*ies(j_prime,j,k,i,2)
+                 R0in = 0.5d0*ies(j,j_prime,k,i,1)
+                 R1in = 1.5d0*ies(j,j_prime,k,i,2)
                  
                  !Note, I quickly tested the values of these cutoffs.
                  !Turns out, 1e13 works better than 5e12.  It does not
@@ -963,8 +962,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
                     R0out = 0.5d0*ies(j_prime,j,k,i,1)*(5.0d12*rho_gf/rho(k))**1.5d0
                     R1out = 1.5d0*ies(j_prime,j,k,i,2)*(5.0d12*rho_gf/rho(k))**1.5d0
                     if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                    R0in = 0.5d0*ies(j_prime,j,k,i,1)*(5.0d12*rho_gf/rho(k))**1.5d0
-                    R1in = 1.5d0*ies(j_prime,j,k,i,2)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R0in = 0.5d0*ies(j,j_prime,k,i,1)*(5.0d12*rho_gf/rho(k))**1.5d0
+                    R1in = 1.5d0*ies(j,j_prime,k,i,2)*(5.0d12*rho_gf/rho(k))**1.5d0
                  endif
 
                  !implicit terms for j equation for energy density,
@@ -979,7 +978,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
                       (nucubed-local_J(j))*local_littleh(1,2)*onethird - &
                       local_u(1)*(-invalp2)*local_Hdown(j,2) - local_Ltilde(j,1,2))) &
                       )*nulibtable_inv_energies(j_prime)
-
+                 
                  ies_sourceterms(j) = ies_sourceterms(j) + ies_temp*M1en_energy(j_prime)
 
                  !implicit terms for j equation for energy density,
@@ -1082,7 +1081,6 @@ subroutine M1_explicitterms(dts,implicit_factor)
                  ies_sourceterms(j+number_groups) = ies_sourceterms(j+number_groups) + &
                       ies_temp*M1flux_energy(j)
               enddo
-        
               !set cell fluxes, add to existing value
               flux_M1_scatter(j,k,i,1) = ies_sourceterms(j)
               flux_M1_scatter(j,k,i,2) = ies_sourceterms(j+number_groups)        
@@ -1095,5 +1093,5 @@ subroutine M1_explicitterms(dts,implicit_factor)
      enddo
      !$OMP END PARALLEL DO! end do
   endif
-
+  
 end subroutine M1_explicitterms

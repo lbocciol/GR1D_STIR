@@ -28,7 +28,7 @@ subroutine M1_updateeas
 
      !$OMP PARALLEL DO PRIVATE(xrho,xtemp,xye,tempspectrum,singlespecies_tempspectrum, &
      !$OMP keytemp,keyerr,eosdummy,xeta,inelastic_tempspectrum,singlespecies_inelastic_tempspectrum, &
-     !$OMP epannihil_tempspectrum,singlespecies_epannihil_tempspectrum,blackbody_spectra,energy_x,i,j)
+     !$OMP epannihil_tempspectrum,singlespecies_epannihil_tempspectrum,blackbody_spectra,energy_x,i,j,k,j_prime)
      do k=2,M1_imaxradii+ghosts1-1
         
         xrho = rho(k)/rho_gf
@@ -175,7 +175,6 @@ subroutine M1_updateeas
                enddo
              enddo
            enddo
-
         endif
 
         !get ep-annihilation kernels for i.eq.3 only, if turned on
