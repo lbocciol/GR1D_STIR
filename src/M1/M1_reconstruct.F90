@@ -9,13 +9,17 @@ subroutine M1_reconstruct
   implicit none
 
   integer :: i,j,k
+  real*8 :: dummy_array(n1), dummy_arrayp(n1), dummy_arraym(n1)
   real*8 :: M1en_space(nM1),M1flux_space(nM1)
   real*8 :: M1en_space_plus(nM1),M1flux_space_plus(nM1)
   real*8 :: M1en_space_minus(nM1),M1flux_space_minus(nM1)
   real*8 :: M1_testcase_travelling_pulse,M1_testcase_diffusion_wave !function calls for test case boundary conditions
 
+  dummy_array(:) = 1.0d-100
+  dummy_arrayp(:) = 1.0d-100
+  dummy_arraym(:) = 1.0d-100
   !$OMP PARALLEL DO PRIVATE(i,k,M1en_space,M1en_space_plus,M1en_space_minus, &
-  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus) COLLAPSE(2)
+  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus,dummy_array,dummy_arrayp,dummy_arraym) COLLAPSE(2)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 
@@ -66,13 +70,26 @@ subroutine M1_reconstruct
 
         !reconstruct
         if (M1_reconstruction_method.eq.'tvd') then
-           call tvd_reconstruction(nM1,ghosts1,M1en_space,M1en_space_plus,M1en_space_minus,'minmod')
-           call tvd_reconstruction(nM1,ghosts1,M1flux_space,M1flux_space_plus,M1flux_space_minus,'minmod') 
+           dummy_array(:nM1) = M1en_space
+           call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod')
+           M1en_space_plus  = dummy_arrayp(:nM1)
+           M1en_space_minus = dummy_arraym(:nM1)
+           dummy_array(:nM1) = M1flux_space
+           call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod') 
+           M1flux_space_plus  = dummy_arrayp(:nM1)
+           M1flux_space_minus = dummy_arraym(:nM1)
         else if (M1_reconstruction_method.eq.'ppm') then
-           call ppm_interpolate(M1en_space,M1en_space_plus,M1en_space_minus)
-           call ppm_interpolate(M1flux_space,M1flux_space_plus,M1flux_space_minus)
-           call ppm_monotonize(M1en_space,M1en_space_plus,M1en_space_minus)
-           call ppm_monotonize(M1flux_space,M1flux_space_plus,M1flux_space_minus)       
+           dummy_array(:nM1) = M1en_space
+           call ppm_interpolate(dummy_array,dummy_arrayp,dummy_arraym)
+           call ppm_monotonize(dummy_array,dummy_arrayp,dummy_arraym)
+           M1en_space_plus  = dummy_arrayp(:nM1)
+           M1en_space_minus = dummy_arraym(:nM1)
+
+           dummy_array(:nM1) = M1flux_space
+           call ppm_interpolate(dummy_array,dummy_arrayp,dummy_arraym)
+           call ppm_monotonize(dummy_array,dummy_arrayp,dummy_arraym)  
+           M1flux_space_plus  = dummy_arrayp(:nM1)
+           M1flux_space_minus = dummy_arraym(:nM1)     
         else
            stop "Implement this reconstruction method in M1"
         endif
