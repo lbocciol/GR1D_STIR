@@ -357,14 +357,14 @@ subroutine M1_implicitstep(dts,implicit_factor)
 
               if (i.eq.1) then
                  !implicit neutrino pair production/annihilation isn't tested for i.eq.1 or i.eq.2
-                 Ebar(:) = q_M1_old(:,2,k,1) !antinue at time (n), because order of species loop
-                 Fbar(:) = q_M1_old(:,2,k,2) !antinue at time (n), because order of species loop
-                 eddybar(:) = q_M1_old(:,2,k,3) !antinue at time (n), because order of species loop
+                 Ebar(:) = q_M1_old(:,k,2,1) !antinue at time (n), because order of species loop
+                 Fbar(:) = q_M1_old(:,k,2,2) !antinue at time (n), because order of species loop
+                 eddybar(:) = q_M1_old(:,k,2,3) !antinue at time (n), because order of species loop
               else if (i.eq.2) then
                  !implicit neutrino pair production/annihilation isn't tested for i.eq.1 or i.eq.2
-                 Ebar(:) = q_M1_old(:,1,k,1) !nue at time (n+1), because order of species loop
-                 Fbar(:) = q_M1_old(:,1,k,2) !nue at time (n+1), because order of species loop
-                 eddybar(:) = q_M1_old(:,1,k,3) !nue at time (n+1), because order of species loop
+                 Ebar(:) = q_M1_old(:,k,1,1) !nue at time (n+1), because order of species loop
+                 Fbar(:) = q_M1_old(:,k,1,2) !nue at time (n+1), because order of species loop
+                 eddybar(:) = q_M1_old(:,k,1,3) !nue at time (n+1), because order of species loop
               else if (i.eq.3.and.number_species.eq.3) then
                  Ebar(:) = NLsolve_x(1:number_groups) !nux at time (n)
                  Fbar(:) =  NLsolve_x(number_groups+1:2*number_groups)!nux at time (n)

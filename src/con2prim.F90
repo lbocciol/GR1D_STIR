@@ -43,8 +43,6 @@ subroutine con2prim_1
   tol = 1.0d-10
   low_tol = tol
   err = 1.0d0
-  success=0
-  pt_counter = 0
 
   call cpu_time(t1)
   oeps = eps
@@ -64,10 +62,13 @@ subroutine con2prim_1
   endif
 
   if (GR.and. .not. do_rotation) then
-    !$OMP PARALLEL DO PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
-    !$OMP vv,rrho,eeps,pp,ww,op,fp,dfdp,vpv,oeps,old_press,iminb,imaxb,it,success,&
-    !$OMP eosdummy,keyerr,keytemp,pt_counter)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
+    !$OMP vv,rrho,eeps,pp,ww,fp,dfdp,it,eosdummy,keyerr,keytemp,success,pt_counter)
      do i=iminb,imaxb 
+
+        success=0
+        pt_counter = 0
 
         err = 1.0d0
         low_tol = tol
@@ -212,10 +213,13 @@ subroutine con2prim_1
      !$OMP END PARALLEL DO
 
   else if (GR.and.do_rotation) then
-    !$OMP PARALLEL DO PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
-    !$OMP vv,rrho,eeps,pp,ww,op,fp,dfdp,vpv,oeps,old_press,iminb,imaxb,it,success,&
-    !$OMP eosdummy,keyerr,keytemp,pt_counter)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(i,err,discrim,low_tol,dpdrh,dpde,dedpress,drhodpress,temp1,&
+    !$OMP vv,rrho,eeps,pp,ww,fp,dfdp,it,eosdummy,keyerr,keytemp,success,pt_counter)
      do i=iminb,imaxb 
+
+        success=0
+        pt_counter = 0
 
         err = 1.0d0
         low_tol = tol
@@ -688,6 +692,5 @@ subroutine con2prim_pt_rot(tol,i,success)
   else
      stop "Shouldn't be here in con2prim_pt_rot"
   endif
-
 
 end subroutine con2prim_pt_rot
