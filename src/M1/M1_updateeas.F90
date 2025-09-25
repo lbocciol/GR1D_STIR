@@ -1,149 +1,76 @@
+!-*-f90-*-
+!this subroutine updates the neutrino-matter interaction coefficents
 subroutine M1_updateeas
+  
   use GR1D_module
   use nulibtable
-  use omp_lib
   implicit none
 
-  ! ===== Variables =====
-  real*8 :: xrho, xtemp, xye, xeta, energy_x
-  integer :: j, k, i, j_prime, keytemp, keyerr
+  real*8 :: xrho,xtemp,xye,xeta
+  integer :: j,k,i,j_prime
+
+  real*8 :: tempspectrum(number_species,number_groups,number_eas)
+  real*8 :: singlespecies_tempspectrum(number_groups,number_eas)
+
+  real*8 :: inelastic_tempspectrum(number_species,number_groups,number_groups,2)
+  real*8 :: singlespecies_inelastic_tempspectrum(number_groups,number_groups,2)
+
+  real*8 :: epannihil_tempspectrum(number_species,number_groups,number_groups,4)
+  real*8 :: singlespecies_epannihil_tempspectrum(number_groups,number_groups,4)
+
+  real*8 :: blackbody_spectra(number_species,number_groups)
+  real*8 :: energy_x
+
+  integer :: keytemp,keyerr
   real*8 :: eosdummy(17)
 
-  ! Spectra arrays
-  real*8 :: tempspectrum(nM1,number_species, number_groups, number_eas)
-  real*8 :: singlespecies_tempspectrum(nM1,number_groups, number_eas)
-
-  real*8 :: inelastic_tempspectrum(nM1,number_species, number_groups, number_groups, 2)
-  real*8 :: singlespecies_inelastic_tempspectrum(nM1,number_groups, number_groups, 2)
-
-  real*8 :: epannihil_tempspectrum(nM1,number_species, number_groups, number_groups, 4)
-  real*8 :: singlespecies_epannihil_tempspectrum(nM1,number_groups, number_groups, 4)
-
-  real*8 :: blackbody_spectra(number_species, number_groups)
-
-  real*8 :: t1, t2, t_eas, t_inel, t_ass, t_bb
-
-  t_eas = 0.0d0
-  t_inel = 0.0d0
-  t_ass  = 0.0d0
-  t_bb   = 0.0d0
-
-  t1 = omp_get_wtime()
-
-  ! ============================================================
-  ! MAIN LOOP OVER RADIAL ZONES
-  ! ============================================================
   if (M1_testcase_number.eq.0.or.M1_testcase_number.eq.1) then
 
      !$OMP PARALLEL DO PRIVATE(xrho,xtemp,xye,tempspectrum,singlespecies_tempspectrum, &
      !$OMP keytemp,keyerr,eosdummy,xeta,inelastic_tempspectrum,singlespecies_inelastic_tempspectrum, &
-     !$OMP epannihil_tempspectrum,singlespecies_epannihil_tempspectrum,blackbody_spectra,energy_x,i,j,k,j_prime,t1,t2)
-     do k=2, M1_imaxradii+ghosts1-1
-
-        ! --------------------------------------------------------
-        ! (1) Get density, temperature, electron fraction
-        ! --------------------------------------------------------
-        xrho  = rho(k)/rho_gf
+     !$OMP epannihil_tempspectrum,singlespecies_epannihil_tempspectrum,blackbody_spectra,energy_x,i,j,k,j_prime)
+     do k=2,M1_imaxradii+ghosts1-1
+        
+        xrho = rho(k)/rho_gf
         xtemp = temp(k)
-        xye   = ye(k)
+        xye = ye(k)
 
-        ! --------------------------------------------------------
-        ! (2) Interpolate EAS spectrum from nulibtable
-        ! --------------------------------------------------------
-        t1 = omp_get_wtime()
         tempspectrum = 0.0d0
         if (log10(xrho).lt.nulibtable_logrho_min) then
            tempspectrum = 0.0d0
         else
-           if (log10(xtemp).lt.nulibtable_logtemp_min) stop "M1_update_eas: temp too low"
+           if (log10(xtemp).lt.nulibtable_logtemp_min) then
+              stop "M1_update_eas: temp too low"
+           endif
            if (xye.lt.nulibtable_ye_min) stop "M1_update_eas: ye too low"
            if (log10(xtemp).gt.nulibtable_logtemp_max) stop "M1_update_eas: temp too high"
            if (xye.gt.nulibtable_ye_max) stop "M1_update_eas: ye too high"
 
            if (number_species_to_evolve.eq.1) then
-              call nulibtable_single_species_range_energy(xrho, xtemp, xye, 1, &
-                   singlespecies_tempspectrum, number_groups, number_eas)
-              tempspectrum(k,1,:,:) = singlespecies_tempspectrum(k,:,:)
+              call nulibtable_single_species_range_energy(xrho,xtemp,xye,1, &
+                   singlespecies_tempspectrum,number_groups,number_eas)
+              tempspectrum(1,:,:) = singlespecies_tempspectrum(:,:)
            else if (number_species_to_evolve.eq.3) then
-              call nulibtable_range_species_range_energy(xrho, xtemp, xye, tempspectrum, &
-                   number_species, number_groups, number_eas)
+              call nulibtable_range_species_range_energy(xrho,xtemp,xye,tempspectrum, &
+                   number_species,number_groups,number_eas)
            else
               stop "set up eas interpolation for this number of species"
            endif
         endif
-        t2 = omp_get_wtime()
-        t_eas = t_eas + t2 - t1
-
-        ! Reset annihilation contributions if needed
+        
+        !set new eas variables
         if (include_epannihil_kernels) then
-           tempspectrum(k,3,:,2) = 0.0d0
-           tempspectrum(k,3,:,1) = 0.0d0
+           tempspectrum(3,:,2) = 0.0d0
+           tempspectrum(3,:,1) = 0.0d0
         endif
 
-        ! --------------------------------------------------------
-        ! (3) Update EAS variables
-        ! --------------------------------------------------------
-        t1 = omp_get_wtime()
-        do i=1,number_species
-           do j=1,number_groups
-              eas(j,k,i,2) = tempspectrum(k,i,j,2)
-              eas(j,k,i,3) = tempspectrum(k,i,j,3)
-           enddo
-        enddo
-        t2 = omp_get_wtime()
-        t_ass = t_ass + t2 - t1
+        if (.true.) then
+           eas(:,k,:,2) = TRANSPOSE(tempspectrum(:,:,2))
+           eas(:,k,:,3) = TRANSPOSE(tempspectrum(:,:,3))
 
-        ! --------------------------------------------------------
-        ! (4) Compute blackbody emissivity (via EOS)
-        ! --------------------------------------------------------
-        t1 = omp_get_wtime()
-        keytemp = 1
-        keyerr  = 0
-#if HAVE_NUC_EOS
-        call nuc_eos_full(xrho, xtemp, xye, eosdummy(1), eosdummy(2), eosdummy(3), &
-             eosdummy(4), eosdummy(5), eosdummy(6), eosdummy(7), eosdummy(8), &
-             eosdummy(9), eosdummy(10), eosdummy(11), eosdummy(12), &
-             eosdummy(13), elechem(k), eosdummy(15), eosdummy(16), eosdummy(17), &
-             keytemp, keyerr, eos_rf_prec)
-        if(keyerr.ne.0) then
-           write(6,*) "EOS PROBLEM in inelastic scatter :"
-           write(6,"(i5,1P3E18.9)") k,xrho,xtemp,xye
-           stop "This is bad!"
-        endif
-#else
-        stop "Need nuclear EOS for M1 transport"
-#endif
-
-        ! Fermi integrals
-        xeta = (elechem(k)-eosdummy(17))/xtemp
-        do j=1,number_groups
-           energy_x = nulibtable_energies(j)/(nulib_energy_gf*xtemp)
-           blackbody_spectra(1,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
-                (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x-xeta))
-           blackbody_spectra(2,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
-                (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x+xeta))
-           blackbody_spectra(3,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
-                (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x))
-        enddo
-
-        ! Scale emissivity
-        eas(:,k,1,1) = (blackbody_spectra(1,:)*tempspectrum(k,1,:,2)* &
-             nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
-        eas(:,k,2,1) = (blackbody_spectra(2,:)*tempspectrum(k,2,:,2)* &
-             nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
-        eas(:,k,3,1) = 4.0d0*(blackbody_spectra(3,:)*tempspectrum(k,3,:,2)* &
-             nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
-        t2 = omp_get_wtime()
-        t_bb = t_bb + t2 - t1
-
-        ! --------------------------------------------------------
-        ! (5) Inelastic scattering kernels
-        ! --------------------------------------------------------
-        if (include_Ielectron_imp.or.include_Ielectron_exp) then
-           t1 = omp_get_wtime()
-           ! Get electron chemical potential again
-           keytemp = 1
-           keyerr  = 0
+           !re calculate emmisivity from black body.
+           keytemp = 1 !keep temperature
+           keyerr = 0
 #if HAVE_NUC_EOS
            call nuc_eos_full(xrho,xtemp,xye,eosdummy(1),eosdummy(2),eosdummy(3), &
                 eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),eosdummy(8), &
@@ -151,7 +78,55 @@ subroutine M1_updateeas
                 eosdummy(13),elechem(k),eosdummy(15),eosdummy(16),eosdummy(17), &
                 keytemp,keyerr,eos_rf_prec)
            if(keyerr.ne.0) then
+              write(6,*) "############################################"
+              write(6,*) "EOS PROBLEM in inelastic scatter :"
+              write(6,*) "timestep number: ",nt
+              write(6,"(i5,1P3E18.9)") k,xrho,xtemp,xye
+              stop "This is bad!"
+           endif
+#else
+           stop "Need nuclear EOS for M1 transport"
+#endif
+           xeta = (elechem(k)-eosdummy(17))/xtemp
+           do j=1,number_groups
+              energy_x = nulibtable_energies(j)/(nulib_energy_gf*xtemp)
+              blackbody_spectra(1,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
+                   (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x-xeta))
+              blackbody_spectra(2,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
+                   (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x+xeta))
+              blackbody_spectra(3,j) = clite*(nulibtable_energies(j)/nulib_energy_gf)**3* &
+                   (mev_to_erg/(2.0d0*pi*hbarc_mevcm)**3)/(1.0d0+exp(energy_x))
+           enddo
+
+           eas(:,k,1,1) = (blackbody_spectra(1,:)*tempspectrum(1,:,2)* &
+                nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
+           eas(:,k,2,1) = (blackbody_spectra(2,:)*tempspectrum(2,:,2)* &
+                nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
+           eas(:,k,3,1) = 4.0d0*(blackbody_spectra(3,:)*tempspectrum(3,:,2)* &
+                nulibtable_ewidths(:)/nulib_opacity_gf)*nulib_emissivity_gf
+
+        else
+          do i=1,number_species
+            do j=1,number_groups
+                eas(j,k,i,:) = tempspectrum(i,j,:)
+            enddo
+          enddo
+        endif
+
+        !get electron chemical potential if scattering/epannihil is turned on
+        if (include_Ielectron_exp.or.include_Ielectron_imp.or.include_epannihil_kernels) then
+           keytemp = 1 !keep temperature, not resetting any hydro variables
+           keyerr = 0       
+#if HAVE_NUC_EOS
+           call nuc_eos_full(xrho,xtemp,xye,eosdummy(1),eosdummy(2),eosdummy(3), &
+                eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),eosdummy(8), &
+                eosdummy(9),eosdummy(10),eosdummy(11),eosdummy(12), &
+                eosdummy(13),elechem(k),eosdummy(15),eosdummy(16),eosdummy(17), &
+                keytemp,keyerr,eos_rf_prec)
+           if(keyerr.ne.0) then
+              write(6,*) "############################################"
               write(6,*) "EOS PROBLEM in M1_updateeas.F90:"
+              write(6,*) "timestep number: ",nt
               write(6,"(i5,1P3E18.9)") k,xrho,xtemp,xye
               stop "This is bad!"
            endif
@@ -159,75 +134,93 @@ subroutine M1_updateeas
            stop "Need nuclear EOS for M1 transport"
 #endif
            xtemp = temp(k)
-           xeta  = elechem(k)/temp(k)
+           xeta = elechem(k)/temp(k)
+        endif
 
-           ! Interpolation from nulib
+        if (include_Ielectron_imp.or.include_Ielectron_exp) then
            inelastic_tempspectrum = 0.0d0
-           if (log10(xrho).ge.nulibtable_logrho_min) then
+           if (log10(xrho).lt.nulibtable_logrho_min) then
+              inelastic_tempspectrum = 0.0d0
+           else
+              if (log10(xtemp).lt.nulibtable_logItemp_min) stop "M1_update_eas: Itemp too low"
+              if (log10(xeta).lt.nulibtable_logIeta_min) then
+                 write(*,*) xrho,xtemp,xye,xeta
+                 stop "M1_update_eas: Ieta too low"
+              endif
+              if (log10(xtemp).gt.nulibtable_logItemp_max) stop "M1_update_eas: temp too high"
+              if (log10(xeta).gt.nulibtable_logIeta_max) then
+                 write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
+                 stop "M1_update_eas: Ieta too high"
+              endif
+                
               if (number_species_to_evolve.eq.1) then
                  call nulibtable_inelastic_single_species_range_energy2(xtemp,xeta,1, &
                       singlespecies_inelastic_tempspectrum,number_groups,number_groups,2)
-                 inelastic_tempspectrum(k,1,:,:,:) = singlespecies_inelastic_tempspectrum(k,:,:,:)
+                 inelastic_tempspectrum(1,:,:,:) = singlespecies_inelastic_tempspectrum(:,:,:)
               else if (number_species_to_evolve.eq.3) then
                  call nulibtable_inelastic_range_species_range_energy2(xtemp,xeta, &
                       inelastic_tempspectrum,number_species,number_groups,number_groups,2)
               else
                  stop "set up eas interpolation for this number of species"
               endif
+
+
            endif
-          t2 = omp_get_wtime()
-          t_inel = t_inel + t2 - t1
-
-
-           ! Store results
-           t1 = omp_get_wtime()
+           
+           !set new ies variables
            do i=1,number_species
-              do j=1,number_groups
-                 do j_prime=1,number_groups
-                    ies(j_prime,j,k,i,:) = inelastic_tempspectrum(k,i,j,j_prime,:)
-                 enddo
-              enddo
+             do j=1,number_groups
+               do j_prime=1,number_groups
+                  ies(j_prime,j,k,i,:) = inelastic_tempspectrum(i,j,j_prime,:)
+               enddo
+             enddo
            enddo
-          t2 = omp_get_wtime()
-          t_ass = t_ass + t2 - t1
-
         endif
 
-        ! --------------------------------------------------------
-        ! (6) Electron-positron annihilation kernels
-        ! --------------------------------------------------------
+        !get ep-annihilation kernels for i.eq.3 only, if turned on
         if (include_epannihil_kernels) then
            epannihil_tempspectrum = 0.0d0
-           if (log10(xrho).ge.nulibtable_logrho_min) then
-              i = 3   ! only for nux
+           if (log10(xrho).lt.nulibtable_logrho_min) then
+              epannihil_tempspectrum = 0.0d0
+           else
+              if (log10(xtemp).lt.nulibtable_logItemp_min) stop "M1_update_eas: Itemp too low"
+              if (log10(xeta).lt.nulibtable_logIeta_min) then
+                 write(*,*) xrho,xtemp,xye,xeta
+                 stop "M1_update_eas: Ieta too low"
+              endif
+              if (log10(xtemp).gt.nulibtable_logItemp_max) stop "M1_update_eas: temp too high"
+              if (log10(xeta).gt.nulibtable_logIeta_max) then
+                 write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
+                 stop "M1_update_eas: Ieta too high"
+              endif
+                
+              !only do this for nux
+              i = 3
               call nulibtable_epannihil_single_species_range_energy2(xtemp,xeta,i, &
                    singlespecies_epannihil_tempspectrum,number_groups,number_groups,4)
-              epannihil_tempspectrum(k,i,:,:,:) = singlespecies_epannihil_tempspectrum(k,:,:,:)
-           endif
 
-           ! Store results
+              epannihil_tempspectrum(i,:,:,:) = singlespecies_epannihil_tempspectrum(:,:,:)
+
+           endif
+           
+           !set new ep annihilation variables
            do i=1,number_species
-              do j=1,number_groups
-                 do j_prime=1,number_groups
-                    epannihil(j_prime,j,k,i,:) = epannihil_tempspectrum(k,i,j,j_prime,:)
-                 enddo
+            do j=1,number_groups
+              do j_prime=1,number_groups
+                epannihil(j_prime,j,k,i,:) = epannihil_tempspectrum(i,j,j_prime,:)
               enddo
-           enddo
+            enddo
+          enddo
+          
         endif
 
      enddo
-     !$OMP END PARALLEL DO
+     !$OMP END PARALLEL DO! end do
 
-
-  ! ============================================================
-  ! OTHER TEST CASE HANDLING
-  ! ============================================================
   else if (M1_testcase_number.ge.2.and.M1_testcase_number.le.9) then
-     ! already handled elsewhere
+     !this is taken care of
   else
      stop "add in eas updating code for this test case"
   endif
-
- write(*,*) 'TIMES', t_bb, t_ass, t_eas, t_inel
 
 end subroutine M1_updateeas
