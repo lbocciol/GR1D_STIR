@@ -378,6 +378,7 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
   real*8 epsin0
   real*8 rfeps
 
+  !$OMP PARALLEL DO PRIVATE(i, keytemp, keyerr, eosdummy, epsin0, itc, rfeps, j)
   do i=ghosts1,n1-ghosts1+1
 
        keytemp = 0
@@ -530,5 +531,6 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
           endif
        endif
   enddo
+  !$OMP END PARALLEL DO
   
 end subroutine reconstruction_eos_call
