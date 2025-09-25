@@ -78,6 +78,9 @@ subroutine M1_implicitstep(dts,implicit_factor)
   integer :: myloc(1)
   real*8 :: maxRF
 
+  real*8 :: common_factor_E, common_factor_F, nulib_inv_E_prime, R_diff,&
+   local_dJdE_jprime, local_dJdF_jprime
+
   problem_fixing = .false.
   problem_zone = 0
   trouble_brewing = .false.
@@ -106,7 +109,9 @@ subroutine M1_implicitstep(dts,implicit_factor)
   !$OMP interface_distroj,xi,FL,dFLdx,calculate_enext,FR,dFRdx,inverse,det,old_RF, &
   !$OMP new_NL_jacobian,new_RF,old_jacobian,oldx,myloc,problem_fixing,problem_zone, &
   !$OMP maxRF,Sr,Stnalpha,Stnum,oneM1en,oneM1flux,oneeddy,Stzone,Srzone,sign_one,pivot, &
-  !$OMP info,trouble_brewing,changedtwice,species_factor,ispecies_factor) COLLAPSE(2)
+  !$OMP info,trouble_brewing,changedtwice,species_factor,ispecies_factor,&
+  !$OMP common_factor_E, common_factor_F, nulib_inv_E_prime, &
+  !$OMP local_dJdE_jprime, local_dJdF_jprime, R_diff) COLLAPSE(2)
   do i=1,number_species_to_evolve
      do k=ghosts1+1,M1_imaxradii
         
@@ -609,144 +614,128 @@ subroutine M1_implicitstep(dts,implicit_factor)
 
            !implicit scattering
            if (include_Ielectron_imp) then
-              do j=1,number_groups !\omega
-                 do j_prime=1,number_groups !\omega^\prime, integrate over this
+              ! --- Optimized and Corrected Loop Block ---
+              ! All constant factors are pre-calculated outside the main loop.
 
-                    !\nu^3 in units of E,F.  If f(or fprime)=1,
-                    !nucubed(or nucubedprime) = J(or Jprime). I do not
-                    !include the 4\pi on the \nu^3 seen in Shibata et
-                    !al. (2011) as my variables are /srad.  nucubed
-                    !has the \delta E for the bin width in it already,
-                    !so do the E and J, therefore we don't have to
-                    !worry about any bin widths, just add up the
-                    !individual contributions
+              common_factor_E = -species_factor * implicit_factor * dts * alp2 * pi4
+              common_factor_F = -species_factor * implicit_factor * dts * onealp * X2 * pi4
 
-                    !J should never be bigger than nu3, if it is we are
-                    !over populated, this happens in high velocity,
-                    !degenerate conditions.  It never gets too big.
+              ! Loop reordered for better data locality (Fortran is column-major).
+              ! This ensures that accesses to arrays like ies(j_prime,j,k,i,1) are contiguous in memory.
+              do j_prime=1,number_groups
+                ! Pre-calculate terms that depend only on the outer loop variable j_prime
+                nucubedprime = M1_moment_to_distro_inverse(j_prime)
+                nulib_inv_E_prime = nulibtable_inv_energies(j_prime)
+                local_dJdE_jprime = local_dJdE(j_prime)
+                local_dJdF_jprime = local_dJdF(j_prime)
 
-                    !multiply by 4pi because we just integrated over
-                    !incoming neutrino. We only integrated over energy, this
-                    !is integraing over solid angle (which is done kinda,
-                    !but still off by 4\pi)
+                do j=1,number_groups
+                    ! Pre-calculate terms that depend on both loop variables                    
+                    nucubed = M1_moment_to_distro_inverse(j)
+                    R0in = 0.5d0 * ies(j, j_prime, k, i, 1)
+                    R1in = 1.5d0 * ies(j, j_prime, k, i, 2)
+                    R0out = 0.5d0 * ies(j_prime, j, k, i, 1)
+                    R1out = 1.5d0 * ies(j_prime, j, k, i, 2)
+                    R_diff = R1in - R1out
 
-                    nucubed = M1_moment_to_distro_inverse(j) 
-                    nucubedprime = M1_moment_to_distro_inverse(j_prime)
-
-                    R0out = 0.5d0*ies(j_prime,j,k,i,1)
-                    R1out = 1.5d0*ies(j_prime,j,k,i,2)
                     if (R0out.lt.0.0d0) stop "R0out should not be less than 0"
-                    R0in = 0.5d0*ies(j,j_prime,k,i,1)
-                    R1in = 1.5d0*ies(j,j_prime,k,i,2)
                     
-                    !shibata eq. 4.14, alpha=t , evaluate, time by 4*pi*dt*alp^2 and move to LHS for RF
-                    ies_temp = -species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(1) - local_H(j,1))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,1)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_H(j_prime,:))*local_uup(1) + &
-                         sum(local_Ltilde(j,1,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_J(j)*local_uup(1)+local_H(j,1))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime)
+                    ! --- Expressions for alpha=t ---
+                    ies_temp = common_factor_E * ( &
+                        ((nucubed - local_J(j)) * local_uup(1) - local_H(j,1)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,1) * onethird * ((nucubed - local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_H(j_prime,:)) * local_uup(1) + sum(local_Ltilde(j,1,:)*&
+                        local_H(j_prime,:))) * R_diff - &
+                        (local_J(j)*local_uup(1)+local_H(j,1)) * (nucubedprime-local_J(j_prime)) * R0out) &
+                      * nulib_inv_E_prime
+
                     RF(j) = RF(j) + ies_temp
-
                     ies_sourceterms(j) = ies_sourceterms(j) - ies_temp
-
-                    !dStdE
-                    NL_jacobian(j,j) = NL_jacobian(j,j) - species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
-                         (-local_dJdE(j)*local_uup(1) - local_dHdE(j,1))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,1)*onethird*local_dJdE(j)*(R1out-R1in) - &
-                         (sum(local_Hdown(j_prime,:)*local_dHdE(j,:))*local_uup(1) + &
-                         sum(local_dLtildedE(j,1,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_dJdE(j)*local_uup(1)+local_dHdE(j,1))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime) 
-
-                    !dStdEprime
-                    NL_jacobian(j,j_prime) = NL_jacobian(j,j_prime) - &
-                         species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(1) - local_H(j,1))*R0in*local_dJdE(j_prime) + &
-                         local_dHdE(j_prime,1)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_dHdE(j_prime,:))*local_uup(1) + &
-                         sum(local_Ltilde(j,1,:)*local_dHdE(j_prime,:)))*(R1in-R1out) + &
-                         (local_J(j)*local_uup(1)+local_H(j,1))*local_dJdE(j_prime)*R0out)* &
-                         nulibtable_inv_energies(j_prime)
                     
-                    !dStdF
-                    NL_jacobian(j,j+number_groups) = NL_jacobian(j,j+number_groups) - &
-                         species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
-                         (-local_dJdF(j)*local_uup(1) - local_dHdF(j,1))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,1)*onethird*local_dJdF(j)*(R1out-R1in) - &
-                         (sum(local_Hdown(j_prime,:)*local_dHdF(j,:))*local_uup(1) + &
-                         sum(local_dLtildedF(j,1,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_dJdF(j)*local_uup(1)+local_dHdF(j,1))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime) 
+                    NL_jacobian(j,j) = NL_jacobian(j,j) - common_factor_E/(-1.0d0) * ( &
+                        (-local_dJdE(j) * local_uup(1) - local_dHdE(j,1)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,1) * onethird * local_dJdE(j) * (R1out-R1in) - &
+                        (sum(local_Hdown(j_prime,:)*local_dHdE(j,:)) * local_uup(1) + sum(local_dLtildedE(j,1,:)&
+                        *local_H(j_prime,:))) * R_diff - &
+                        (local_dJdE(j)*local_uup(1) + local_dHdE(j,1)) * (nucubedprime-local_J(j_prime)) * R0out) &
+                      * nulib_inv_E_prime
+                    
+                    NL_jacobian(j,j_prime) = NL_jacobian(j,j_prime) - common_factor_E/(-1.0d0) * ( &
+                        ((nucubed - local_J(j)) * local_uup(1) - local_H(j,1)) * R0in * local_dJdE_jprime + &
+                        local_dHdE(j_prime,1) * onethird * ((nucubed - local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_dHdE(j_prime,:)) * local_uup(1) + sum(local_Ltilde(j,1,:)&
+                        *local_dHdE(j_prime,:))) * R_diff + &
+                        (local_J(j)*local_uup(1)+local_H(j,1)) * local_dJdE_jprime * R0out) &
+                      * nulib_inv_E_prime
 
-                    !dStdFprime
-                    NL_jacobian(j,j_prime+number_groups) = NL_jacobian(j,j_prime+number_groups) - &
-                         species_factor*implicit_factor*dts*alp2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(1) - local_H(j,1))*R0in*local_dJdF(j_prime) + &
-                         local_dHdF(j_prime,1)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_dHdF(j_prime,:))*local_uup(1) + &
-                         sum(local_Ltilde(j,1,:)*local_dHdF(j_prime,:)))*(R1in-R1out) + &
-                         (local_J(j)*local_uup(1)+local_H(j,1))*local_dJdF(j_prime)*R0out)* &
-                         nulibtable_inv_energies(j_prime)
+                    NL_jacobian(j,j+number_groups) = NL_jacobian(j,j+number_groups) - common_factor_E/(-1.0d0) * ( &
+                        (-local_dJdF(j) * local_uup(1) - local_dHdF(j,1)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,1) * onethird * local_dJdF(j) * (R1out-R1in) - &
+                        (sum(local_Hdown(j_prime,:)*local_dHdF(j,:)) * local_uup(1) + sum(local_dLtildedF(j,1,:)&
+                        *local_H(j_prime,:))) * R_diff - &
+                        (local_dJdF(j)*local_uup(1) + local_dHdF(j,1)) * (nucubedprime-local_J(j_prime)) * R0out) &
+                      * nulib_inv_E_prime
+                    
+                    NL_jacobian(j,j_prime+number_groups) = NL_jacobian(j,j_prime+number_groups) - common_factor_E/(-1.0d0) * ( &
+                        ((nucubed - local_J(j)) * local_uup(1) - local_H(j,1)) * R0in * local_dJdF_jprime + &
+                        local_dHdF(j_prime,1) * onethird * ((nucubed - local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_dHdF(j_prime,:)) * local_uup(1) + sum(local_Ltilde(j,1,:)&
+                        *local_dHdF(j_prime,:))) * R_diff + &
+                        (local_J(j)*local_uup(1)+local_H(j,1)) * local_dJdF_jprime * R0out) &
+                      * nulib_inv_E_prime
 
-                    !shibata eq. 4.14, alpha=r , evaluate, time by 4*pi*dt*alp^2 and move to LHS for RF
-                    ies_temp = -species_factor*implicit_factor*dts*onealp*X2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(2) - local_H(j,2))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,2)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_H(j_prime,:))*local_uup(2) + &
-                         sum(local_Ltilde(j,2,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_J(j)*local_uup(2)+local_H(j,2))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime)
+                    ! --- Expressions for alpha=r ---
+                    ies_temp = common_factor_F * ( &
+                        ((nucubed - local_J(j)) * local_uup(2) - local_H(j,2)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,2) * onethird * ((nucubed - local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_H(j_prime,:)) * local_uup(2) + sum(local_Ltilde(j,2,:)&
+                        *local_H(j_prime,:))) * R_diff - &
+                        (local_J(j)*local_uup(2)+local_H(j,2))*(nucubedprime-local_J(j_prime))*R0out) &
+                      * nulib_inv_E_prime
 
                     RF(j+number_groups) = RF(j+number_groups) + ies_temp
                     ies_sourceterms(j+number_groups) = ies_sourceterms(j+number_groups) - ies_temp
-
-                    !dSrdE
-                    NL_jacobian(j+number_groups,j) = NL_jacobian(j+number_groups,j) - &
-                         species_factor*implicit_factor*dts*onealp*X2*4.0d0*pi*( &
-                         (-local_dJdE(j)*local_uup(2) - local_dHdE(j,2))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,2)*onethird*local_dJdE(j)*(R1out-R1in) - &
-                         (sum(local_Hdown(j_prime,:)*local_dHdE(j,:))*local_uup(2) + &
-                         sum(local_dLtildedE(j,2,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_dJdE(j)*local_uup(2)+local_dHdE(j,2))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime) 
                     
-                    !dSrdEprime
-                    NL_jacobian(j+number_groups,j_prime) = NL_jacobian(j+number_groups,j_prime) - &
-                         species_factor*implicit_factor*dts*onealp*X2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(2) - local_H(j,2))*R0in*local_dJdE(j_prime) + &
-                         local_dHdE(j_prime,2)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_dHdE(j_prime,:))*local_uup(2) + &
-                         sum(local_Ltilde(j,2,:)*local_dHdE(j_prime,:)))*(R1in-R1out) + &
-                         (local_J(j)*local_uup(2)+local_H(j,2))*local_dJdE(j_prime)*R0out)* &
-                         nulibtable_inv_energies(j_prime)                         
-
-                    !dSrdF     
-                    NL_jacobian(j+number_groups,j+number_groups) = &
-                         NL_jacobian(j+number_groups,j+number_groups) - &
-                         species_factor*implicit_factor*dts*onealp*X2*4.0d0*pi*( &
-                         (-local_dJdF(j)*local_uup(2) - local_dHdF(j,2))*R0in*local_J(j_prime) + &
-                         local_H(j_prime,2)*onethird*local_dJdF(j)*(R1out-R1in) - &
-                         (sum(local_Hdown(j_prime,:)*local_dHdF(j,:))*local_uup(2) + &
-                         sum(local_dLtildedF(j,2,:)*local_H(j_prime,:)))*(R1in-R1out) - &
-                         (local_dJdF(j)*local_uup(2)+local_dHdF(j,2))*(nucubedprime-local_J(j_prime))*R0out)* &
-                         nulibtable_inv_energies(j_prime) 
-
+                    NL_jacobian(j+number_groups,j) = NL_jacobian(j+number_groups,j) - common_factor_F/(-1.0d0) * ( &
+                        (-local_dJdE(j)*local_uup(2) - local_dHdE(j,2)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,2) * onethird * local_dJdE(j) * (R1out-R1in) - &
+                        (sum(local_Hdown(j_prime,:)*local_dHdE(j,:)) * local_uup(2) + sum(local_dLtildedE(j,2,:)&
+                        *local_H(j_prime,:))) * R_diff - &
+                        (local_dJdE(j)*local_uup(2)+local_dHdE(j,2)) * (nucubedprime-local_J(j_prime)) * R0out) &
+                      * nulib_inv_E_prime
                     
-                    !dSrdFprime
+                    NL_jacobian(j+number_groups,j_prime) = NL_jacobian(j+number_groups,j_prime) - common_factor_F/(-1.0d0) * ( &
+                        ((nucubed - local_J(j)) * local_uup(2) - local_H(j,2)) * R0in * local_dJdE_jprime + &
+                        local_dHdE(j_prime,2) * onethird * ((nucubed - local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_dHdE(j_prime,:)) * local_uup(2) + sum(local_Ltilde(j,2,:)&
+                        *local_dHdE(j_prime,:))) * R_diff + &
+                        (local_J(j)*local_uup(2)+local_H(j,2)) * local_dJdE_jprime * R0out) &
+                      * nulib_inv_E_prime
+                    
+                    NL_jacobian(j+number_groups,j+number_groups) = NL_jacobian(j+number_groups,j+number_groups) - &
+                    common_factor_F/(-1.0d0) * ( &
+                        (-local_dJdF(j) * local_uup(2) - local_dHdF(j,2)) * R0in * local_J(j_prime) + &
+                        local_H(j_prime,2) * onethird * local_dJdF(j) * (R1out-R1in) - &
+                        (sum(local_Hdown(j_prime,:)*local_dHdF(j,:)) * local_uup(2) + sum(local_dLtildedF(j,2,:)&
+                        *local_H(j_prime,:))) * R_diff - &
+                        (local_dJdF(j)*local_uup(2) + local_dHdF(j,2)) * (nucubedprime-local_J(j_prime)) * R0out) &
+                      * nulib_inv_E_prime
+                    
                     NL_jacobian(j+number_groups,j_prime+number_groups) = &
-                         NL_jacobian(j+number_groups,j_prime+number_groups) - &
-                         species_factor*implicit_factor*dts*onealp*X2*4.0d0*pi*( &
-                         ((nucubed-local_J(j))*local_uup(2) - local_H(j,2))*R0in*local_dJdF(j_prime) + &
-                         local_dHdF(j_prime,2)*onethird*((nucubed-local_J(j))*R1in + local_J(j)*R1out) - &
-                         (sum(local_Hdown(j,:)*local_dHdF(j_prime,:))*local_uup(2) + &
-                         sum(local_Ltilde(j,2,:)*local_dHdF(j_prime,:)))*(R1in-R1out) + &
-                         (local_J(j)*local_uup(2)+local_H(j,2))*local_dJdF(j_prime)*R0out)* &
-                         nulibtable_inv_energies(j_prime)                         
-                 enddo
-                 ies_sourceterm(j,k,i,1) = ies_sourceterms(j)/(implicit_factor*dts*alp2)
-                 ies_sourceterm(j,k,i,2) = ies_sourceterms(j+number_groups)/(implicit_factor*dts*X2)
+                        NL_jacobian(j+number_groups,j_prime+number_groups) - common_factor_F/(-1.0d0) * ( &
+                        ((nucubed-local_J(j)) * local_uup(2) - local_H(j,2)) * R0in * local_dJdF_jprime + &
+                        local_dHdF(j_prime,2) * onethird * ((nucubed-local_J(j)) * R1in + local_J(j)*R1out) - &
+                        (sum(local_Hdown(j,:)*local_dHdF(j_prime,:)) * local_uup(2) + sum(local_Ltilde(j,2,:)&
+                        *local_dHdF(j_prime,:))) * R_diff + &
+                        (local_J(j)*local_uup(2)+local_H(j,2)) * local_dJdF_jprime * R0out) &
+                      * nulib_inv_E_prime
+                enddo ! end j_prime loop
+              enddo ! end j loop
+
+              ! Final assignments (outside the loops)
+              do j=1,number_groups
+                  ies_sourceterm(j,k,i,1) = ies_sourceterms(j) / (implicit_factor * dts * alp2)
+                  ies_sourceterm(j,k,i,2) = ies_sourceterms(j+number_groups) / (implicit_factor * dts * X2)
               enddo
            endif
 
