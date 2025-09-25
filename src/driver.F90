@@ -246,6 +246,9 @@ subroutine PrintTimers
   print '(A,F10.4)', '  M1 (updateeas)       = ', timer_M1_eas
   print '(A,F10.4)', '  Hydro                = ', timer_hydro
   print '(A,F10.4)', '  con2prim             = ', timer_c2p
+  print '(A,F10.4)', '  con2GR               = ', timer_c2GR
+  print '(A,F10.4)', '  eos calls in RK      = ', timer_eos_hyd
+  print '(A,F10.4)', '  reconstruction       = ', timer_rec
   print *
   print '(A,F6.2)',  'Fraction M1            = ', frac_M1
   print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro

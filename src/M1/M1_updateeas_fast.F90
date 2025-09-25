@@ -30,10 +30,11 @@ subroutine M1_updateeas
 
   t1 = omp_get_wtime()
 
-  ! ============================================================
-  ! MAIN LOOP OVER RADIAL ZONES
-  ! ============================================================
-  if (M1_testcase_number.eq.0.or.M1_testcase_number.eq.1) then
+  CALL CatchOutsideTable()
+  CALL CalculateEAS()
+  CALL CalculateEta()
+  CALL CalculateEmissivity()
+
 
      !$OMP PARALLEL DO PRIVATE(xrho,xtemp,xye,tempspectrum,singlespecies_tempspectrum, &
      !$OMP keytemp,keyerr,eosdummy,xeta,inelastic_tempspectrum,singlespecies_inelastic_tempspectrum, &
@@ -231,3 +232,64 @@ subroutine M1_updateeas
  write(*,*) 'TIMES', t_bb, t_ass, t_eas, t_inel
 
 end subroutine M1_updateeas
+
+
+subroutine CalculateEAS()
+
+     do k=2, M1_imaxradii+ghosts1-1
+
+        ! --------------------------------------------------------
+        ! (1) Get density, temperature, electron fraction
+        ! --------------------------------------------------------
+        xrho  = rho(k)/rho_gf
+        xtemp = temp(k)
+        xye   = ye(k)
+
+        ! --------------------------------------------------------
+        ! (2) Interpolate EAS spectrum from nulibtable
+        ! --------------------------------------------------------
+        t1 = omp_get_wtime()
+        tempspectrum = 0.0d0
+        if (log10(xrho).lt.nulibtable_logrho_min) then
+           tempspectrum = 0.0d0
+        else
+           if (log10(xtemp).lt.nulibtable_logtemp_min) stop "M1_update_eas: temp too low"
+           if (xye.lt.nulibtable_ye_min) stop "M1_update_eas: ye too low"
+           if (log10(xtemp).gt.nulibtable_logtemp_max) stop "M1_update_eas: temp too high"
+           if (xye.gt.nulibtable_ye_max) stop "M1_update_eas: ye too high"
+
+           if (number_species_to_evolve.eq.1) then
+              call nulibtable_single_species_range_energy(xrho, xtemp, xye, 1, &
+                   singlespecies_tempspectrum, number_groups, number_eas)
+              tempspectrum(k,1,:,:) = singlespecies_tempspectrum(k,:,:)
+           else if (number_species_to_evolve.eq.3) then
+              call nulibtable_range_species_range_energy(xrho, xtemp, xye, tempspectrum, &
+                   number_species, number_groups, number_eas)
+           else
+              stop "set up eas interpolation for this number of species"
+           endif
+        endif
+        t2 = omp_get_wtime()
+        t_eas = t_eas + t2 - t1
+
+        ! Reset annihilation contributions if needed
+        if (include_epannihil_kernels) then
+           tempspectrum(k,3,:,2) = 0.0d0
+           tempspectrum(k,3,:,1) = 0.0d0
+        endif
+
+        ! --------------------------------------------------------
+        ! (3) Update EAS variables
+        ! --------------------------------------------------------
+        t1 = omp_get_wtime()
+        do i=1,number_species
+           do j=1,number_groups
+              eas(j,k,i,2) = tempspectrum(k,i,j,2)
+              eas(j,k,i,3) = tempspectrum(k,i,j,3)
+           enddo
+        enddo
+        t2 = omp_get_wtime()
+        t_ass = t_ass + t2 - t1
+  
+
+end subroutine CalculateEAS

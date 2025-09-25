@@ -103,7 +103,10 @@ subroutine Step(dts)
      coolingsource(:,:) = 0.0d0
      presssource(:,:) = 0.0d0
 
+     t1 = omp_get_wtime()
      call reconstruct 
+     t2 = omp_get_wtime()
+     timer_rec = timer_rec + (t2 - t1)
      call boundaries(0,0)
 
      if (activate_turbulence) then
@@ -282,10 +285,13 @@ subroutine Step(dts)
         endif
      enddo
 
+     t1 = omp_get_wtime()
      if (GR.and.gravity_active) then
         !find mgrav & X
         call con2GR
      endif
+     t2 = omp_get_wtime()
+     timer_c2GR = timer_c2GR + (t2 - t1)
      
      !reconstruct primatives
      t1 = omp_get_wtime()
@@ -293,6 +299,7 @@ subroutine Step(dts)
      t2 = omp_get_wtime()
      timer_c2p = timer_c2p + (t2 - t1)
 
+     t1 = omp_get_wtime()
      ! eos update, eps fixed, find temp,entropy,cs2 etc.
      do i=ghosts1+1,n1-ghosts1
         keyerr = 0
@@ -346,6 +353,8 @@ subroutine Step(dts)
            endif
         endif
      enddo
+     t2 = omp_get_wtime()
+     timer_eos_hyd = timer_eos_hyd + (t2 - t1)
      
      !GR gravity updates that rely on primitive variables
      if (GR.and.gravity_active) then
@@ -518,7 +527,6 @@ subroutine Step(dts)
        call prim2con
        call boundaries(0,0)
        if(GR) then
-          call con2GR
           call GR_alp
           call GR_boundaries
        endif

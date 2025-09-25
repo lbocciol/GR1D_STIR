@@ -167,6 +167,9 @@ module GR1D_module
 
   ! Add some useful timers
   real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_rec     = 0.0d0
+  real*8 :: timer_eos_hyd = 0.0d0
+  real*8 :: timer_c2GR    = 0.0d0
   real*8 :: timer_c2p     = 0.0d0
   real*8 :: timer_M1_exp  = 0.0d0
   real*8 :: timer_M1_imp  = 0.0d0

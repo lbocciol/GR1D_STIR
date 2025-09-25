@@ -199,9 +199,9 @@ subroutine nulibtable_range_species_range_energy(xrho,xtemp,xye,eas,eas_n1,eas_n
   if (xye.gt.nulibtable_ye_max) stop "ye above nulib table maximum ye"
 
   xeas = 0.0d0
-  call intp3d_many_mod(xlrho,xltemp,xye,xeas,nulibtable_emissivities,nulibtable_nrho, &
-       nulibtable_ntemp,nulibtable_nye,eas_n1*eas_n2,nulibtable_logrho, &
-       nulibtable_logtemp,nulibtable_ye)
+  call intp3d_many_mod(xlrho, xltemp, xye, xeas, nulibtable_emissivities, nulibtable_nrho, &
+       nulibtable_ntemp, nulibtable_nye, eas_n1*eas_n2, nulibtable_logrho, &
+       nulibtable_logtemp, nulibtable_ye)
 
   do ins=1,nulibtable_number_species
      do ing=1,nulibtable_number_groups

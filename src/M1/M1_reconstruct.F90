@@ -74,6 +74,7 @@ subroutine M1_reconstruct
            call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod')
            M1en_space_plus  = dummy_arrayp(:nM1)
            M1en_space_minus = dummy_arraym(:nM1)
+           
            dummy_array(:nM1) = M1flux_space
            call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod') 
            M1flux_space_plus  = dummy_arrayp(:nM1)
