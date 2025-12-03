@@ -44,14 +44,14 @@ subroutine M1_closure
 
   !constants to help that only depend on spatial zone
   if (GR) then
-    alp2(:) = alp(:nM1)*alp(:nM1)
-    onealp(:) = alp(:nM1)
-    invalp(:) = 1.0d0/alp(:nM1)
-    invalp2(:) = 1.0d0/alp2(:nM1)
-    X2(:) = X(:nM1)*X(:nM1)
-    oneX(:) = X(:nM1)
-    invX(:) = 1.0d0/X(:nM1)
-    invX2(:) = 1.0d0/X2(:nM1)
+    alp2(:) = alp(1:nM1)*alp(1:nM1)
+    onealp(:) = alp(1:nM1)
+    invalp(:) = 1.0d0/alp(1:nM1)
+    invalp2(:) = 1.0d0/alp2(1:nM1)
+    X2(:) = X(1:nM1)*X(1:nM1)
+    oneX(:) = X(1:nM1)
+    invX(:) = 1.0d0/X(1:nM1)
+    invX2(:) = 1.0d0/X2(1:nM1)
   else
     alp2(:) = 1.0d0
     onealp(:) = 1.0d0
@@ -65,16 +65,16 @@ subroutine M1_closure
 
   if (v_order.eq.-1) then
     if (GR) then
-        W2(:) = W(:nM1)**2
-        oneW(:) = W(:nM1)
-        v2(:) = v(:nM1)**2
-        onev(:) = v(:nM1)    
+        W2(:) = W(1:nM1)**2
+        oneW(:) = W(1:nM1)
+        v2(:) = v(1:nM1)**2
+        onev(:) = v(1:nM1)    
     else
         if (MAXVAL(v1).gt.0.5d0) stop "very relativistic and your are assume newtonian in tranport"
-        W2(:) = 1.0d0/(1.0d0-v1(:nM1)**2)
-        oneW(:) = sqrt(W2(:nM1))
-        v2(:) = v1(:nM1)**2
-        onev(:) = v1(:nM1)
+        W2(:) = 1.0d0/(1.0d0-v1(1:nM1)**2)
+        oneW(:) = sqrt(W2(1:nM1))
+        v2(:) = v1(1:nM1)**2
+        onev(:) = v1(1:nM1)
     endif
 
   else if (v_order.eq.0) then
@@ -97,10 +97,10 @@ subroutine M1_closure
   !$OMP PARALLEL DO PRIVATE(k,h,i,j,oneM1en,oneM1flux,oneM1eddy_guess, &
   !$OMP err,count,Tupmunu,localJ,Hup,Kup,ii,jj,H2,ff2,ff3,ff4,chi,Kthin,Kthick,oldprrguess, &
   !$OMP Lthin,Lthick,Luprrr,Ldownfupfr,Wuprrr,Wdownfupfr) COLLAPSE(4)
-  do i = 1, number_species_to_evolve
-     do k = ghosts1+1, M1_imaxradii
-        do h = 1, 3
-           do j = 1, number_groups
+  do h = 1, 3
+    do i = 1, number_species_to_evolve
+       do k = ghosts1+1, M1_imaxradii
+          do j = 1, number_groups
 
               if (h.eq.1) then !minus state
                  oneM1en = q_M1m(j,k,i,1,1)/q_M1m(j,k,i,1,1)

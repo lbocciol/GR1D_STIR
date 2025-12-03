@@ -20,10 +20,10 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: l_min_thick(2),l_max_thick(2) 
   real*8 :: l_min(3),l_max(3)
   real*8 :: p,discrim,sqrtdiscrim
-  real*8 :: M1flux_interface(number_groups,nM1,number_species,2), M1flux_diff(M1_imaxradii,2)
-  real*8 :: rm,rp,dx
+  real*8 :: M1flux_interface(number_groups,nM1,number_species,2)
 
   !local, energy
+  real*8 :: M1flux_diff(2)
   real*8 :: div_v(nM1),dvdt(nM1)
   real*8 :: h,dmdr,dmdt,dXdr,dXdt,Kdownrr,dWdt,dWdr,dWvuprdt,dWvuprdr
   real*8 :: Z(6),Yupr(6),Xuprr(6),Xupff(6),heatterm_NL(6),heattermff_NL(6)
@@ -37,6 +37,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
   real*8 :: M1flux_energy_interface(number_groups,2)
   real*8 :: em,ep,de,enext
   real*8 :: M1flux_diff_energy(number_groups,2)
+  real*8 :: rm,rp,dx
 
   real*8 :: a_asym,kappa_inter,ipeclet_mean
   real*8 :: Jkplus1,Jk,diffusive_flux,advected_energy
@@ -416,26 +417,26 @@ subroutine M1_explicitterms(dts,implicit_factor)
            dx = (rp-rm)
 
            if (GR) then
-              M1flux_diff(k,1) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+              M1flux_diff(1) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
                    alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
-              M1flux_diff(k,2) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+              M1flux_diff(2) = (alpp(k)/Xp(k)**2*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
                    alpm(k)/Xm(k)**2*x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
            else
               if (do_effectivepotential) then
-                 M1flux_diff(k,1) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+                 M1flux_diff(1) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
                       alpm(k)*x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
-                 M1flux_diff(k,2) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+                 M1flux_diff(2) = (alpp(k)*x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
                       alpm(k)*x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
               else
-                 M1flux_diff(k,1) = (x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
+                 M1flux_diff(1) = (x1i(k+1)**2*M1flux_interface(j,k,i,1)- &
                       x1i(k)**2*M1flux_interface(j,k-1,i,1))/(dx*x1(k)**2)
-                 M1flux_diff(k,2) = (x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
+                 M1flux_diff(2) = (x1i(k+1)**2*M1flux_interface(j,k,i,2)- &
                       x1i(k)**2*M1flux_interface(j,k-1,i,2))/(dx*x1(k)**2)
               endif
            endif
 
-           flux_M1(j,k,i,1) = dts*implicit_factor*M1flux_diff(k,1)
-           flux_M1(j,k,i,2) = dts*implicit_factor*M1flux_diff(k,2)
+           flux_M1(j,k,i,1) = dts*implicit_factor*M1flux_diff(1)
+           flux_M1(j,k,i,2) = dts*implicit_factor*M1flux_diff(2)
 
         enddo
      enddo

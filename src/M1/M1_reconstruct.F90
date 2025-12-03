@@ -40,28 +40,28 @@ subroutine M1_reconstruct
         if (M1_testcase_number.eq.3) then
            do k=1,ghosts1
               M1en_space(ghosts1+1-k) = M1_testcase_travelling_pulse(x1(ghosts1+1-k),time*time_gf,0)
-              q_M1(ghosts1+1-j,k,i,1) = M1en_space(ghosts1+1-k)
+              q_M1(j,ghosts1+1-k,i,1) = M1en_space(ghosts1+1-k)
               M1flux_space(ghosts1+1-k) = M1_testcase_travelling_pulse(x1(ghosts1+1-k),time*time_gf,1)
-              q_M1(ghosts1+1-j,k,i,2) = M1flux_space(ghosts1+1-k)
+              q_M1(j,ghosts1+1-k,i,2) = M1flux_space(ghosts1+1-k)
               M1en_space(M1_imaxradii+k) = M1_testcase_travelling_pulse(x1(M1_imaxradii+k),time*time_gf,0)
-              q_M1(M1_imaxradii+j,k,i,1) = M1en_space(M1_imaxradii+k)
+              q_M1(j,M1_imaxradii+k,i,1) = M1en_space(M1_imaxradii+k)
               M1flux_space(M1_imaxradii+k) = M1_testcase_travelling_pulse(x1(M1_imaxradii+k),time*time_gf,1)
-              q_M1(M1_imaxradii+j,k,i,2) = M1flux_space(M1_imaxradii+k)
+              q_M1(j,M1_imaxradii+k,i,2) = M1flux_space(M1_imaxradii+k)
            enddo
         else if (M1_testcase_number.eq.8.or.M1_testcase_number.eq.9) then
            do k=1,ghosts1
               M1en_space(ghosts1+1-k) = M1_testcase_diffusion_wave(x1(ghosts1+1-k),time*time_gf, &
-                   eas(ghosts1+1-j,k,i,2),0,M1_testcase_number)
-              q_M1(ghosts1+1-j,k,i,1) = M1en_space(ghosts1+1-k)
+                   eas(j,ghosts1+1-k,i,2),0,M1_testcase_number)
+              q_M1(j,ghosts1+1-k,i,1) = M1en_space(ghosts1+1-k)
               M1flux_space(ghosts1+1-k) = M1_testcase_diffusion_wave(x1(ghosts1+1-k),time*time_gf, &
-                   eas(ghosts1+1-j,k,i,2),1,M1_testcase_number)
-              q_M1(ghosts1+1-j,k,i,2) = M1flux_space(ghosts1+1-k)
+                   eas(j,ghosts1+1-k,i,2),1,M1_testcase_number)
+              q_M1(j,ghosts1+1-k,i,2) = M1flux_space(ghosts1+1-k)
               M1en_space(M1_imaxradii+k) = M1_testcase_diffusion_wave(x1(M1_imaxradii+k),time*time_gf, &
-                   eas(M1_imaxradii+j,k,i,2),0,M1_testcase_number)
-              q_M1(M1_imaxradii+j,k,i,1) = M1en_space(M1_imaxradii+k)
+                   eas(j,M1_imaxradii+k,i,2),0,M1_testcase_number)
+              q_M1(j,M1_imaxradii+k,i,1) = M1en_space(M1_imaxradii+k)
               M1flux_space(M1_imaxradii+k) = M1_testcase_diffusion_wave(x1(M1_imaxradii+k),time*time_gf, &
-                   eas(M1_imaxradii+j,k,i,2),1,M1_testcase_number)
-              q_M1(M1_imaxradii+j,k,i,1) = M1flux_space(M1_imaxradii+k)
+                   eas(j,M1_imaxradii+k,i,2),1,M1_testcase_number)
+              q_M1(j,M1_imaxradii+k,i,1) = M1flux_space(M1_imaxradii+k)
            enddo
         endif
 
@@ -70,27 +70,27 @@ subroutine M1_reconstruct
 
         !reconstruct
         if (M1_reconstruction_method.eq.'tvd') then
-           dummy_array(:nM1) = M1en_space
+           dummy_array(1:nM1) = M1en_space
            call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod')
-           M1en_space_plus  = dummy_arrayp(:nM1)
-           M1en_space_minus = dummy_arraym(:nM1)
+           M1en_space_plus  = dummy_arrayp(1:nM1)
+           M1en_space_minus = dummy_arraym(1:nM1)
            
-           dummy_array(:nM1) = M1flux_space
+           dummy_array(1:nM1) = M1flux_space
            call tvd_reconstruction(n1,ghosts1,dummy_array,dummy_arrayp,dummy_arraym,'minmod') 
-           M1flux_space_plus  = dummy_arrayp(:nM1)
-           M1flux_space_minus = dummy_arraym(:nM1)
+           M1flux_space_plus  = dummy_arrayp(1:nM1)
+           M1flux_space_minus = dummy_arraym(1:nM1)
         else if (M1_reconstruction_method.eq.'ppm') then
-           dummy_array(:nM1) = M1en_space
+           dummy_array(1:nM1) = M1en_space
            call ppm_interpolate(dummy_array,dummy_arrayp,dummy_arraym)
            call ppm_monotonize(dummy_array,dummy_arrayp,dummy_arraym)
-           M1en_space_plus  = dummy_arrayp(:nM1)
-           M1en_space_minus = dummy_arraym(:nM1)
+           M1en_space_plus  = dummy_arrayp(1:nM1)
+           M1en_space_minus = dummy_arraym(1:nM1)
 
-           dummy_array(:nM1) = M1flux_space
+           dummy_array(1:nM1) = M1flux_space
            call ppm_interpolate(dummy_array,dummy_arrayp,dummy_arraym)
            call ppm_monotonize(dummy_array,dummy_arrayp,dummy_arraym)  
-           M1flux_space_plus  = dummy_arrayp(:nM1)
-           M1flux_space_minus = dummy_arraym(:nM1)     
+           M1flux_space_plus  = dummy_arrayp(1:nM1)
+           M1flux_space_minus = dummy_arraym(1:nM1)     
         else
            stop "Implement this reconstruction method in M1"
         endif
@@ -133,21 +133,21 @@ subroutine M1_reconstruct
         else if (M1_testcase_number.eq.8.or.M1_testcase_number.eq.9) then
            do k=1,ghosts1
               M1en_space_plus(ghosts1+1-k) = M1_testcase_diffusion_wave(x1i(ghosts1+1-k+1), &
-                   time*time_gf,eas(ghosts1+1-k+1,i,j,2),0,M1_testcase_number)
+                   time*time_gf,eas(j,ghosts1+1-k+1,i,2),0,M1_testcase_number)
               M1flux_space_plus(ghosts1+1-k) = M1_testcase_diffusion_wave(x1i(ghosts1+1-k+1), &
-                   time*time_gf,eas(ghosts1+1-k+1,i,j,2),1,M1_testcase_number)
+                   time*time_gf,eas(j,ghosts1+1-k+1,i,2),1,M1_testcase_number)
               M1en_space_minus(ghosts1+1-k) = M1_testcase_diffusion_wave(x1i(ghosts1+1-k), &
-                   time*time_gf,eas(ghosts1+1-j,k,i,2),0,M1_testcase_number)
+                   time*time_gf,eas(j,ghosts1+1-k,i,2),0,M1_testcase_number)
               M1flux_space_minus(ghosts1+1-k) = M1_testcase_diffusion_wave(x1i(ghosts1+1-k), &
-                   time*time_gf,eas(ghosts1+1-j,k,i,2),1,M1_testcase_number)
+                   time*time_gf,eas(j,ghosts1+1-k,i,2),1,M1_testcase_number)
               M1en_space_plus(M1_imaxradii+k-1) = M1_testcase_diffusion_wave(x1i(M1_imaxradii+k), &
-                   time*time_gf,eas(M1_imaxradii+j,k,i,2),0,M1_testcase_number)
+                   time*time_gf,eas(j,M1_imaxradii+k,i,2),0,M1_testcase_number)
               M1flux_space_plus(M1_imaxradii+k-1) = M1_testcase_diffusion_wave(x1i(M1_imaxradii+k), &
-                   time*time_gf,eas(M1_imaxradii+j,k,i,2),1,M1_testcase_number)
+                   time*time_gf,eas(j,M1_imaxradii+k,i,2),1,M1_testcase_number)
               M1en_space_minus(M1_imaxradii+k) = M1_testcase_diffusion_wave(x1i(M1_imaxradii+k), &
-                   time*time_gf,eas(M1_imaxradii+j,k,i,2),0,M1_testcase_number)
+                   time*time_gf,eas(j,M1_imaxradii+k,i,2),0,M1_testcase_number)
               M1flux_space_minus(M1_imaxradii+k) = M1_testcase_diffusion_wave(x1i(M1_imaxradii+k), &
-                   time*time_gf,eas(M1_imaxradii+j,k,i,2),1,M1_testcase_number)
+                   time*time_gf,eas(j,M1_imaxradii+k,i,2),1,M1_testcase_number)
            enddo
         endif
 
