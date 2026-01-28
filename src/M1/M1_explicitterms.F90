@@ -105,7 +105,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
   !$OMP k,oneWm,oneWp,kappa_inter,ipeclet_mean,a_asym,l_min_thin,l_max_thin, &
   !$OMP p,discrim,sqrtdiscrim,l_min_thick,l_max_thick,l_min,l_max,Jkplus1,Jk,diffusive_flux, &
   !$OMP advected_energy,M1flux_interface,limitingflux,rm,rp,dx,M1flux_diff, &
-  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp)
+  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp) COLLAPSE(2)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 
@@ -774,7 +774,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
      !$OMP invX,invX2,X2,oneX,W2,oneW,v2,onev,invr,invr2,local_u,local_uup, &
      !$OMP local_littleh,local_littlehupup,local_Hdown,local_Ltilde,JoverE, &
      !$OMP JoverF,HoverE,HoverF,LoverE,LoverF,j,j_prime,nucubed,nucubedprime, &
-     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor)
+     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor) COLLAPSE(2)
      do k=ghosts1+1,M1_imaxradii
         do i=1,number_species_to_evolve
 

@@ -81,21 +81,22 @@ subroutine con2prim_1
            v(i) = 0.0d0
            rho(i) = 0.0d0
            eps(i) = 0.0d0
-	   press(i) = 0.0d0
+           press(i) = 0.0d0
         else
            ! atmosphere handling:
            if(rho(i).eq.atmo_rho) then
               q(i,1) = rho(i)
               q(i,2) = 0.0d0
               q(i,3) = rho(i)*eps(i)
+              q(i,6) = 0.0d0
               W(i) = 1.0d0
            endif
- 	   if (q(i,2).eq.0.0d0) then
+           if (q(i,2).eq.0.0d0) then
               v1(i) = 0.0d0
               v(i) = 0.0d0
               W(i) = 1.0d0
               rho(i) = q(i,1)/X(i)
-              eps(i) = (q(i,3)+q(i,1)-q(i,1)/X(i))/rho(i)
+              eps(i) = (q(i,3)-q(i,6)+q(i,1)-q(i,1)/X(i))/rho(i)
               if (eps(i).lt.1.d-10) then
                  write(*,*) 'Help 1!!',i,eps(i),q(i,3),q(i,1),rho(i)/rho_gf,X(i)
                  eps(i)=1.d-10
@@ -111,7 +112,7 @@ subroutine con2prim_1
                  it = it + 1
                  op(i) = press(i)
                  !here vv is romero's v not v^r
-                 vv = q(i,2)/(q(i,3)+q(i,1)+op(i))
+                 vv = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+op(i))
                  if (vv.gt.1.0d0.or.vv.lt.-1.0d0) then
                     write(6,*) "We have a problem finding v:" 
                     write(6,*) "Timestep: ", nt
@@ -127,7 +128,7 @@ subroutine con2prim_1
                  endif
                  ww = 1.0d0/sqrt(discrim)
                  rrho = q(i,1)/X(i)/ww
-                 eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
+                 eeps = (q(i,3)-q(i,6)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
 
                  keytemp = 0
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
@@ -149,17 +150,18 @@ subroutine con2prim_1
                  if(rho(i).eq.atmo_rho) then
                     q(i,1) = rho(i)
                     q(i,2) = 0.0d0
+                    q(i,6) = 0.0d0
                     q(i,3) = rho(i)*eps(i)
                  endif
                  
                  fp = pp - op(i)
-                 temp1 = (q(i,3)+q(i,1)+op(i))**2 - q(i,2)**2
+                 temp1 = (q(i,3)-q(i,6)+q(i,1)+op(i))**2 - q(i,2)**2
                  if (temp1.lt.0.0d0) then
                     write(*,*) "temp less then zero"
                     stop
                  endif
-                 drhodpress = q(i,1)*q(i,2)**2/(sqrt(temp1)*(q(i,3)+q(i,1)+op(i))**2)
-                 dedpress = op(i)*q(i,2)**2/(rrho*(q(i,1)+q(i,3)+op(i))*temp1)
+                 drhodpress = q(i,1)*q(i,2)**2/(sqrt(temp1)*(q(i,3)-q(i,6)+q(i,1)+op(i))**2)
+                 dedpress = op(i)*q(i,2)**2/(rrho*(q(i,1)+q(i,3)-q(i,6)+op(i))*temp1)
 
                  dfdp = dpdrh*drhodpress+dpde*dedpress-1.0d0
 
@@ -192,7 +194,7 @@ subroutine con2prim_1
                  endif
               endif
               err = 1.0d0  
-              v(i) = q(i,2)/(q(i,3)+q(i,1)+press(i))
+              v(i) = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+press(i))
               v1(i) = v(i)/X(i)
               if (v1(i).ne.v1(i)) then
                  write(*,*) nt,i,it, q(i,2), q(i,3), q(i,1), press(i), X(i), rho(i), eps(i)
@@ -204,7 +206,7 @@ subroutine con2prim_1
               endif
               W(i) = 1.0d0/sqrt(discrim)
               rho(i) = q(i,1)/X(i)/W(i)
-              eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
+              eps(i) = (q(i,3)-q(i,6)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
 	   endif
         endif
      enddo
@@ -236,6 +238,7 @@ subroutine con2prim_1
               q(i,2) = 0.0d0
               q(i,3) = rho(i)*eps(i)
               q(i,5) = 0.0d0
+              q(i,6) = 0.0d0
               W(i) = 1.0d0
            endif
            ! special case in which both radial and
@@ -245,7 +248,7 @@ subroutine con2prim_1
               v(i) = 0.0d0
               vphi(i) = 0.0d0
               rho(i) = q(i,1)/X(i)
-              eps(i) = (q(i,3)+q(i,1)-q(i,1)/X(i))/rho(i)
+              eps(i) = (q(i,3)-q(i,6)+q(i,1)-q(i,1)/X(i))/rho(i)
               W(i) = 1.0d0
               if (eps(i).lt.1.d-10) then
                  eps(i)=1.d-10
@@ -263,14 +266,14 @@ subroutine con2prim_1
                  it = it + 1
                  op(i) = press(i)
                  !here vv is romero's v not v^r
-                 vv = q(i,2)/(q(i,3)+q(i,1)+op(i))
+                 vv = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+op(i))
                  !here vpv is the physical phi velocity
-                 vpv = q(i,5)/(q(i,3)+q(i,1)+op(i))/x1(i)
+                 vpv = q(i,5)/(q(i,3)-q(i,6)+q(i,1)+op(i))/x1(i)
                  if (vv.gt.1.0d0.or.vv.lt.-1.0d0) then
                     write(6,*) "We have a problem finding v:" 
                     write(6,*) "Timestep: ", nt
                     write(6,"(2i6,1P10E15.6)") it,i,rrho/rho_gf,rho(i)/rho_gf,eeps/eps_gf,ww
-                    write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3)+q(i,1)+op(i)),vv,q(i,3), q(i,1), op(i)
+                    write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3)-q(i,6)+q(i,1)+op(i)),vv,q(i,3), q(i,1), op(i)
                     call flush(6)
                     stop "con2prim problem"
                  endif
@@ -278,7 +281,7 @@ subroutine con2prim_1
                     write(6,*) "We have a problem finding vphi:" 
                     write(6,*) "Timestep: ", nt
                     write(6,"(2i6,1P10E15.6)") it,i,rrho/rho_gf,rho(i)/rho_gf,eeps/eps_gf,ww
-                    write(6,"(2i6,1P10E15.6)") it,i,q(i,5), (q(i,3)+q(i,1)+op(i)),vpv,& 
+                    write(6,"(2i6,1P10E15.6)") it,i,q(i,5), (q(i,3)-q(i,6)+q(i,1)+op(i)),vpv,& 
                          q(i,3),q(i,1), op(i)
                     call flush(6)
                     stop "con2prim problem with vphi"
@@ -290,7 +293,7 @@ subroutine con2prim_1
                  endif
                  ww = 1.0d0/sqrt(discrim)
                  rrho = q(i,1)/X(i)/ww
-                 eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
+                 eeps = (q(i,3)-q(i,6)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
                  keytemp = 0
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
                       eosdummy,eosdummy,eosdummy,eosdummy,&
@@ -313,18 +316,19 @@ subroutine con2prim_1
                     q(i,2) = 0.0d0
                     q(i,3) = rho(i)*eps(i)
                     q(i,5) = 0.0d0
+                    q(i,6) = 0.0d0
                  endif
                  
                  fp = pp - op(i)
-                 temp1 = (q(i,3)+q(i,1)+op(i))**2 - ( q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2 )
+                 temp1 = (q(i,3)-q(i,6)+q(i,1)+op(i))**2 - ( q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2 )
                  if (temp1.lt.0.0d0) then
                     write(*,*) "temp less then zero"
                     stop
                  endif
                  drhodpress = q(i,1)*(q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2) / &
-                      (sqrt(temp1)*(q(i,3)+q(i,1)+op(i))**2)
+                      (sqrt(temp1)*(q(i,3)-q(i,6)+q(i,1)+op(i))**2)
                  dedpress = op(i)*(q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2) / &
-                      (rrho*(q(i,1)+q(i,3)+op(i))*temp1)
+                      (rrho*(q(i,1)+q(i,3)-q(i,6)+op(i))*temp1)
 
                  dfdp = dpdrh*drhodpress+dpde*dedpress-1.0d0
 
@@ -357,9 +361,9 @@ subroutine con2prim_1
                  endif
               endif
               err = 1.0d0  
-              v(i) = q(i,2)/(q(i,3)+q(i,1)+press(i))
+              v(i) = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+press(i))
               v1(i) = v(i)/X(i)
-              vphi(i) = q(i,5)/(q(i,3)+q(i,1)+press(i))/x1(i)
+              vphi(i) = q(i,5)/(q(i,3)-q(i,6)+q(i,1)+press(i))/x1(i)
               if (v1(i).ne.v1(i)) then
                  write(*,*) nt,i,it, q(i,2), q(i,3), q(i,1), press(i), X(i), rho(i), eps(i)
                  stop "con2prim: NaN in V1"
@@ -374,16 +378,16 @@ subroutine con2prim_1
               endif
               W(i) = 1.0d0/sqrt(discrim)
               rho(i) = q(i,1)/X(i)/W(i)
-              eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
+              eps(i) = (q(i,3)-q(i,6)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
 
 	   endif
          endif
       enddo
    else   
       rho(iminb:imaxb) = q(iminb:imaxb,1) 
-      v1(iminb:imaxb)  =  q(iminb:imaxb,2) / q(iminb:imaxb,1)
+      v1(iminb:imaxb)  = q(iminb:imaxb,2) / q(iminb:imaxb,1)
       eps(iminb:imaxb) = q(iminb:imaxb,3)/rho(iminb:imaxb) & 
-           - 0.5d0*(v1(iminb:imaxb)**2)
+           - 0.5d0*(v1(iminb:imaxb)**2) - q(iminb:imaxb,6)/rho(iminb:imaxb)
       eps_kin(:) = 0.5d0 * v1(:)**2
       if(do_rotation) then
          vphi1(iminb:imaxb) = q(iminb:imaxb,5)/q(iminb:imaxb,1)/x1(iminb:imaxb)
@@ -469,13 +473,13 @@ subroutine con2prim_pt(tol,i,success)
         it = it + 1
         op(i) = press(i)
         !here vv is romero's v not v^r
-        vv = q(i,2)/(q(i,3)+q(i,1)+op(i))
+        vv = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+op(i))
         if (vv.gt.1.0d0.or.vv.lt.-1.0d0) then
            write(6,*) "We have a problem finding v:" 
            write(6,*) "Timestep: ", nt
            write(6,"(2i6,1P10E15.6)") it,i,rrho/rho_gf, &
                 rho(i)/rho_gf,eeps/eps_gf,ww
-           write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3) + &
+           write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3)-q(i,6) + &
                 q(i,1)+op(i)),vv,q(i,3), q(i,1), op(i)
            call flush(6)
            stop "con2prim problem"
@@ -487,7 +491,7 @@ subroutine con2prim_pt(tol,i,success)
         endif
         ww = 1.0d0/sqrt(discrim)
         rrho = q(i,1)/X(i)/ww
-        eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
+        eeps = (q(i,3)-q(i,6)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
         
         keytemp = 0
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
@@ -510,16 +514,17 @@ subroutine con2prim_pt(tol,i,success)
            q(i,1) = rho(i)
            q(i,2) = 0.0d0
            q(i,3) = rho(i)*eps(i)
+           q(i,6) = 0.0d0
         endif
         
         fp = pp - op(i)
-        temp1 = (q(i,3)+q(i,1)+op(i))**2 - q(i,2)**2
+        temp1 = (q(i,3)-q(i,6)+q(i,1)+op(i))**2 - q(i,2)**2
         if (temp1.lt.0.0d0) then
            write(*,*) "temp less then zero"
            stop
         endif
-        drhodpress = q(i,1)*q(i,2)**2/(sqrt(temp1)*(q(i,3)+q(i,1)+op(i))**2)
-        dedpress = op(i)*q(i,2)**2/(rrho*(q(i,1)+q(i,3)+op(i))*temp1)
+        drhodpress = q(i,1)*q(i,2)**2/(sqrt(temp1)*(q(i,3)-q(i,6)+q(i,1)+op(i))**2)
+        dedpress = op(i)*q(i,2)**2/(rrho*(q(i,1)+q(i,3)-q(i,6)+op(i))*temp1)
         
         dfdp = dpdrh*drhodpress+dpde*dedpress-1.0d0
         if (dfdp.ne.0.0d0) then
@@ -535,7 +540,7 @@ subroutine con2prim_pt(tol,i,success)
      endif
      success = 1
      err = 1.0d0  
-     v(i) = q(i,2)/(q(i,3)+q(i,1)+press(i))
+     v(i) = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+press(i))
      v1(i) = v(i)/X(i)
      if (v1(i).ne.v1(i)) then
         write(*,*) i,it, q(i,2), q(i,3), q(i,1), press(i), X(i),eps(i),rho(i)
@@ -547,7 +552,7 @@ subroutine con2prim_pt(tol,i,success)
      endif
      W(i) = 1.0d0/sqrt(discrim)
      rho(i) = q(i,1)/X(i)/W(i)
-     eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
+     eps(i) = (q(i,3)-q(i,6)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
 
   else
      stop "Shouldn't be here in con2prim_pt"
@@ -596,14 +601,14 @@ subroutine con2prim_pt_rot(tol,i,success)
         it = it + 1
         op(i) = press(i)
         !here vv is romero's v not v^r
-        vv = q(i,2)/(q(i,3)+q(i,1)+op(i))
+        vv = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+op(i))
         !here vpv is the physical phi velocity
-        vpv = q(i,5)/(q(i,3)+q(i,1)+op(i))/x1(i)
+        vpv = q(i,5)/(q(i,3)-q(i,6)+q(i,1)+op(i))/x1(i)
         if (vv.gt.1.0d0.or.vv.lt.-1.0d0) then
            write(6,*) "We have a problem finding v:" 
            write(6,*) "Timestep: ", nt
            write(6,"(2i6,1P10E15.6)") it,i,rrho/rho_gf,rho(i)/rho_gf,eeps/eps_gf,ww
-           write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3)+q(i,1)+op(i)),vv,q(i,3), q(i,1), op(i)
+           write(6,"(2i6,1P10E15.6)") it,i,q(i,2), (q(i,3)-q(i,6)+q(i,1)+op(i)),vv,q(i,3), q(i,1), op(i)
            call flush(6)
            stop "con2prim problem"
         endif
@@ -611,7 +616,7 @@ subroutine con2prim_pt_rot(tol,i,success)
            write(6,*) "We have a problem finding vphi:" 
            write(6,*) "Timestep: ", nt
            write(6,"(2i6,1P10E15.6)") it,i,rrho/rho_gf,rho(i)/rho_gf,eeps/eps_gf,ww
-           write(6,"(2i6,1P10E15.6)") it,i,q(i,5), (q(i,3)+q(i,1)+op(i)),vpv,& 
+           write(6,"(2i6,1P10E15.6)") it,i,q(i,5), (q(i,3)-q(i,6)+q(i,1)+op(i)),vpv,& 
                 q(i,3),q(i,1), op(i)
            call flush(6)
            stop "con2prim problem with vphi"
@@ -623,7 +628,7 @@ subroutine con2prim_pt_rot(tol,i,success)
         endif
         ww = 1.0d0/sqrt(discrim)
         rrho = q(i,1)/X(i)/ww
-        eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
+        eeps = (q(i,3)-q(i,6)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
         keytemp = 0
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
              eosdummy,eosdummy,eosdummy,eosdummy,&
@@ -642,15 +647,15 @@ subroutine con2prim_pt_rot(tol,i,success)
         endif
         
         fp = pp - op(i)
-        temp1 = (q(i,3)+q(i,1)+op(i))**2 - ( q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2 )
+        temp1 = (q(i,3)-q(i,6)+q(i,1)+op(i))**2 - ( q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2 )
         if (temp1.lt.0.0d0) then
            write(*,*) "temp less then zero"
            stop
         endif
         drhodpress = q(i,1)*(q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2) / &
-             (sqrt(temp1)*(q(i,3)+q(i,1)+op(i))**2)
+             (sqrt(temp1)*(q(i,3)-q(i,6)+q(i,1)+op(i))**2)
         dedpress = op(i)*(q(i,2)**2 + twothirds*(q(i,5)/x1(i))**2) / &
-             (rrho*(q(i,1)+q(i,3)+op(i))*temp1)
+             (rrho*(q(i,1)+q(i,3)-q(i,6)+op(i))*temp1)
         
         dfdp = dpdrh*drhodpress+dpde*dedpress-1.0d0
         
@@ -666,9 +671,9 @@ subroutine con2prim_pt_rot(tol,i,success)
         return
      endif
      err = 1.0d0  
-     v(i) = q(i,2)/(q(i,3)+q(i,1)+press(i))
+     v(i) = q(i,2)/(q(i,3)-q(i,6)+q(i,1)+press(i))
      v1(i) = v(i)/X(i)
-     vphi(i) = q(i,5)/(q(i,3)+q(i,1)+press(i))/x1(i)
+     vphi(i) = q(i,5)/(q(i,3)-q(i,6)+q(i,1)+press(i))/x1(i)
      if (v1(i).ne.v1(i)) then
         write(*,*) nt,i,it, q(i,2), q(i,3), q(i,1), press(i), X(i), rho(i), eps(i)
         stop "con2prim: NaN in V1"
@@ -683,7 +688,7 @@ subroutine con2prim_pt_rot(tol,i,success)
      endif
      W(i) = 1.0d0/sqrt(discrim)
      rho(i) = q(i,1)/X(i)/W(i)
-     eps(i) = (q(i,3)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
+     eps(i) = (q(i,3)-q(i,6)+q(i,1)+press(i)*(1.0d0-W(i)**2))/(rho(i)*W(i)**2)-1.0d0
 
   else
      stop "Shouldn't be here in con2prim_pt_rot"

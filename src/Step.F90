@@ -167,13 +167,14 @@ subroutine Step(dts)
         if(activate_turbulence) then
            do i=ghosts1,n1-1
               ! add source of turbulent energy to eps
+              q_hat(i,2) = q_hat(i,2) + dts * turb_source(i,2)
               q_hat(i,3) = q_hat(i,3) + dts * turb_source(i,3)
-                  q_hat(i,6) = q_hat_old(i,6) + dts * ( - flux_diff(i,6) &
+              q_hat(i,6) = q_hat_old(i,6) + dts * ( - flux_diff(i,6) &
                         + turb_source(i,6))
-				  ! Sometimes v_turb**2 can become negative, which is not physical	
-                  if (q_hat(i,6) .lt. 0.d0) then
-                      q_hat(i,6) = 0.0d0
-                  endif
+				      ! Sometimes v_turb**2 can become negative, which is not physical	
+              if (q_hat(i,6) .lt. 0.d0) then
+                  q_hat(i,6) = 0.0d0
+              endif
            enddo
         endif
         
@@ -212,14 +213,16 @@ subroutine Step(dts)
 
         if(activate_turbulence) then
            do i=ghosts1,n1-1
+              q_hat(i,2) = q_hat(i,2) + dts            &
+                   * turb_source(i,2) / alpha_rk       
               q_hat(i,3) = q_hat(i,3) + dts            &
                    * turb_source(i,3) / alpha_rk              
-                  q_hat(i,6) = (beta_rk * q_hat_old(i,6) + q_hat(i,6) &
-                       + dts * (- flux_diff(i,6) + turb_source(i,6)))/alpha_rk
-				  ! Sometimes v_turb**2 can become negative, which is not physical	
-                  if (q_hat(i,6) .lt. 0.d0) then
-                      q_hat(i,6) = 0.0d0
-                  endif
+              q_hat(i,6) = (beta_rk * q_hat_old(i,6) + q_hat(i,6) &
+                    + dts * (- flux_diff(i,6) + turb_source(i,6)))/alpha_rk
+              ! Sometimes v_turb**2 can become negative, which is not physical	
+              if (q_hat(i,6) .lt. 0.d0) then
+                  q_hat(i,6) = 0.0d0
+              endif
            enddo
         endif 
        
@@ -255,15 +258,17 @@ subroutine Step(dts)
         
         if(activate_turbulence) then
            do i=ghosts1,n1-1
+              q_hat(i,2) = q_hat(i,2) + 2.0d0 * dts  &
+                   * turb_source(i,2) / 3.0d0
               q_hat(i,3) = q_hat(i,3) + 2.0d0 * dts  &
                    * turb_source(i,3) / 3.0d0
-                  q_hat(i,6) = (q_hat_old(i,6) + 2.0d0*q_hat(i,6) &
-                       + 2.0d0*dts*( - flux_diff(i,6) &
-                       + turb_source(i,6)))/3.0d0
-				  ! Sometimes v_turb**2 can become negative, which is not physical	
-                  if (q_hat(i,6) .lt. 0.d0) then
-                      q_hat(i,6) = 0.0d0
-                  endif
+              q_hat(i,6) = (q_hat_old(i,6) + 2.0d0*q_hat(i,6) &
+                    + 2.0d0*dts*( - flux_diff(i,6) &
+                    + turb_source(i,6)))/3.0d0
+              ! Sometimes v_turb**2 can become negative, which is not physical	
+              if (q_hat(i,6) .lt. 0.d0) then
+                  q_hat(i,6) = 0.0d0
+              endif
            enddo
         endif 
      else 

@@ -60,7 +60,7 @@ subroutine mass_interior
                 (x1(i)**3 - x1i(i)**3)*sqrt(1.0d0-2.0d0*mass(i)/x1i(i))
            dphidr(i) = (mass(i) + 4.0d0*pi*x1(i)**3*(press(i)+press_nu(i)))/ &
                 (x1(i)**2*(1.0d0+v1(i)**2-2.0d0*mass(i)/x1(i)))* &
-                (rho(i)+eps(i)*rho(i)+press(i))/rho(i)
+                (rho(i)+eps(i)*rho(i)+press(i)+rho(i)*v_turb(i)**2)/rho(i)
         enddo
      
         mass(n1) = mass(n1-1) + &

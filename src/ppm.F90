@@ -184,7 +184,7 @@ contains
     !Steepening of the density profile
     !near contact discontiuities.
     use GR1D_module,only: rho,rhop,rhom, &
-         n1,ghosts1,x1,x1i,press,cs2,eps, GR
+         n1,ghosts1,x1,x1i,press,cs2,eps,v_turb,GR
 
     integer i
     real*8 delta_2_rho_minus,delta_2_rho_plus

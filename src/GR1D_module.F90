@@ -160,10 +160,11 @@ module GR1D_module
     
   real*8,allocatable,save :: turb_source(:,:)
   real*8,allocatable,save :: lambda_mlt(:), shear(:), diss(:), buoy(:)
-  real*8,parameter :: alpha_turb_e = 1.0/6.0
-  real*8,parameter :: alpha_turb_ye = 1.0/6.0
-  real*8,parameter :: alpha_turb_K = 1.0/6.0
-  real*8,parameter :: alpha_turb_nu = 1.0/6.0
+  real*8,parameter :: c_turb = 0.5d0 ! Pturb = 2 *c_turb * e_turb
+  real*8,parameter :: alpha_turb_e = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_ye = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_K = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_nu = 1.0d0/6.0d0
 
   !testcases variables
   integer :: shocktube_problem
