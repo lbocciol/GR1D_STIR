@@ -539,7 +539,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
            !this W^2 has the kinetic energy contriubiton to the mass,
            !nothing to do with the transport, so we'll leave it in
            !regardless of v_order.
-           h = (1.0d0+eps(k)+press(k)/rho(k))
+           h = (1.0d0+eps(k)+press(k)/rho(k)+v_turb(k)**2)
            dmdr = 4.0d0*pi*x1(k)**2*(rho(k)*h*W(k)**2-press(k)) 
            dmdt = -4.0d0*pi*x1(k)**2*alp(k)*rho(k)*h*W(k)**2*v(k)/X(k)
            dXdr = X(k)**3*(dmdr/x1(k)-mgrav(k)/x1(k)**2)
@@ -800,7 +800,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
            local_L = 0.0d0
            ies_sourceterms = 0.0d0
 
-           h = (1.0d0+eps(k)+press(k)/rho(k))
+           h = (1.0d0+eps(k)+press(k)/rho(k)+v_turb(k)**2)
 
            if (GR) then
               invalp = 1.0d0/alp(k)

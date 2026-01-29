@@ -45,7 +45,7 @@ subroutine turbulence_sources
    real*8 Lambda_mix, Lambda_diss, P_turb
    real*8 v_grad(n1)
 
-   v_grad = Gradient_5pts(v1,x1)
+   v_grad = Gradient_3pts(v1,x1)
 
    !Implement the calculation of the diffusion terms
    do i=ghosts1+1,n1-ghosts1
@@ -93,11 +93,11 @@ subroutine Brunt_Vaisala(dts)
    if (GR) then
        rho_grad = Gradient_3pts(rho(:)*(1.0d0 + eps(:)),x1)
        press_grad = Gradient_3pts(press,x1)
-       v_grad = Gradient_5pts(v,x1)
+       v_grad = Gradient_3pts(v,x1)
    else
        rho_grad = Gradient_3pts(rho,x1)
        press_grad = Gradient_3pts(press,x1)   
-       v_grad = Gradient_5pts(v1,x1)
+       v_grad = Gradient_3pts(v1,x1)
        
        !lnrho_grad = Gradient_3pts(log(rho),x1)
        !lnP_grad = Gradient_3pts(log(press),x1)
@@ -106,7 +106,7 @@ subroutine Brunt_Vaisala(dts)
    do i=ghosts1+1,n1-ghosts1
        
       if (GR) then
-          h = 1.0d0 + eps(i) + press(i)/rho(i)
+          h = 1.0d0 + eps(i) + press(i)/rho(i) + v_turb(i)**2
           
           omega2_BV(i) = alp(i)**2/(rho(i)*h*X(i)**2)* &
                 (dphidr(i) - v1(i)* v_grad(i)) * &
@@ -122,12 +122,12 @@ subroutine Brunt_Vaisala(dts)
           v_turb(i) = max(v_turb(i),v_turb_seed)
       endif
 
-      if ( x1(i) / length_gf .lt. 5.0d5 ) v_turb(i) = 0.0d0
+      if ( x1(i) / length_gf .lt. 1.0d5 ) v_turb(i) = 0.0d0
 
       ! force covective velocity to be zero in the 5 points stencil around the shock,
       ! i.e. do not convect through the shock
-      if ( ishock(1)-2 <= i-ghosts1 .and. i-ghosts1 <= ishock(1)+2 ) v_turb(i) = 0.0d0
-      if ( rho(i) > 1.0d11*rho_gf ) v_turb(i) = 0.0d0
+      if ( ishock(1)-1 <= i-ghosts1 .and. i-ghosts1 <= ishock(1)+1 ) v_turb(i) = 0.0d0
+      ! if ( rho(i) > 1.0d11*rho_gf ) v_turb(i) = 0.0d0
 
    enddo
 
@@ -135,7 +135,7 @@ end subroutine Brunt_Vaisala
 
 subroutine Get_Dissipation_Length(r, p, rho, dphidr, vturb, BV2, Lambda)
 
-  use GR1D_module, only: alpha_turb, explosion_reached, length_gf
+  use GR1D_module, only: alpha_turb, length_gf
 
   implicit none
 
@@ -158,13 +158,12 @@ end subroutine Get_Dissipation_Length
 
 subroutine Get_Mixing_Length(r, p, rho, dphidr, Lambda)
 
-  use GR1D_module, only: alpha_turb, explosion_reached, length_gf
+  use GR1D_module, only: alpha_turb, length_gf
 
   implicit none
 
   real(8), intent(in)  :: r, p, rho, dphidr
   real(8), intent(out) :: Lambda
-  real(8) :: max_Lambda
 
   Lambda = alpha_turb * p / (rho * dphidr)
   Lambda = min(Lambda, r)

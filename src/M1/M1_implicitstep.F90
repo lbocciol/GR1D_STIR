@@ -158,7 +158,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
         !these do not need to be calculated each iteration
         sourceS = 0.0d0
         sourceG = 0.0d0           
-        h = (1.0d0+eps(k)+press(k)/rho(k))
+        h = (1.0d0+eps(k)+press(k)/rho(k)+v_turb(k)**2)
 
         if (GR) then
            invalp = 1.0d0/alp(k)

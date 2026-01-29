@@ -238,7 +238,7 @@ contains
        ! for shock detection.
        ! The code goes along the lines of (3.2) in C&W
        if (GR) then
-          gamma_eos_tmp = cs2(i)*rho(i)*(1.0d0+press(i)/rho(i)+eps(i))/press(i)
+          gamma_eos_tmp = cs2(i)*rho(i)*(1.0d0+press(i)/rho(i)+eps(i)+v_turb(i)**2)/press(i)
        else
           gamma_eos_tmp = cs2(i)*rho(i)/press(i)
        endif

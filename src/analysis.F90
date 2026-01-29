@@ -262,9 +262,9 @@ subroutine rotation_analysis
      internal_energy = 0.0d0
      do i=ghosts1+1,n1-ghosts1
         angular_momentum = angular_momentum + X(i)*W(i)**2*rho(i)*volume(i)*vphi(i)* &
-             x1(i)*(1.0d0+eps(i)+press(i)/rho(i))*twothirds
+             x1(i)*(1.0d0+eps(i)+press(i)/rho(i)+v_turb(i)**2)*twothirds
         rotational_energy = rotational_energy + 0.5d0*X(i)*W(i)**2*rho(i)* &
-             volume(i)*vphi(i)**2*(1.0d0+eps(i)+press(i)/rho(i))*twothirds
+             volume(i)*vphi(i)**2*(1.0d0+eps(i)+press(i)/rho(i)+v_turb(i)**2)*twothirds
         internal_energy = internal_energy + X(i)*rho(i)*eps(i)*W(i)*volume(i)
         ToverW(i) = rotational_energy / abs(mgrav(i)- &
        mass(i)-internal_energy-rotational_energy)

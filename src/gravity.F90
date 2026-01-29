@@ -8,10 +8,8 @@ subroutine gravity
 
   if (GR) then
     do i=1,n1
-      ! Remember to remove contribution of vturb to q3 since this is only the gravitational term.
-      ! vturb**2 is taken into account in the gravitational mass
       gravsource(i,1) = 0.0d0
-      gravsource(i,2) =   (q(i,2)*v(i)-q(i,3)-q(i,6)-q(i,1))*(8.0d0*alp(i)*X(i)* &
+      gravsource(i,2) =   (q(i,2)*v(i)-q(i,3)-q(i,1))*(8.0d0*alp(i)*X(i)* &
            pi*x1(i)*press(i) + alp(i)*X(i)*mgrav(i)/x1(i)**2) &
            + alp(i)*X(i)*press(i)*mgrav(i)/x1(i)**2
       gravsource(i,3) = 0.0d0
@@ -140,7 +138,7 @@ subroutine GR_alp
              4.0d0*pi*x1(i) * ( &
              nuE(i)+ press(i) + &
              rho(i) * &
-             (1.0d0 + eps(i) + press(i)/rho(i)) * &
+             (1.0d0 + eps(i) + press(i)/rho(i) + v_turb(i)**2) * &
              (v(i)**2+twothirds*vphi(i)**2) * W(i)**2))
      enddo
   else
@@ -150,7 +148,7 @@ subroutine GR_alp
              4.0d0*pi*x1(i) * ( &
              nuE(i)+ press(i) + &
              rho(i) * &
-             (1.0d0 + eps(i) + press(i)/rho(i)) * &
+             (1.0d0 + eps(i) + press(i)/rho(i) + v_turb(i)**2) * &
              v(i)**2 * W(i)**2))
      enddo
   endif
@@ -294,7 +292,7 @@ subroutine GR_terms_initial
       ! call tau + D just tau for the time being
   
       tau(i) = rho(i)  * &
-         (1.0d0 + eps(i) + press(i)/rho(i)) &
+         (1.0d0 + eps(i) + press(i)/rho(i) + v_turb(i)**2) &
          * W(i)*W(i) &
          - press(i)
 
