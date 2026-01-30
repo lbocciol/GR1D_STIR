@@ -137,5 +137,8 @@ subroutine start
      call restart_output_h5
   endif
 
+  ! open files for output
+  call Open_output_files(1)
+  call Open_output_files(2)
 
 end subroutine start
