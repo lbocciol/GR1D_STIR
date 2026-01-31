@@ -25,11 +25,12 @@ subroutine allocate_vars
   endif
   allocate(ToverW(n1))
 
+  allocate(v_turb(n1))
+  allocate(v_turbp(n1))
+  allocate(v_turbm(n1))
+
   if(do_turbulence) then
      allocate(omega2_BV(n1))
-     allocate(v_turb(n1))
-     allocate(v_turbp(n1))
-     allocate(v_turbm(n1))
      allocate(diff_term_eps(n1))     
      allocate(diff_term_ye(n1))
      allocate(diff_term_K(n1))

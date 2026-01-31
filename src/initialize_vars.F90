@@ -178,11 +178,12 @@ subroutine initialize_arrays
      omega(:) = 0.0d0
   endif
 
+  v_turb(:) = 0.0d0
+  v_turbp(:) = 0.0d0
+  v_turbm(:) = 0.0d0
+
   if(do_turbulence) then
      omega2_BV(:) = 0.0d0
-     v_turb(:) = 0.0d0
-     v_turbp(:) = 0.0d0
-     v_turbm(:) = 0.0d0
      diff_term_eps(:) = 0.0d0
      diff_term_ye(:) = 0.0d0
      diff_term_K(:) = 0.0d0        
