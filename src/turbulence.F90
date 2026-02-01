@@ -50,8 +50,7 @@ subroutine turbulence_sources
    !Implement the calculation of the diffusion terms
    do i=ghosts1+1,n1-ghosts1
       call Get_Mixing_Length(x1(i), press(i), rho(i), dphidr(i), Lambda_mix)
-      ! call Get_Dissipation_Length(x1(i), press(i), rho(i), dphidr(i), v_turb(i), omega2_BV(i), Lambda_diss)
-      Lambda_diss = Lambda_mix
+      call Get_Dissipation_Length(x1(i), press(i), rho(i), dphidr(i), v_turb(i), omega2_BV(i), Lambda_diss)
 
       shear(i) = - v_turb(i)**2 * v_grad(i)
       shear(i) = 0.0d0
@@ -60,7 +59,7 @@ subroutine turbulence_sources
 
       P_turb = 2.0d0*c_turb*rho(i)*v_turb(i)**2
       turb_source(i,2) = 2.0d0*alp(i)*(1 - c_turb)/c_turb*P_turb/X(i)/x1(i)
-      turb_source(i,2) = 0.0d0
+      !turb_source(i,2) = 0.0d0
       turb_source(i,3) = rho(i)* (shear(i) + buoy(i))
       turb_source(i,6) = rho(i)* (shear(i) + buoy(i) - diss(i))
 
@@ -166,6 +165,6 @@ subroutine Get_Mixing_Length(r, p, rho, dphidr, Lambda)
   real(8), intent(out) :: Lambda
 
   Lambda = alpha_turb * p / (rho * dphidr)
-  Lambda = min(Lambda, r)
+  Lambda = min(Lambda, r/2.0d0)
 
 end subroutine Get_Mixing_Length
