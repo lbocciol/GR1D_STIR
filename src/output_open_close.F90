@@ -916,13 +916,12 @@ end subroutine Close_output_files
   
 end subroutine open_output_file
   
- subroutine close_output_file(filename,nfile)
+subroutine close_output_file(filename, nfile)
     
   implicit none
   character(*) filename
   integer nfile
   
-  open(unit=nfile,file=trim(adjustl(filename)),status="unknown",&
-       form='formatted',position="append")
+  close(unit=nfile)
   
 end subroutine close_output_file

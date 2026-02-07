@@ -756,7 +756,7 @@ subroutine output_accretion(var,filename,nfile)
   
   write(nfile,"(1P20E18.9)") time, var(1), var(2), var(3), var(4), &
        var(5), var(6), var(7), var(8), var(9), var(10), var(11)
-  
+  flush(nfile)
 end subroutine output_accretion
 ! ******************************************************************
 subroutine output_single(var,filename,nfile)
@@ -792,7 +792,8 @@ subroutine output_single(var,filename,nfile)
 
   write(nfile,*) " "
   write(nfile,*) " "
-  
+  flush(nfile)
+
 end subroutine output_single
 
 ! ******************************************************************
@@ -819,8 +820,7 @@ end subroutine output_single
       enddo
       write(nfile,*) " "
       write(nfile,*) " "
-
-
+      flush(nfile)
 
     end subroutine output_spectra
 
@@ -838,7 +838,8 @@ subroutine output_central(var,filename,nfile)
   integer nfile
 
   write(nfile,"(1P20E18.9)") time,var(ghosts1+1)
-  
+  flush(nfile)
+
 end subroutine output_central
 
 ! *******************************************************************
@@ -853,7 +854,8 @@ subroutine output_scalar(var,filename,nfile)
   integer nfile
   
   write(nfile,"(1P20E18.9)") time,var
-  
+  flush(nfile)
+
 end subroutine output_scalar
 ! *******************************************************************
 subroutine output_many_scalars(var,n0,n,filename,nfile)
@@ -868,7 +870,8 @@ subroutine output_many_scalars(var,n0,n,filename,nfile)
   integer nfile
   
   write(nfile,"(1P64E18.9)") time,var(1:n)
-  
+  flush(nfile)
+
 end subroutine output_many_scalars
 ! *******************************************************************
 subroutine generate_filename(varname,outdir,time,nt,suffix,fname)
@@ -918,6 +921,7 @@ subroutine output_singlemod(var,filename,maxr,nfile)
   enddo
   write(nfile,*) " "
   write(nfile,*) " "
+  flush(nfile)
   
 end subroutine output_singlemod
 

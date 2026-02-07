@@ -31,6 +31,8 @@ subroutine allocate_vars
 
   if(do_turbulence) then
      allocate(omega2_BV(n1))
+     allocate(diff_term_visc_p(n1))     
+     allocate(diff_term_visc_m(n1))     
      allocate(diff_term_eps(n1))     
      allocate(diff_term_ye(n1))
      allocate(diff_term_K(n1))
@@ -39,6 +41,7 @@ subroutine allocate_vars
      allocate(shear(n1))
      allocate(diss(n1))
      allocate(buoy(n1))
+     allocate(visc(n1))
   endif
 
   allocate(v(n1))

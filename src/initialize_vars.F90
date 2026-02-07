@@ -184,6 +184,8 @@ subroutine initialize_arrays
 
   if(do_turbulence) then
      omega2_BV(:) = 0.0d0
+     diff_term_visc_p(:) = 0.0d0
+     diff_term_visc_m(:) = 0.0d0
      diff_term_eps(:) = 0.0d0
      diff_term_ye(:) = 0.0d0
      diff_term_K(:) = 0.0d0        
@@ -192,6 +194,7 @@ subroutine initialize_arrays
      shear(:) = 0.0d0
      diss(:) = 0.0d0
      buoy(:) = 0.0d0
+     visc(:) = 0.0d0
   endif
   
   v(:) = 0.0d0
