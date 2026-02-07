@@ -233,3 +233,24 @@ subroutine readtable(eos_filename)
 end subroutine readtable
 
 
+subroutine get_extrema_EoS_table( rhomin, rhomax, &
+        yemin, yemax, tmin, tmax )
+
+  use eosmodule
+  implicit none
+
+  real*8, intent(out) :: rhomin, rhomax
+  real*8, intent(out) :: yemin, yemax
+  real*8, intent(out) :: tmin, tmax
+
+  rhomin = eos_rhomin
+  rhomax = eos_rhomax
+
+  yemin = eos_yemin
+  yemax = eos_yemax
+
+  tmin = eos_tempmin
+  tmax = eos_tempmax
+
+end subroutine get_extrema_EoS_table
+

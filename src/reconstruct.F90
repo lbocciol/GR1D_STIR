@@ -387,6 +387,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
 
        keytemp = 0
        keyerr = 0
+       ! Limit eos variables, very drastic approach
+       call ApplyEOS_limits
        call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
             eosdummy(19), &
             cs2in(i), & 
@@ -434,6 +436,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              do while(keyerr.ne.0.and.itc.lt.25) 
                 itc = itc + 1
                 epsin(j) = epsin(j) + epsin0 * 1.0001d0
+                ! Limit eos variables, very drastic approach
+                call ApplyEOS_limits
                 call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
                      eosdummy(19), &
                      cs2in(i), & 
@@ -452,6 +456,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              !try fixing the temp and finding the corresponding eps
              keytemp = 1
              keyerr = 0
+             ! Limit eos variables, very drastic approach
+             call ApplyEOS_limits
              call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
                   eosdummy(19), &
                   cs2in(i), & 
@@ -474,6 +480,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              do while(keyerr.ne.0.and.itc.lt.10) 
                 rfeps = min(rfeps*10.0d0,1.0d-3)
                 itc = itc+1
+                ! Limit eos variables, very drastic approach
+                call ApplyEOS_limits
                 call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
                      eosdummy(19), &
                      cs2in(i), & 
@@ -496,6 +504,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              do while(keyerr.ne.0.and.itc.lt.10) 
                 rfeps = min(rfeps*10.0d0,1.0d-3)
                 itc = itc+1
+                ! Limit eos variables, very drastic approach
+                call ApplyEOS_limits
                 call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
                      eosdummy(19), &
                      cs2in(i), & 
@@ -518,6 +528,8 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              do while(keyerr.ne.0.and.itc.lt.10) 
                 rfeps = min(rfeps*10.0d0,1.0d-3)
                 itc = itc+1
+                ! Limit eos variables, very drastic approach
+                call ApplyEOS_limits
                 call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
                      eosdummy(19), &
                      cs2in(i), & 

@@ -1143,7 +1143,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
                     !we are solving).  The spatial flux for the energy
                     !will be dominated by F
                     if (nothappenyet2) then
-                       write(*,*) "transferring terms to implicit",i,k,j,eddy(j),eddytt(j)
+                      if (mod(nt,100).eq.0) write(*,*) "transferring terms to implicit",i,k,j,eddy(j),eddytt(j)
                        nothappenyet2 = .false.
                     endif
 

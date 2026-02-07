@@ -37,27 +37,63 @@ subroutine M1_updateeas
 
         tempspectrum = 0.0d0
         if (log10(xrho).lt.nulibtable_logrho_min) then
-           tempspectrum = 0.0d0
-        else
-           if (log10(xtemp).lt.nulibtable_logtemp_min) then
+           xrho = 10.0d0**nulibtable_logrho_min
+        endif
+
+        if (log10(xtemp).lt.nulibtable_logtemp_min) then
+           if (limit_EoS_table) then
+              if(mod(nt,100).eq.0) then
+                 write(*,*) "skip M1_update_eas: temp too low", k, xtemp
+              endif
+              xtemp = 10**nulibtable_logtemp_min
+           else
               stop "M1_update_eas: temp too low"
            endif
-           if (xye.lt.nulibtable_ye_min) stop "M1_update_eas: ye too low"
-           if (log10(xtemp).gt.nulibtable_logtemp_max) stop "M1_update_eas: temp too high"
-           if (xye.gt.nulibtable_ye_max) stop "M1_update_eas: ye too high"
-
-           if (number_species_to_evolve.eq.1) then
-              call nulibtable_single_species_range_energy(xrho,xtemp,xye,1, &
-                   singlespecies_tempspectrum,number_groups,number_eas)
-              tempspectrum(1,:,:) = singlespecies_tempspectrum(:,:)
-           else if (number_species_to_evolve.eq.3) then
-              call nulibtable_range_species_range_energy(xrho,xtemp,xye,tempspectrum, &
-                   number_species,number_groups,number_eas)
+        endif
+        if (xye.lt.nulibtable_ye_min) then
+           if (limit_EoS_table) then
+              if(mod(nt,100).eq.0) then
+                 write(*,*) "skip M1_update_eas: ye too low", k, xye
+              endif
+              xye = nulibtable_ye_min
            else
-              stop "set up eas interpolation for this number of species"
+              stop "M1_update_eas: ye too low"
            endif
         endif
-        
+
+        if (log10(xtemp).gt.nulibtable_logtemp_max) then
+           if (limit_EoS_table) then
+              if(mod(nt,100).eq.0) then
+                 write(*,*) "skip M1_update_eas: temp too high", k, xtemp
+              endif
+              xtemp = nulibtable_logtemp_max
+           else
+              stop "M1_update_eas: temp too high"
+           endif
+        endif
+
+        if (xye.gt.nulibtable_ye_max) then
+           if (limit_EoS_table) then
+              if(mod(nt,100).eq.0) then
+                 write(*,*) "skip M1_update_eas: ye too high", k, xye
+              endif
+              xye = nulibtable_ye_max
+           else
+              stop "M1_update_eas: ye too high"
+           endif
+        endif
+
+        if (number_species_to_evolve.eq.1) then
+          call nulibtable_single_species_range_energy(xrho,xtemp,xye,1, &
+                singlespecies_tempspectrum,number_groups,number_eas)
+          tempspectrum(1,:,:) = singlespecies_tempspectrum(:,:)
+        else if (number_species_to_evolve.eq.3) then
+          call nulibtable_range_species_range_energy(xrho,xtemp,xye,tempspectrum, &
+                number_species,number_groups,number_eas)
+        else
+          stop "set up eas interpolation for this number of species"
+        endif
+
         !set new eas variables
         if (include_epannihil_kernels) then
            tempspectrum(3,:,2) = 0.0d0
@@ -134,35 +170,66 @@ subroutine M1_updateeas
         endif
 
         if (include_Ielectron_imp.or.include_Ielectron_exp) then
-           inelastic_tempspectrum = 0.0d0
-           if (log10(xrho).lt.nulibtable_logrho_min) then
-              inelastic_tempspectrum = 0.0d0
+            inelastic_tempspectrum = 0.0d0
+            if (log10(xrho).lt.nulibtable_logrho_min) then
+              xrho = nulibtable_logrho_min
+            endif
+            if (log10(xtemp).lt.nulibtable_logItemp_min) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Itemp too low", k, xtemp
+                  endif
+                  xtemp = 10**nulibtable_logItemp_min
+                else
+                  stop "M1_update_eas: Itemp too low"
+                endif
+            endif
+            if (log10(xeta).lt.nulibtable_logIeta_min) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Ieta too low", k, xeta, xrho, xtemp, xye
+                  endif
+                  xeta = 10**nulibtable_logIeta_min
+                else
+                  write(*,*) xrho,xtemp,xye,xeta,log10(xeta),nulibtable_logIeta_min, &
+                     log10(xeta).lt.nulibtable_logIeta_min
+                  stop "M1_update_eas: Ieta too low 1"
+                endif
+            endif
+            if (log10(xtemp).gt.nulibtable_logItemp_max) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: temp too high", k, xtemp
+                  endif
+                  xtemp = 10**nulibtable_logItemp_max
+                else
+                  stop "M1_update_eas: temp too high"
+                endif
+            endif
+
+            if (log10(xeta).gt.nulibtable_logIeta_max) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Ieta too high", k, xeta, xrho, xtemp, xye
+                  endif
+                  xeta = 10**nulibtable_logIeta_max
+                else
+                  write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
+                  stop "M1_update_eas: Ieta too high"
+                endif
+            endif
+            
+           if (number_species_to_evolve.eq.1) then
+             call nulibtable_inelastic_single_species_range_energy2(xtemp,xeta,1, &
+                  singlespecies_inelastic_tempspectrum,number_groups,number_groups,2)
+             inelastic_tempspectrum(1,:,:,:) = singlespecies_inelastic_tempspectrum(:,:,:)
+           else if (number_species_to_evolve.eq.3) then
+             call nulibtable_inelastic_range_species_range_energy2(xtemp,xeta, &
+                  inelastic_tempspectrum,number_species,number_groups,number_groups,2)
            else
-              if (log10(xtemp).lt.nulibtable_logItemp_min) stop "M1_update_eas: Itemp too low"
-              if (log10(xeta).lt.nulibtable_logIeta_min) then
-                 write(*,*) xrho,xtemp,xye,xeta
-                 stop "M1_update_eas: Ieta too low"
-              endif
-              if (log10(xtemp).gt.nulibtable_logItemp_max) stop "M1_update_eas: temp too high"
-              if (log10(xeta).gt.nulibtable_logIeta_max) then
-                 write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
-                 stop "M1_update_eas: Ieta too high"
-              endif
-                
-              if (number_species_to_evolve.eq.1) then
-                 call nulibtable_inelastic_single_species_range_energy2(xtemp,xeta,1, &
-                      singlespecies_inelastic_tempspectrum,number_groups,number_groups,2)
-                 inelastic_tempspectrum(1,:,:,:) = singlespecies_inelastic_tempspectrum(:,:,:)
-              else if (number_species_to_evolve.eq.3) then
-                 call nulibtable_inelastic_range_species_range_energy2(xtemp,xeta, &
-                      inelastic_tempspectrum,number_species,number_groups,number_groups,2)
-              else
-                 stop "set up eas interpolation for this number of species"
-              endif
-
-
+             stop "set up eas interpolation for this number of species"
            endif
-           
+
            !set new ies variables
            ies(k,:,:,:,:) = inelastic_tempspectrum(:,:,:,:)
 
@@ -172,28 +239,59 @@ subroutine M1_updateeas
         if (include_epannihil_kernels) then
            epannihil_tempspectrum = 0.0d0
            if (log10(xrho).lt.nulibtable_logrho_min) then
-              epannihil_tempspectrum = 0.0d0
-           else
-              if (log10(xtemp).lt.nulibtable_logItemp_min) stop "M1_update_eas: Itemp too low"
-              if (log10(xeta).lt.nulibtable_logIeta_min) then
-                 write(*,*) xrho,xtemp,xye,xeta
-                 stop "M1_update_eas: Ieta too low"
-              endif
-              if (log10(xtemp).gt.nulibtable_logItemp_max) stop "M1_update_eas: temp too high"
-              if (log10(xeta).gt.nulibtable_logIeta_max) then
-                 write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
-                 stop "M1_update_eas: Ieta too high"
-              endif
-                
-              !only do this for nux
-              i = 3
-              call nulibtable_epannihil_single_species_range_energy2(xtemp,xeta,i, &
-                   singlespecies_epannihil_tempspectrum,number_groups,number_groups,4)
-
-              epannihil_tempspectrum(i,:,:,:) = singlespecies_epannihil_tempspectrum(:,:,:)
-
+              xrho = nulibtable_logrho_min
            endif
-           
+            if (log10(xtemp).lt.nulibtable_logItemp_min) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Itemp too low", k, xtemp
+                  endif
+                  xtemp = 10**nulibtable_logtemp_min
+                else
+                  stop "M1_update_ess: Itemp too low"
+                endif
+            endif
+
+            if (log10(xeta).lt.nulibtable_logIeta_min) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Ieta too low 2", k, xeta, xrho, xtemp, xye
+                  endif
+                  xeta = 10**nulibtable_logIeta_min
+                else
+                  write(*,*) xrho,xtemp,xye,xeta
+                  stop "M1_update_ess: Ieta too low 2"
+                endif
+            endif
+            if (log10(xtemp).gt.nulibtable_logItemp_max) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Itemp too high", k, xtemp
+                  endif
+                  xtemp = 10**nulibtable_logItemp_max
+                else
+                  stop "M1_update_ess: temp too high"
+                endif
+            endif
+            if (log10(xeta).gt.nulibtable_logIeta_max) then
+               if (limit_EoS_table) then
+                  if(mod(nt,100).eq.0) then
+                     write(*,*) "skip M1_update_eas: Ieta too high", k, xeta
+                  endif
+                  xeta = 10**nulibtable_logIeta_max
+                else
+                  write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
+                  stop "M1_update_eas: Ieta too high"
+                endif
+            endif
+
+            !only do this for nux
+            i = 3
+            call nulibtable_epannihil_single_species_range_energy2(xtemp,xeta,i, &
+                 singlespecies_epannihil_tempspectrum,number_groups,number_groups,4)
+
+            epannihil_tempspectrum(i,:,:,:) = singlespecies_epannihil_tempspectrum(:,:,:)
+
            !set new ep annihilation variables
            epannihil(k,:,:,:,:) = epannihil_tempspectrum(:,:,:,:)
 

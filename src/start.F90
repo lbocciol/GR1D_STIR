@@ -33,6 +33,9 @@ subroutine start
 #if HAVE_NUC_EOS
      ! Ott EOS routines: read table
      call readtable(eos_table_name)
+     call get_extrema_EoS_table( EoS_rhomin, EoS_rhomax, &
+         EoS_yemin, EoS_yemax, EoS_tempmin, EoS_tempmax )
+
 #else
      stop "start.F90: NUC_EOS code not present but want eoskey=3"
 #endif

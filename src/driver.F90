@@ -98,12 +98,32 @@ subroutine handle_output
      stop
   endif
   
-  if (time.ge.tend) then
+  if ( (bounce) .and. (time - t_bounce .gt. tend-dt/time_gf) ) then
      write(*,*) "Done! :-) tend reached"
      call output_all(1)
      call output_all(2)
      call output_timers
      call restart_output_h5
+
+     call Close_output_files(1)
+     call Close_output_files(2)
+
+     open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
+     write(666,*) 1
+     close(666)
+     stop
+  endif
+
+  if ( shock_radius .ge. x1(n1-ghosts1-1) ) then
+     write(*,*) "Done! :-) shock is leaving the boundary!"
+     call output_all(1)
+     call output_all(2)
+     call output_timers
+     call restart_output_h5
+
+     call Close_output_files(1)
+     call Close_output_files(2)
+
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
@@ -155,8 +175,8 @@ subroutine handle_output
      OutputFlagScalar = .false.
   endif
   
-  if ((time+dt/time_gf).gt.tend) then
-    dt = (tend-time)*time_gf
+  if ( (bounce) .and. ( (time -t_bounce + dt/time_gf).gt.tend) ) then
+    dt = (tend-time+t_bounce)*time_gf
   endif
     
 end subroutine handle_output
@@ -165,10 +185,6 @@ subroutine postStep_analysis
   
   use GR1D_module
   implicit none
-
-  !for local EOS calls
-  real*8 lrho,ltemp,lye,eosdummy(14)
-  integer i,keytemp,keyerr
   
   if (initial_data.eq."Collapse".or.initial_data.eq."Collapse_inflow") then
      call get_shock_radius
@@ -191,31 +207,5 @@ subroutine postStep_analysis
      v_prev = v1
   endif
   ye_prev = ye
-
-  !fill mass fractions
-#if HAVE_NUC_EOS
-  if (eoskey.eq.3) then !if using nuclear EOS
-     keytemp = 1 !keep eps constant
-     keyerr = 0
-     do i=ghosts1+1,n1-ghosts1
-        lrho = rho(i)/rho_gf
-        ltemp = temp(i)
-        lye = ye(i)
-        call nuc_eos_full(lrho,ltemp,lye,eosdummy(1),eosdummy(2),eosdummy(3), &
-             eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),massfrac_a(i),massfrac_h(i), &
-             massfrac_n(i),massfrac_p(i),massfrac_abar(i),massfrac_zbar(i),eosdummy(8), &
-             eosdummy(9),eosdummy(10),eosdummy(11),keytemp,keyerr,eos_rf_prec)
-        if(keyerr.ne.0) then
-           write(6,*) "############################################"
-           write(6,*) "EOS PROBLEM in poststep analysis:"
-           write(6,*) "timestep number: ",nt
-           write(6,"(i4,1P10E15.6)") i,x1(i)/length_gf,lrho,ltemp,lye
-           stop "Shouldn't fair here...."
-        endif
-     enddo
-  endif
-#endif
-
-
 
 end subroutine postStep_analysis

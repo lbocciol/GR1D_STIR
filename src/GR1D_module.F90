@@ -11,6 +11,7 @@ module GR1D_module
   character*256 opacity_table     
   character*256 eos_table_name
   character*256 restart_file_name
+  logical limit_EoS_table
   logical force_restart_output
   logical wipe_outdir
   logical do_restart
@@ -32,6 +33,11 @@ module GR1D_module
 
   !eos desired precision
   real*8,parameter :: eos_rf_prec = 1.0d-9
+
+  ! eos extrema
+  real*8 :: EoS_rhomin, EoS_rhomax
+  real*8 :: EoS_yemin, EoS_yemax
+  real*8 :: EoS_tempmin, EoS_tempmax
 
   !number of ghost zones
   integer ghosts1

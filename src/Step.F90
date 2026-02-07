@@ -54,6 +54,9 @@ subroutine Step(dts)
      call Brunt_Vaisala(dts)
   endif
 
+  ! Limit eos variables, very drastic approach
+  call ApplyEOS_limits
+  
   !set up conserved variables
   call prim2con
 
@@ -290,7 +293,9 @@ subroutine Step(dts)
      
      !reconstruct primatives
      call con2prim
-
+     
+     ! Limit eos variables, very drastic approach
+     call ApplyEOS_limits
      ! eos update, eps fixed, find temp,entropy,cs2 etc.
      do i=ghosts1+1,n1-ghosts1
         keyerr = 0
@@ -383,6 +388,8 @@ subroutine Step(dts)
 
 123 continue
 
+ ! Limit eos variables, very drastic approach
+ call ApplyEOS_limits
  !do operator split here
  !M1
  if (do_M1) then
@@ -445,6 +452,9 @@ subroutine Step(dts)
     if (do_hydro.or.(M1_testcase_number.eq.1.and.time.gt.0.0012d0)) then
        call M1_conservativeupdate(dts)
     endif
+
+    ! Limit eos variables, very drastic approach
+    call ApplyEOS_limits
 
     !code for backward euler explicit flux fix
     if (M1_do_backwardfix.eq.1) then

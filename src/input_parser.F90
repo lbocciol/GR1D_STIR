@@ -101,6 +101,7 @@ subroutine input_parser
   call get_integer_parameter('eoskey',eoskey)
   if(eoskey.eq.3) then
      call get_string_parameter('eos_table_name',eos_table_name)
+     call get_logical_parameter('limit_EoS_table',limit_EoS_table)
   endif
   if(eoskey.eq.1) then
      call get_double_parameter('hybridgamma_th',hybridgamma_th)
