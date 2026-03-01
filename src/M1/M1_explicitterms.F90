@@ -105,7 +105,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
   !$OMP k,oneWm,oneWp,kappa_inter,ipeclet_mean,a_asym,l_min_thin,l_max_thin, &
   !$OMP p,discrim,sqrtdiscrim,l_min_thick,l_max_thick,l_min,l_max,Jkplus1,Jk,diffusive_flux, &
   !$OMP advected_energy,M1flux_interface,limitingflux,rm,rp,dx,M1flux_diff, &
-  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp)
+  !$OMP diffusive_turb_flux, grad_Enu, D_nu_turb, Lambda_mixp) COLLAPSE(2)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 
@@ -383,9 +383,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
              if (k .lt. ghosts1+1) then
                  diffusive_turb_flux = 0.0d0
              else
-                 Lambda_mixp = alpha_turb * pressp(k) / (rhop(k) * dphidr(k))
-                 Lambda_mixp = min(Lambda_mixp,x1(k))
-
+                 call Get_Diffusion_Length(x1i(k), pressp(k), rhop(k), dphidr(k), Lambda_mixp)
                  grad_Enu = (M1en_space(k+1) - M1en_space(k))/(x1(k+1) - x1(k))
                  D_nu_turb = alpha_turb_nu * v_turbp(k) * Lambda_mixp
                  diffusive_turb_flux = - D_nu_turb * grad_Enu
@@ -774,7 +772,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
      !$OMP invX,invX2,X2,oneX,W2,oneW,v2,onev,invr,invr2,local_u,local_uup, &
      !$OMP local_littleh,local_littlehupup,local_Hdown,local_Ltilde,JoverE, &
      !$OMP JoverF,HoverE,HoverF,LoverE,LoverF,j,j_prime,nucubed,nucubedprime, &
-     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor)
+     !$OMP R0out,R1out,R0in,R1in,ies_temp,species_factor) COLLAPSE(2)
      do k=ghosts1+1,M1_imaxradii
         do i=1,number_species_to_evolve
 

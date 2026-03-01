@@ -110,7 +110,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
   !$OMP interface_distroj,xi,FL,dFLdx,calculate_enext,FR,dFRdx,inverse,det,old_RF, &
   !$OMP new_NL_jacobian,new_RF,old_jacobian,oldx,myloc,problem_fixing,problem_zone, &
   !$OMP maxRF,Sr,Stnalpha,Stnum,oneM1en,oneM1flux,oneeddy,Stzone,Srzone,sign_one,pivot, &
-  !$OMP info,trouble_brewing,changedtwice,species_factor,ispecies_factor)
+  !$OMP info,trouble_brewing,changedtwice,species_factor,ispecies_factor) COLLAPSE(2)
   do k=ghosts1+1,M1_imaxradii
      do i=1,number_species_to_evolve
         
@@ -1263,7 +1263,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
               if (nothappenyet1.and.k.lt.M1_imaxradii) then
                  nothappenyet1 = .false.
                  !this will happen a lot.  output is supressed to at most once per 10 time steps.
-                 if (mod(nt,10).eq.0) write(*,*) "warning: do_implicit_step: flux>en",i,j,k,nt,q_M1(k,i,j,2)/oneX,q_M1(k,i,j,1)
+                 if (mod(nt,100).eq.0) write(*,*) "warning: do_implicit_step: flux>en",i,j,k,nt,q_M1(k,i,j,2)/oneX,q_M1(k,i,j,1)
               endif
               !fix it
               q_M1(k,i,j,2) = oneX*q_M1(k,i,j,2) / abs((1.0d0+1.0d-8)*q_M1(k,i,j,2)/q_M1(k,i,j,1))

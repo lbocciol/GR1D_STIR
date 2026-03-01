@@ -55,117 +55,134 @@ subroutine output_all(modeflag)
   real*8 nusphere(number_species,number_groups,2)
   real*8 ave_nusphere(number_species,5)
 
+  integer keyerr,keytemp
+  real*8 eosdummy(14)
+
   if(modeflag.eq.0) then
      
   else if(modeflag.eq.1) then
-     
+
+     do k=ghosts1+1,n1-ghosts1
+        keyerr = 0
+        keytemp = 0
+
+        ! This is to calculate things like mass fractions and chemical
+        ! potentials
+        call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
+          entropy(k),cs2(k),eosdummy(2),&
+          eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &
+          massfrac_n(k),massfrac_p(k),massfrac_abar(k),massfrac_zbar(k), &
+          elechem(k),eosdummy(12),eosdummy(13),eosdummy(14), &
+          keytemp,keyerr,eoskey,eos_rf_prec)
+     enddo
+
      filename = trim(adjustl(outdir))//"/v1.xg"
-     if (.not.small_output) call output_single(v1*clite,filename)
+     call output_single(v1*clite,filename,101)
      
      if(do_rotation) then
         filename = trim(adjustl(outdir))//"/omega.xg"
-        call output_single(omega*time_gf,filename)
+        call output_single(omega*time_gf,filename,102)
         filename = trim(adjustl(outdir))//"/ToverW.xg"
-        call output_single(ToverW,filename)        
+        call output_single(ToverW,filename,103)
         
         if(GR) then
            filename = trim(adjustl(outdir))//"/vphi.xg"
-           call output_single(vphi,filename)
+           call output_single(vphi,filename,104)
         else
            filename = trim(adjustl(outdir))//"/vphi1.xg"
-           call output_single(vphi1,filename)
+           call output_single(vphi1,filename,105)
         endif
      endif
-     
+
      if (do_turbulence) then
         filename = trim(adjustl(outdir))//"/omega2_BV.xg"
-        call output_single(omega2_BV*time_gf**2,filename)
+        call output_single(omega2_BV*time_gf**2,filename,106)
         filename = trim(adjustl(outdir))//"/v_turb.xg"
-        call output_single(v_turb*time_gf/length_gf,filename)
+        call output_single(v_turb*time_gf/length_gf,filename,107)
         filename = trim(adjustl(outdir))//"/dissipated_turb_eps.xg"
-        if (.not. small_output) call output_single(diss*time_gf/eps_gf,filename)
+        if (.not. small_output) call output_single(diss*time_gf/eps_gf,filename,108)
         filename = trim(adjustl(outdir))//"/buoyancy_turb_eps.xg"
-        if (.not. small_output) call output_single(buoy*time_gf/eps_gf,filename)     
+        if (.not. small_output) call output_single(buoy*time_gf/eps_gf,filename,109)
         filename = trim(adjustl(outdir))//"/shear_turb_eps.xg"
-        if (.not. small_output) call output_single(shear*time_gf/eps_gf,filename)     
+        if (.not. small_output) call output_single(shear*time_gf/eps_gf,filename,110)
         filename = trim(adjustl(outdir))//"/Lambda_MLT.xg"
-        if (.not. small_output) call output_single(lambda_mlt/length_gf,filename)     
-     endif
-	 
+        if (.not. small_output) call output_single(lambda_mlt/length_gf,filename,111)
+     endif   
+
      filename = trim(adjustl(outdir))//"/rho.xg"
-     call output_single(rho/rho_gf,filename)
+     call output_single(rho/rho_gf,filename,112)
      
      if (do_nupress.or.do_M1) then
         filename = trim(adjustl(outdir))//"/nuchem.xg"
-        if (.not.small_output) call output_single(nuchem,filename)
+        if (.not.small_output) call output_single(nuchem,filename,113)
         filename = trim(adjustl(outdir))//"/press_nu.xg"
-        if (.not.small_output) call output_single(press_nu/press_gf,filename)
+        if (.not.small_output) call output_single(press_nu/press_gf,filename,114)
         filename = trim(adjustl(outdir))//"/energy_nu.xg"
-        if (.not.small_output) call output_single(energy_nu/press_gf,filename) !use press_gf b/c neutrino energy is not specific
+        if (.not.small_output) call output_single(energy_nu/press_gf,filename,115)
         filename = trim(adjustl(outdir))//"/dnupdr.xg"
-        if (.not.small_output) call output_single(dnupdr/press_gf*length_gf,filename)
+        if (.not.small_output) call output_single(dnupdr/press_gf*length_gf,filename,116)
      endif
 
      filename = trim(adjustl(outdir))//"/ye.xg"
-     call output_single(ye,filename)
+     call output_single(ye,filename,117)
      if (do_M1) then
         filename = trim(adjustl(outdir))//"/dyedt_hydro.xg"
-        if (.not.small_output) call output_single(dyedt_hydro*time_gf,filename)
+        if (.not.small_output) call output_single(dyedt_hydro*time_gf,filename,118)
         filename = trim(adjustl(outdir))//"/depsdt.xg"
-        if (.not.small_output) call output_single(depsdt,filename)
+        if (.not.small_output) call output_single(depsdt,filename,119)
         filename = trim(adjustl(outdir))//"/ynu.xg"
-        if (.not.small_output) call output_single(ynu,filename)
+        if (.not.small_output) call output_single(ynu,filename,120)
      endif
      
      
      filename = trim(adjustl(outdir))//"/press.xg"
-     call output_single(press/press_gf,filename)
+     call output_single(press/press_gf,filename,121)
      
      filename = trim(adjustl(outdir))//"/eps.xg"
-     if (.not.small_output) call output_single(eps/eps_gf,filename)
+     if (.not.small_output) call output_single(eps/eps_gf,filename,122)
      
      if (GR) then
         filename = trim(adjustl(outdir))//"/mass_grav.xg"
-        call output_single(mgrav/mass_gf,filename)
+        call output_single(mgrav/mass_gf,filename,123)
         filename = trim(adjustl(outdir))//"/mass_bary.xg"
-        call output_single(mass/mass_gf,filename)
+        call output_single(mass/mass_gf,filename,124)
      else
         filename = trim(adjustl(outdir))//"/mass_bary.xg"
-        call output_single(mass/mass_gf,filename)
+        call output_single(mass/mass_gf,filename,125)
      endif
      
      if (eoskey.eq.3) then
         filename = trim(adjustl(outdir))//"/xn.xg"
-        if (.not.small_output) call output_single(massfrac_n,filename)
+        if (.not.small_output) call output_single(massfrac_n,filename,126)
         
         filename = trim(adjustl(outdir))//"/xp.xg"
-        if (.not.small_output) call output_single(massfrac_p,filename)
+        if (.not.small_output) call output_single(massfrac_p,filename,127)
         
         filename = trim(adjustl(outdir))//"/xa.xg"
-        if (.not.small_output) call output_single(massfrac_a,filename)
+        if (.not.small_output) call output_single(massfrac_a,filename,128)
         
         filename = trim(adjustl(outdir))//"/xh.xg"
-        if (.not.small_output) call output_single(massfrac_h,filename)
+        if (.not.small_output) call output_single(massfrac_h,filename,129)
         
         filename = trim(adjustl(outdir))//"/xabar.xg"
-        if (.not.small_output) call output_single(massfrac_abar,filename)
+        if (.not.small_output) call output_single(massfrac_abar,filename,130)
         
         filename = trim(adjustl(outdir))//"/xzbar.xg"
-        if (.not.small_output) call output_single(massfrac_zbar,filename)
+        if (.not.small_output) call output_single(massfrac_zbar,filename,131)
      endif
 
      if (eoskey.eq.1) then
         filename = trim(adjustl(outdir))//"/pressth.xg"
-        if (.not.small_output) call output_single(pressth/press_gf,filename)
+        if (.not.small_output) call output_single(pressth/press_gf,filename,132)
      endif
 
      filename = trim(adjustl(outdir))//"/eps_kin.xg"
-     if (.not.small_output) call output_single(eps_kin/eps_gf,filename)
+     if (.not.small_output) call output_single(eps_kin/eps_gf,filename,133)
 
      filename = trim(adjustl(outdir))//"/cs.xg"
      allocate(cs(n1))
      cs(:) = sqrt(cs2(:))*clite
-     if (.not.small_output) call output_single(cs,filename)
+     if (.not.small_output) call output_single(cs,filename,134)
      deallocate(cs)
      
      if(GR) then
@@ -173,29 +190,29 @@ subroutine output_all(modeflag)
            call analytic_OSC_alpha(time*time_gf,10.d0,1.0d0, &
                 alp_ana,rho_ana,vel_ana,X_ana,maxr)
            filename = trim(adjustl(outdir))//"/alpha_analytic.xg"
-           call output_singlemod(alp_ana,filename,maxr)
+           call output_singlemod(alp_ana,filename,maxr,135)
            filename = trim(adjustl(outdir))//"/rho_analytic.xg"
-           call output_single(rho_ana/rho_gf,filename)
+           call output_single(rho_ana/rho_gf,filename,136)
            filename = trim(adjustl(outdir))//"/vel_analytic.xg"
-           call output_singlemod(vel_ana*clite,filename,maxr)
+           call output_singlemod(vel_ana*clite,filename,maxr,137)
            filename = trim(adjustl(outdir))//"/alphamod.xg"
-           call output_singlemod(alp,filename,maxr)
+           call output_singlemod(alp,filename,maxr,138)
            filename = trim(adjustl(outdir))//"/X_analytic.xg"
-           call output_single(X_ana,filename)
+           call output_single(X_ana,filename,139)
         endif
         filename = trim(adjustl(outdir))//"/alpha.xg"
-        if (.not.small_output) call output_single(alp,filename)
+        call output_single(alp,filename,140)
         filename = trim(adjustl(outdir))//"/X.xg"
-        if (.not.small_output) call output_single(X,filename)
+        if (.not.small_output) call output_single(X,filename,141)
         filename = trim(adjustl(outdir))//"/W.xg"
-        if (.not.small_output) call output_single(W,filename)
+        if (.not.small_output) call output_single(W,filename,142)
         filename = trim(adjustl(outdir))//"/v.xg"
-        call output_single(v*clite,filename)
+        call output_single(v*clite,filename,143)
      endif
 
      if (do_effectivepotential) then
         filename = trim(adjustl(outdir))//"/alpha.xg"
-        if (.not.small_output) call output_single(alp,filename)
+        if (.not.small_output) call output_single(alp,filename,144)
      endif
 
      if (do_M1) then
@@ -266,112 +283,112 @@ subroutine output_all(modeflag)
         enddo
 
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_enweighted_nue.xg"
-        if (.not.small_output) call output_single(fluxfactor_enweighted(:,1),filename)
+        if (.not.small_output) call output_single(fluxfactor_enweighted(:,1),filename,145)
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_enweighted_anue.xg"
-        if (.not.small_output) call output_single(fluxfactor_enweighted(:,2),filename)
+        if (.not.small_output) call output_single(fluxfactor_enweighted(:,2),filename,146)
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_enweighted_nux.xg"
-        if (.not.small_output) call output_single(fluxfactor_enweighted(:,3),filename)
+        if (.not.small_output) call output_single(fluxfactor_enweighted(:,3),filename,147)
         
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_fluxweighted_nue.xg"
-        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,1),filename)
+        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,1),filename,148)
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_fluxweighted_anue.xg"
-        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,2),filename)
+        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,2),filename,149)
         filename = trim(adjustl(outdir))//"/M1_fluxfactor_fluxweighted_nux.xg"
-        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,3),filename)
+        if (.not.small_output) call output_single(fluxfactor_fluxweighted(:,3),filename,150)
 
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_enweighted_nue.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,1),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,1),filename,151)
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_enweighted_anue.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,2),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,2),filename,152)
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_enweighted_nux.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,3),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_enweighted(:,3),filename,153)
 
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_fluxweighted_nue.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,1),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,1),filename,154)
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_fluxweighted_anue.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,2),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,2),filename,155)
         filename = trim(adjustl(outdir))//"/M1_eddingtonfactor_fluxweighted_nux.xg"
-        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,3),filename)
+        if (.not.small_output) call output_single(eddingtonfactor_fluxweighted(:,3),filename,156)
 
         filename = trim(adjustl(outdir))//"/dyedt_neutrino.xg"
-        if (.not.small_output) call output_single(dyedt_neutrino*time_gf,filename)
+        if (.not.small_output) call output_single(dyedt_neutrino*time_gf,filename,157)
 
         filename = trim(adjustl(outdir))//"/M1_nue_luminosity_fluid_rad.xg"
-        call output_single(luminosity_rad(:,1,1),filename)
+        call output_single(luminosity_rad(:,1,1),filename,158)
 
         filename = trim(adjustl(outdir))//"/M1_nue_luminosity_lab_rad.xg"
-        call output_single(luminosity_rad(:,1,2),filename)
+        call output_single(luminosity_rad(:,1,2),filename,159)
 
         filename = trim(adjustl(outdir))//"/M1_nue_enden_lab_rad.xg"
-        if (.not.small_output) call output_single(enden_rad(:,1,2),filename)
+        if (.not.small_output) call output_single(enden_rad(:,1,2),filename,160)
 
         filename = trim(adjustl(outdir))//"/M1_nue_fluxden_lab_rad.xg"
-        if (.not.small_output) call output_single(fluxden_rad(:,1,2),filename)
+        if (.not.small_output) call output_single(fluxden_rad(:,1,2),filename,161)
 
         filename = trim(adjustl(outdir))//"/M1_nue_numluminosity_fluid_rad.xg"
-        if (.not.small_output) call output_single(num_luminosity_rad(:,1,1),filename)
+        if (.not.small_output) call output_single(num_luminosity_rad(:,1,1),filename,162)
         
         filename = trim(adjustl(outdir))//"/M1_nue_aveenergy_fluid_rad.xg"
-        call output_single(average_energy_rad(:,1,1),filename)
+        call output_single(average_energy_rad(:,1,1),filename,163)
 
         filename = trim(adjustl(outdir))//"/M1_nue_rmsenergy_fluid_rad.xg"
-        call output_single(rms_energy_rad(:,1,1),filename)
+        call output_single(rms_energy_rad(:,1,1),filename,164)
 
 
         filename = trim(adjustl(outdir))//"/M1_anue_luminosity_fluid_rad.xg"
-        call output_single(luminosity_rad(:,2,1),filename)
+        call output_single(luminosity_rad(:,2,1),filename,165)
 
         filename = trim(adjustl(outdir))//"/M1_anue_luminosity_lab_rad.xg"
-        call output_single(luminosity_rad(:,2,2),filename)
+        call output_single(luminosity_rad(:,2,2),filename,166)
 
         filename = trim(adjustl(outdir))//"/M1_anue_enden_lab_rad.xg"
-        if (.not.small_output) call output_single(enden_rad(:,2,2),filename)
+        if (.not.small_output) call output_single(enden_rad(:,2,2),filename,167)
 
         filename = trim(adjustl(outdir))//"/M1_anue_fluxden_lab_rad.xg"
-        if (.not.small_output) call output_single(fluxden_rad(:,2,2),filename)
+        if (.not.small_output) call output_single(fluxden_rad(:,2,2),filename,168)
 
         filename = trim(adjustl(outdir))//"/M1_anue_numluminosity_fluid_rad.xg"
-        if (.not.small_output) call output_single(num_luminosity_rad(:,2,1),filename)
+        if (.not.small_output) call output_single(num_luminosity_rad(:,2,1),filename,169)
         
         filename = trim(adjustl(outdir))//"/M1_anue_aveenergy_fluid_rad.xg"
-        call output_single(average_energy_rad(:,2,1),filename)
+        call output_single(average_energy_rad(:,2,1),filename,170)
 
         filename = trim(adjustl(outdir))//"/M1_anue_rmsenergy_fluid_rad.xg"
-        call output_single(rms_energy_rad(:,2,1),filename)
+        call output_single(rms_energy_rad(:,2,1),filename,171)
 
 
         filename = trim(adjustl(outdir))//"/M1_nux_luminosity_fluid_rad.xg"
-        call output_single(luminosity_rad(:,3,1),filename)
+        call output_single(luminosity_rad(:,3,1),filename,172)
 
         filename = trim(adjustl(outdir))//"/M1_nux_luminosity_lab_rad.xg"
-        call output_single(luminosity_rad(:,3,2),filename)
+        call output_single(luminosity_rad(:,3,2),filename,173)
 
         filename = trim(adjustl(outdir))//"/M1_nux_enden_lab_rad.xg"
-        if (.not.small_output) call output_single(enden_rad(:,3,2),filename)
+        if (.not.small_output) call output_single(enden_rad(:,3,2),filename,174)
 
         filename = trim(adjustl(outdir))//"/M1_nux_fluxden_lab_rad.xg"
-        if (.not.small_output) call output_single(fluxden_rad(:,3,2),filename)
+        if (.not.small_output) call output_single(fluxden_rad(:,3,2),filename,175)
 
         filename = trim(adjustl(outdir))//"/M1_nux_numluminosity_fluid_rad.xg"
-        if (.not.small_output) call output_single(num_luminosity_rad(:,3,1),filename)
+        if (.not.small_output) call output_single(num_luminosity_rad(:,3,1),filename,176)
 
         filename = trim(adjustl(outdir))//"/M1_nux_aveenergy_fluid_rad.xg"
-        call output_single(average_energy_rad(:,3,1),filename)
+        call output_single(average_energy_rad(:,3,1),filename,177)
 
         filename = trim(adjustl(outdir))//"/M1_nux_rmsenergy_fluid_rad.xg"
-        call output_single(rms_energy_rad(:,3,1),filename)
+        call output_single(rms_energy_rad(:,3,1),filename,178)
 
             
         filename = trim(adjustl(outdir))//"/M1_nue_ng1_rad.xg"
-        if (.not.small_output) call output_single(q_M1(:,1,1,1),filename)
+        if (.not.small_output) call output_single(q_M1(:,1,1,1),filename,179)
 
      endif
 
      if(eoskey.eq.3) then
         filename = trim(adjustl(outdir))//"/entropy.xg"
-        if (.not.small_output) call output_single(entropy,filename)
+        if (.not.small_output) call output_single(entropy,filename,180)
         filename = trim(adjustl(outdir))//"/temperature.xg"
-        call output_single(temp,filename)
+        call output_single(temp,filename,181)
      endif
      
   else if(modeflag.eq.2) then
@@ -380,48 +397,48 @@ subroutine output_all(modeflag)
         !Shock radius
         if (bounce) then
            filename = trim(adjustl(outdir))//"/shock_radius_t.dat"
-           call output_scalar(shock_radius/length_gf,filename)
+           call output_scalar(shock_radius/length_gf,filename,182)
            filename = trim(adjustl(outdir))//"/binding_energy_total.dat"
-           call output_scalar(binding_energy_total/energy_gf,filename)
+           call output_scalar(binding_energy_total/energy_gf,filename,183)
         endif
         
         ! Mass values
         filename = trim(adjustl(outdir))//"/mgrav_Xmax.dat"
-        call output_scalar(mgravX,filename)        
+        call output_scalar(mgravX,filename,185)
         
         filename = trim(adjustl(outdir))//"/mbary_shock.dat"
-        call output_scalar(mass(ishock(1)),filename)       
+        call output_scalar(mass(ishock(1)),filename,186)
         
         filename = trim(adjustl(outdir))//"/mgrav_shock.dat"
-        call output_scalar(mgrav(ishock(1)),filename)                
+        call output_scalar(mgrav(ishock(1)),filename,187)
         
         filename = trim(adjustl(outdir))//"/mgrav_rho1e12.dat"
-        call output_scalar(mgrav12,filename)      
+        call output_scalar(mgrav12,filename,188)
 
         filename = trim(adjustl(outdir))//"/mbary_Xmax.dat"
-        call output_scalar(mbaryX,filename)      
+        call output_scalar(mbaryX,filename,189)
         
         filename = trim(adjustl(outdir))//"/mbary_rho1e12.dat"
-        call output_scalar(mbary12,filename)     
+        call output_scalar(mbary12,filename,190)
         
         filename = trim(adjustl(outdir))//"/r_Xmax.dat"
-        call output_scalar(rXmax/length_gf,filename)      
+        call output_scalar(rXmax/length_gf,filename,191)
         
         filename = trim(adjustl(outdir))//"/r_rho1e12.dat"
-        call output_scalar(r12max/length_gf,filename)    
+        call output_scalar(r12max/length_gf,filename,192)
 
         filename = trim(adjustl(outdir))//"/r_rho1e11.dat"
-        call output_scalar(r11max/length_gf,filename)    
+        call output_scalar(r11max/length_gf,filename,193)
         
         filename = trim(adjustl(outdir))//"/M_innercore.dat"
-        call output_scalar(mass_inner_core,filename)
+        call output_scalar(mass_inner_core,filename,194)
         
         !rotation scalars
         if (do_rotation) then
            filename = trim(adjustl(outdir))//"/total_angular_momentum.dat"
-           call output_scalar(angular_momentum/mass_gf*time_gf/length_gf**2,filename)
+           call output_scalar(angular_momentum/mass_gf*time_gf/length_gf**2,filename,195)
            filename = trim(adjustl(outdir))//"/ToverW_edge.dat"
-           call output_scalar(ToverW(n1-ghosts1-1),filename)
+           call output_scalar(ToverW(n1-ghosts1-1),filename,196)
         endif
      endif
 
@@ -500,7 +517,7 @@ subroutine output_all(modeflag)
         scalars(2) = total_energy_radiated
         scalars(3) = total_energy_absorped
         filename = trim(adjustl(outdir))//"/M1_energies.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,197)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -508,7 +525,7 @@ subroutine output_all(modeflag)
         scalars(2) = luminosity(2)
         scalars(3) = luminosity(3)
         filename = trim(adjustl(outdir))//"/M1_flux_lum.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,198)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -516,7 +533,7 @@ subroutine output_all(modeflag)
         scalars(2) = luminosity_fluid(2)
         scalars(3) = luminosity_fluid(3)
         filename = trim(adjustl(outdir))//"/M1_flux_lum_fluid.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,199)
         
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -524,7 +541,7 @@ subroutine output_all(modeflag)
         scalars(2) = num_luminosity(2)
         scalars(3) = num_luminosity(3)
         filename = trim(adjustl(outdir))//"/M1_flux_numlum.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,200)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -532,7 +549,7 @@ subroutine output_all(modeflag)
         scalars(2) = num_luminosity_fluid(2)
         scalars(3) = num_luminosity_fluid(3)
         filename = trim(adjustl(outdir))//"/M1_flux_numlum_fluid.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,201)
 
 
         scalars(1:nscalars0) = 0.0d0
@@ -543,7 +560,7 @@ subroutine output_all(modeflag)
         scalars(4) = total_mass_gain
         scalars(5) = total_net_deintdt
         filename = trim(adjustl(outdir))//"/M1_net_heating.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,202)
         
         scalars(1:nscalars0) = 0.0d0
         nscalars = number_groups*number_species*2
@@ -555,7 +572,7 @@ subroutine output_all(modeflag)
            enddo
         enddo
         filename = trim(adjustl(outdir))//"/M1_nusphere_allE.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,203)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = number_species*5
@@ -568,7 +585,7 @@ subroutine output_all(modeflag)
            scalars((k-1)*5+5) = ave_nusphere(k,5)
         enddo
         filename = trim(adjustl(outdir))//"/M1_nusphere_ave.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,204)
         
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -576,7 +593,7 @@ subroutine output_all(modeflag)
         scalars(2) = average_energy(2)
         scalars(3) = average_energy(3)
         filename = trim(adjustl(outdir))//"/M1_flux_aveenergy_lab.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,205)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -584,7 +601,7 @@ subroutine output_all(modeflag)
         scalars(2) = rms_energy_fluid(2)
         scalars(3) = rms_energy_fluid(3)
         filename = trim(adjustl(outdir))//"/M1_flux_rmsenergy_fluid.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,206)
 
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -592,7 +609,7 @@ subroutine output_all(modeflag)
         scalars(2) = average_energy_fluid(2)
         scalars(3) = average_energy_fluid(3)
         filename = trim(adjustl(outdir))//"/M1_flux_aveenergy_fluid.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,207)
         
         scalars(1:nscalars0) = 0.0d0
         nscalars = 3
@@ -600,127 +617,127 @@ subroutine output_all(modeflag)
         scalars(2) = rms_energy(2)
         scalars(3) = rms_energy(3)
         filename = trim(adjustl(outdir))//"/M1_flux_rmsenergy_lab.dat"
-        call output_many_scalars(scalars,nscalars0,nscalars,filename)
+        call output_many_scalars(scalars,nscalars0,nscalars,filename,208)
 
         filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_out.xg"
         spectrum = q_M1(M1_iextractradii,1,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,209)
 
         filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_out.xg"
         spectrum = q_M1(M1_iextractradii,2,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,210)
 
         filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_out.xg"
         spectrum = q_M1(M1_iextractradii,3,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,211)
 
         filename = trim(adjustl(outdir))//"/M1_nue_enspectra_out.xg"
         spectrum = q_M1_fluid(M1_iextractradii,1,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,212)
 
         filename = trim(adjustl(outdir))//"/M1_anue_enspectra_out.xg"
         spectrum = q_M1_fluid(M1_iextractradii,2,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,213)
 
         filename = trim(adjustl(outdir))//"/M1_nux_enspectra_out.xg"
         spectrum = q_M1_fluid(M1_iextractradii,3,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,214)
 
         filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_cen.xg"
         spectrum = q_M1(ghosts1+1,1,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,215)
 
         filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_cen.xg"
         spectrum = q_M1(ghosts1+1,2,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,216)
 
         filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_cen.xg"
         spectrum = q_M1(ghosts1+1,3,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,217)
 
         filename = trim(adjustl(outdir))//"/M1_nue_enspectra_cen.xg"
         spectrum = q_M1_fluid(ghosts1+1,1,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,218)
 
         filename = trim(adjustl(outdir))//"/M1_anue_enspectra_cen.xg"
         spectrum = q_M1_fluid(ghosts1+1,2,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,219)
         
         filename = trim(adjustl(outdir))//"/M1_nux_enspectra_cen.xg"
         spectrum = q_M1_fluid(ghosts1+1,3,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,220)
 
         filename = trim(adjustl(outdir))//"/capturing_factors.xg"
         spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
              q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
-        call output_spectra(spectrum,filename)
+        call output_spectra(spectrum,filename,221)
 
         filename = trim(adjustl(outdir))//"/dyedt_neutrino_c_t.dat"
-        if (.not.small_output)  call output_central(dyedt_neutrino*time_gf,filename)
+        if (.not.small_output)  call output_central(dyedt_neutrino*time_gf,filename,222)
 
      endif
 
      ! central values
      filename = trim(adjustl(outdir))//"/rho_c_t.dat"
-     call output_central(rho/rho_gf,filename)
+     call output_central(rho/rho_gf,filename,223)
         
      filename = trim(adjustl(outdir))//"/ye_c_t.dat"
-     call output_central(ye,filename)
+     call output_central(ye,filename,224)
 
      filename = trim(adjustl(outdir))//"/dyedt_hydro_c_t.dat"
-     if (.not.small_output) call output_central(dyedt_hydro*time_gf,filename)
+     if (.not.small_output) call output_central(dyedt_hydro*time_gf,filename,225)
 
      filename = trim(adjustl(outdir))//"/ynu_c_t.dat"
-     call output_central(ynu,filename)        
+     call output_central(ynu,filename,226)
 
      filename = trim(adjustl(outdir))//"/csound_c_t.dat"
-     call output_central(sqrt(cs2),filename)
+     call output_central(sqrt(cs2),filename,227)
      
      if(eoskey.eq.3) then
         filename = trim(adjustl(outdir))//"/entropy_c_t.dat"
-        call output_central(entropy,filename)
+        call output_central(entropy,filename,228)
         filename = trim(adjustl(outdir))//"/temperature_c_t.dat"
-        call output_central(temp,filename)
+        call output_central(temp,filename,229)
      endif
      
      filename = trim(adjustl(outdir))//"/totalmass.dat"
-     call output_scalar(totalmass/mass_gf,filename)
+     call output_scalar(totalmass/mass_gf,filename,230)
      
      if(GR) then
         if(initial_data.eq."OSC") then
            call analytic_OSC_alpha(time*time_gf,10.d0,1.0d0, &
                 alp_ana,rho_ana,vel_ana,X_ana,maxr)
            filename = trim(adjustl(outdir))//"/alpha_analytic_c_t.dat"
-           call output_central(alp_ana,filename)
+           call output_central(alp_ana,filename,231)
            filename = trim(adjustl(outdir))//"/rho_analytic_c_t.dat"
-           call output_central(rho_ana/rho_gf,filename)
+           call output_central(rho_ana/rho_gf,filename,232)
            filename = trim(adjustl(outdir))//"/vel_analytic_c_t.dat"
-           call output_central(vel_ana*clite,filename)
+           call output_central(vel_ana*clite,filename,233)
         endif
         filename = trim(adjustl(outdir))//"/alpha_c_t.dat"
-        call output_central(alp,filename)
+        call output_central(alp,filename,234)
         filename = trim(adjustl(outdir))//"/time_c.dat"
-        call output_scalar(time_c,filename)
+        call output_scalar(time_c,filename,235)
      endif
      
      if(initial_data.eq."Sedov") then
         ishock_radius = maxloc(abs(v1))
         filename = trim(adjustl(outdir))//"/Sedov_radius.dat"
-        call output_scalar(x1(ishock_radius(1)),filename)
+        call output_scalar(x1(ishock_radius(1)),filename,236)
         filename = trim(adjustl(outdir))//"/Sedov_velocity.dat"
-        call output_scalar(v1(ishock_radius(1)),filename)
+        call output_scalar(v1(ishock_radius(1)),filename,237)
         filename = trim(adjustl(outdir))//"/Sedov_press.dat"
-        call output_scalar(press(ishock_radius(1)),filename)
+        call output_scalar(press(ishock_radius(1)),filename,238)
         filename = trim(adjustl(outdir))//"/Sedov_density.dat"
-        call output_scalar(rho(ishock_radius(1)),filename)
+        call output_scalar(rho(ishock_radius(1)),filename,239)
         
      endif
      
      if (initial_data.eq.'Collapse') then
         filename = trim(adjustl(outdir))//"/accretion_rates.dat"
-        call output_accretion(accretion_rates,filename)
+        call output_accretion(accretion_rates,filename,240)
         filename = trim(adjustl(outdir))//"/accreted_mass.dat"
-        call output_accretion(accreted_mass,filename)
+        call output_accretion(accreted_mass,filename,241)
      endif
      
   endif
@@ -728,25 +745,21 @@ subroutine output_all(modeflag)
 end subroutine output_all
 
 ! *******************************************************************
-subroutine output_accretion(var,filename)
+subroutine output_accretion(var,filename,nfile)
       
   use GR1D_module, only: time
   
   implicit none
   real*8 var(*)
   character(*) filename
+  integer nfile
   
-  open(unit=666,file=trim(adjustl(filename)),status="unknown",&
-       form='formatted',position="append")
-  
-  write(666,"(1P20E18.9)") time, var(1), var(2), var(3), var(4), &
+  write(nfile,"(1P20E18.9)") time, var(1), var(2), var(3), var(4), &
        var(5), var(6), var(7), var(8), var(9), var(10), var(11)
-  
-  close(666)
-  
+  flush(nfile)
 end subroutine output_accretion
 ! ******************************************************************
-subroutine output_single(var,filename)
+subroutine output_single(var,filename,nfile)
   
   use GR1D_module, only: vs_mass,x1,mass,time,n1,length_gf
   
@@ -755,37 +768,36 @@ subroutine output_single(var,filename)
   character(len=100) filename
   integer nt
   integer i
+  integer nfile
   
-  open(unit=666,file=trim(adjustl(filename)),status="unknown",&
-       form='formatted',position="append")
-  write(666,*) '"Time = ',time
+  write(nfile,*) '"Time = ',time
   
   if(vs_mass) then
      do i=1,n1
         if (abs(var(i)).lt.1.0d-90) then
-           write(666,"(1P20E18.9)") mass(i),0.0d0
+           write(nfile,"(1P20E18.9)") mass(i),0.0d0
         else
-           write(666,"(1P20E18.9)") mass(i),var(i)
+           write(nfile,"(1P20E18.9)") mass(i),var(i)
         endif
      enddo
   else
      do i=1,n1
         if (abs(var(i)).lt.1.0d-90) then
-           write(666,"(1P20E18.9)") x1(i)/length_gf,0.0d0
+           write(nfile,"(1P20E18.9)") x1(i)/length_gf,0.0d0
         else
-           write(666,"(1P20E18.9)") x1(i)/length_gf,var(i)
+           write(nfile,"(1P20E18.9)") x1(i)/length_gf,var(i)
         endif
      enddo
   endif
 
-  write(666,*) " "
-  write(666,*) " "
-  close(666)
-  
+  write(nfile,*) " "
+  write(nfile,*) " "
+  flush(nfile)
+
 end subroutine output_single
 
 ! ******************************************************************
-    subroutine output_spectra(var,filename)
+    subroutine output_spectra(var,filename,nfile)
       
       use GR1D_module, only: time,number_groups,nulib_energy_gf
       use nulibtable, only: nulibtable_energies
@@ -795,29 +807,26 @@ end subroutine output_single
       character(len=100) filename
       integer nt
       integer i
+      integer nfile
 
-      open(unit=666,file=trim(adjustl(filename)),status="unknown",&
-           form='formatted',position="append")
-      write(666,*) '"Time = ',time
+      write(nfile,*) '"Time = ',time
 
       do i=1,number_groups
          if (abs(var(i)).lt.1.0d-90) then
-            write(666,"(1P20E18.9)") nulibtable_energies(i)/(nulib_energy_gf),0.0d0
+            write(nfile,"(1P20E18.9)") nulibtable_energies(i)/(nulib_energy_gf),0.0d0
          else
-            write(666,"(1P20E18.9)") nulibtable_energies(i)/(nulib_energy_gf),var(i)
+            write(nfile,"(1P20E18.9)") nulibtable_energies(i)/(nulib_energy_gf),var(i)
          endif
       enddo
-      write(666,*) " "
-      write(666,*) " "
-      close(666)
-
-
+      write(nfile,*) " "
+      write(nfile,*) " "
+      flush(nfile)
 
     end subroutine output_spectra
 
 ! ******************************************************************
 
-subroutine output_central(var,filename)
+subroutine output_central(var,filename,nfile)
   
   use GR1D_module, only: x1,time,n1,ghosts1
   
@@ -826,17 +835,15 @@ subroutine output_central(var,filename)
   character(len=100) filename
   integer nt
   integer i
-  
-  open(unit=666,file=filename,status="unknown",form='formatted',position="append")
-  
-  write(666,"(1P20E18.9)") time,var(ghosts1+1)
-  
-  close(666)
-  
+  integer nfile
+
+  write(nfile,"(1P20E18.9)") time,var(ghosts1+1)
+  flush(nfile)
+
 end subroutine output_central
 
 ! *******************************************************************
-subroutine output_scalar(var,filename)
+subroutine output_scalar(var,filename,nfile)
   
   use GR1D_module, only: time
   implicit none
@@ -844,16 +851,14 @@ subroutine output_scalar(var,filename)
   character(len=100) filename
   integer nt
   integer i
+  integer nfile
   
-  open(unit=666,file=filename,status="unknown",form='formatted',position="append")
-  
-  write(666,"(1P20E18.9)") time,var
-  
-  close(666)
+  write(nfile,"(1P20E18.9)") time,var
+  flush(nfile)
 
 end subroutine output_scalar
 ! *******************************************************************
-subroutine output_many_scalars(var,n0,n,filename)
+subroutine output_many_scalars(var,n0,n,filename,nfile)
   
   use GR1D_module, only: time
   implicit none
@@ -862,13 +867,11 @@ subroutine output_many_scalars(var,n0,n,filename)
   character(len=100) filename
   integer nt
   integer i
+  integer nfile
   
-  open(unit=666,file=filename,status="unknown",form='formatted',position="append")
-  
-  write(666,"(1P256E18.9)") time,var(1:n)
-  
-  close(666)
-  
+  write(nfile,"(1P64E18.9)") time,var(1:n)
+  flush(nfile)
+
 end subroutine output_many_scalars
 ! *******************************************************************
 subroutine generate_filename(varname,outdir,time,nt,suffix,fname)
@@ -897,7 +900,7 @@ subroutine generate_filename(varname,outdir,time,nt,suffix,fname)
   
 end subroutine generate_filename
 ! ******************************************************************
-subroutine output_singlemod(var,filename,maxr)
+subroutine output_singlemod(var,filename,maxr,nfile)
   
   use GR1D_module, only: x1,time,n1,length_gf,ghosts1
   
@@ -907,19 +910,18 @@ subroutine output_singlemod(var,filename,maxr)
   integer nt
   real*8 maxr
   integer i
-  
-  open(unit=666,file=trim(adjustl(filename)),status="unknown",&
-       form='formatted',position="append")
-  write(666,*) '"Time = ',time
+  integer nfile
+
+  write(nfile,*) '"Time = ',time
   
   do i=ghosts1,n1
      if (x1(i).lt.maxr) then
-        write(666,"(1P20E18.9)") x1(i),var(i)
+        write(nfile,"(1P20E18.9)") x1(i),var(i)
      endif
   enddo
-  write(666,*) " "
-  write(666,*) " "
-  close(666)
+  write(nfile,*) " "
+  write(nfile,*) " "
+  flush(nfile)
   
 end subroutine output_singlemod
 

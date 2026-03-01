@@ -101,6 +101,7 @@ subroutine input_parser
   call get_integer_parameter('eoskey',eoskey)
   if(eoskey.eq.3) then
      call get_string_parameter('eos_table_name',eos_table_name)
+     call get_logical_parameter('limit_EoS_table',limit_EoS_table)
   endif
   if(eoskey.eq.1) then
      call get_double_parameter('hybridgamma_th',hybridgamma_th)
@@ -263,7 +264,9 @@ subroutine input_parser
      endif
      call get_logical_parameter('do_turbulence',do_turbulence)
      if (do_turbulence) then
-  	     if (geometry.ne.2) stop "Turbulence in 1D?"
+        if (geometry.ne.2) stop "Turbulence in 1D?"
+        call get_logical_parameter('do_compressive_turb',do_compressive_turb)
+        call get_logical_parameter('do_turbulent_viscosity',do_turbulent_viscosity)
         call get_double_parameter('alpha_turb',alpha_turb)
         call get_double_parameter('tpb_for_turbulence',tpb_for_turbulence)
      endif

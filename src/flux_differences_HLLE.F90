@@ -14,8 +14,9 @@ subroutine flux_differences_hlle
   real(kind=8), allocatable :: dthx(:)
   real(kind=8), allocatable :: eigenvaluesl(:,:), eigenvaluesr(:,:)
   
-  real(kind=8) :: rp,rm,dx,dx_mod
-  
+  real(kind=8) :: rp,rm,dx,dx_mod,P_turb
+  real(kind=8), allocatable :: flux_compressive(:)
+
   !timers
   real*8 :: t1 = 0.0d0
   real*8 :: t2 = 0.0d0
@@ -34,8 +35,12 @@ subroutine flux_differences_hlle
   allocate(acr(n1))
   allocate(dthx(n1))
   allocate(eigenvaluesl(n1,n_cons))
-  allocate(eigenvaluesr(n1,n_cons))		
-  
+  allocate(eigenvaluesr(n1,n_cons))
+  if (activate_turbulence .and. do_compressive_turb) then
+    allocate(flux_compressive(n1))
+    flux_compressive(:) = 0.0d0
+  endif
+
   ! Set left and right sound speeds, velocities and 
   ! eigenvalues (characteristic speeds) in Romero et al. (1996).
   ! In the case of rotation we make the approximation that
@@ -108,8 +113,8 @@ subroutine flux_differences_hlle
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*vm(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*vp(i)
-	   fluxr(i,6) = qm(i+1,6)*vm(i+1)
+           fluxl(i,6) = qp(i,6)*vp(i)
+           fluxr(i,6) = qm(i+1,6)*vm(i+1)
         endif  
      else
         fluxl(i,1) = qp(i,1)*v1p(i)
@@ -134,8 +139,8 @@ subroutine flux_differences_hlle
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*v1m(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*v1p(i) 
-	   fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
+           fluxl(i,6) = qp(i,6)*v1p(i) 
+           fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
         endif     
      endif
   enddo
@@ -155,6 +160,14 @@ subroutine flux_differences_hlle
              / ( dspeed(i) )
      enddo
      if(activate_turbulence) then
+        if (do_compressive_turb) then
+          flux_compressive(i) = ( smax(i)*v1p(i) &
+              - smin(i)*v1m(i) &
+              + smax(i) * smin(i) &
+              * ( v1m(i+1) - v1p(i) ) ) &
+              / ( dspeed(i) )
+        endif
+
         flux(i,3) = flux(i,3) - diff_term_eps(i)
         flux(i,4) = flux(i,4) - diff_term_ye(i)
         flux(i,6) = flux(i,6) - diff_term_K(i)
@@ -186,12 +199,24 @@ subroutine flux_differences_hlle
                       - flux(i-1,m)*alpm(i)/Xm(i)*rm**2 ) &
                       / x1(i)**2 / dx
               endif
+              if (m.eq.6 .and. activate_turbulence .and. do_compressive_turb) then
+                    P_turb = 2.0d0*c_turb*q(i,6)
+                    flux_diff(i,m) = flux_diff(i,m) + P_turb * &
+                     ( flux_compressive(i)*alpp(i)/Xp(i)*rp**2 &
+                      - flux_compressive(i-1)*alpm(i)/Xm(i)*rm**2 ) &
+                      / x1(i)**2 / dx 
+              endif
            else
               if (m.eq.5) then
                  !since the quanitity goes as r^2 use improved diverence for small r
                  flux_diff(i,m) = ( flux(i,m)*rp**2 - flux(i-1,m)*rm**2 ) / dx_mod
               else
                  flux_diff(i,m) = ( flux(i,m)*rp**2 - flux(i-1,m)*rm**2 ) / dx
+              endif
+              if (m.eq.6 .and. activate_turbulence .and. do_compressive_turb) then
+                    P_turb = 2.0d0*c_turb*q(i,6)
+                    flux_diff(i,m) = flux_diff(i,m) + P_turb* &
+                      ( flux_compressive(i)*rp**2 - flux_compressive(i-1)*rm**2 ) / dx
               endif
            endif
         enddo
@@ -221,7 +246,8 @@ subroutine flux_differences_hlle
   deallocate(dthx)
   deallocate(eigenvaluesl)
   deallocate(eigenvaluesr)
-  
+  if (activate_turbulence .and. do_compressive_turb) deallocate(flux_compressive)
+
   call cpu_time(t2)
 
   t_fdhlle = t_fdhlle + (t2-t1)
