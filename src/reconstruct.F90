@@ -1,10 +1,16 @@
 ! -*-f90-*-
 subroutine reconstruct
   
+  use timers
   use GR1D_module
   implicit none
   
+  real*8 :: t1, t2
+
+  CALL GetThisTime(t1)
   call reconstruct_1
+  CALL GetThisTime(t2)
+  timer_rec = timer_rec + (t2 - t1)
   
 end subroutine reconstruct
 

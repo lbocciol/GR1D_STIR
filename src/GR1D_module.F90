@@ -53,6 +53,7 @@ module GR1D_module
   logical :: CheckFlag = .false.
   logical :: OutputFlagScalar  = .false.
   logical :: OutputFlagRestart = .false.
+  integer :: nOutFiles1, nOutFiles2
 
   integer nt,ntmax
   !output interval settings

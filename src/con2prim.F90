@@ -2,9 +2,15 @@
 subroutine con2prim
   
   use GR1D_module
+  use timers
   implicit none
-  
+
+  real*8 :: t1, t2
+
+  CALL GetThisTime(t1)
   call con2prim_1
+  CALL GetThisTime(t2)
+  timer_c2p = timer_c2p + (t2 - t1)
 
 end subroutine con2prim
 
@@ -15,7 +21,6 @@ subroutine con2prim_1
   use GR1D_module
   use atmos
   use omp_lib
-  use timers, only: t_c2p
   implicit none
   
   real*8 tol, err, h, discrim
@@ -47,9 +52,7 @@ subroutine con2prim_1
   success=0
   pt_counter = 0
 
-  call cpu_time(t1)
   oeps = eps
-
 
   !test in shocktube or similar
   if (GR.and.(gravity_active.eqv..false.)) then
@@ -409,11 +412,6 @@ subroutine con2prim_1
          endif
       enddo
    endif
-   
-
-   call cpu_time(t2)
-   t_c2p = t_c2p + (t2-t1)
-
 
 end subroutine con2prim_1
 
@@ -423,8 +421,6 @@ subroutine con2prim_pt(tol,i,success)
   
   use GR1D_module
   use atmos
-  use omp_lib
-  use timers, only: t_c2p
   implicit none
   
   real*8 tol, err, h, discrim
@@ -561,8 +557,6 @@ subroutine con2prim_pt_rot(tol,i,success)
   
   use GR1D_module
   use atmos
-  use omp_lib
-  use timers, only: t_c2p
   implicit none
   
   real*8 tol, err, h, discrim

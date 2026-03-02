@@ -1,7 +1,13 @@
 F90=
-F90FLAGS= -g -O3 -fopenmp 
-LDFLAGS= -g -O3 -fopenmp 
+HAVE_OMP=1
+F90FLAGS= -g -O3
+LDFLAGS= -g -O3
 MODINC="-I ./"
+
+ifeq ($(HAVE_OMP), 1)
+  F90FLAGS += -fopenmp -DHAVE_OMP
+  LDFLAGS  += -fopenmp
+endif
 
 HDF5DIR=
 HDF5INCS=-I${HDF5DIR}/include

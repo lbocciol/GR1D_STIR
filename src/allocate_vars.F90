@@ -38,6 +38,7 @@ subroutine allocate_vars
      allocate(shear(n1))
      allocate(diss(n1))
      allocate(buoy(n1))
+     allocate(visc(n1))
   endif
 
   allocate(v(n1))

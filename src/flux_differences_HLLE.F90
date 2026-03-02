@@ -2,7 +2,7 @@
 subroutine flux_differences_hlle
     
   use GR1D_module
-  use timers, only: t_fdhlle
+  use timers
   implicit none
   
   integer(kind=4) :: eosflag,keyerr,keytemp
@@ -21,7 +21,7 @@ subroutine flux_differences_hlle
   real*8 :: t1 = 0.0d0
   real*8 :: t2 = 0.0d0
   
-  call cpu_time(t1)
+  CALL GetThisTime(t1)
 
   allocate(smin(n1))
   allocate(smax(n1))
@@ -248,8 +248,8 @@ subroutine flux_differences_hlle
   deallocate(eigenvaluesr)
   if (activate_turbulence .and. do_compressive_turb) deallocate(flux_compressive)
 
-  call cpu_time(t2)
+  CALL GetThisTime(t2)
 
-  t_fdhlle = t_fdhlle + (t2-t1)
+  timer_fdhlle = timer_fdhlle + (t2-t1)
   
 end subroutine flux_differences_hlle

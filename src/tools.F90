@@ -21,5 +21,4 @@
       
    enddo
    
-
  end subroutine findnaninf

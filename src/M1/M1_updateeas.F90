@@ -2,6 +2,7 @@
 !this subroutine updates the neutrino-matter interaction coefficents
 subroutine M1_updateeas
   
+  use timers
   use GR1D_module
   use nulibtable
   implicit none
@@ -23,6 +24,10 @@ subroutine M1_updateeas
 
   integer :: keytemp,keyerr
   real*8 :: eosdummy(17)
+
+  real*8 :: t1, t2
+
+  CALL GetThisTime(t1)
 
   if (M1_testcase_number.eq.0.or.M1_testcase_number.eq.1) then
 
@@ -207,5 +212,8 @@ subroutine M1_updateeas
   else
      stop "add in eas updating code for this test case"
   endif
+
+  CALL GetThisTime(t2)
+  timer_M1_eas = timer_M1_eas + (t2 - t1)
 
 end subroutine M1_updateeas
