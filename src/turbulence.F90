@@ -13,9 +13,9 @@ subroutine turb_diff_terms
    real*8 :: D_turb_eps, D_turb_ye, D_turb_K
    real*8 :: eps_grad(n1), ye_grad(n1), v2_turb_grad(n1)
 
-   eps_grad = Gradient_int(eps,x1)
-   ye_grad = Gradient_int(ye,x1)
-   v2_turb_grad = Gradient_int(v_turb**2,x1)
+   eps_grad = Gradient_int_p(eps,x1)
+   ye_grad = Gradient_int_p(ye,x1)
+   v2_turb_grad = Gradient_int_p(v_turb**2,x1)
    
    !Implement the calculation of the diffusion terms
    do i=ghosts1+1,n1-ghosts1

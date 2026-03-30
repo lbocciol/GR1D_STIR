@@ -11,6 +11,7 @@ module GR1D_module
   character*256 opacity_table     
   character*256 eos_table_name
   character*256 restart_file_name
+  logical limit_EoS_table
   logical force_restart_output
   logical wipe_outdir
   logical do_restart
@@ -33,6 +34,11 @@ module GR1D_module
   !eos desired precision
   real*8,parameter :: eos_rf_prec = 1.0d-9
 
+  ! eos extrema
+  real*8 :: EoS_rhomin, EoS_rhomax
+  real*8 :: EoS_yemin, EoS_yemax
+  real*8 :: EoS_tempmin, EoS_tempmax
+
   !number of ghost zones
   integer ghosts1
 
@@ -47,6 +53,7 @@ module GR1D_module
   logical :: CheckFlag = .false.
   logical :: OutputFlagScalar  = .false.
   logical :: OutputFlagRestart = .false.
+  integer :: nOutFiles1, nOutFiles2
 
   integer nt,ntmax
   !output interval settings
@@ -63,7 +70,8 @@ module GR1D_module
   integer :: rkstep = 0
 
   real*8 tend
-
+  real*8 tend_wallclock
+  
   real*8 cffac
   real*8 cffac_original
   real*8 tiny
@@ -128,6 +136,7 @@ module GR1D_module
   integer ishock(1)
   real*8 shock_radius
   real*8 gain_radius
+  real*8 pns_radius
   integer igain(1)
   real*8 mgravX,mgrav12
   real*8 mbaryX,mbary12
@@ -148,6 +157,7 @@ module GR1D_module
   !turbulence, nomenclature from Couch et al. 2020
   logical :: do_turbulence = .false. 
   logical :: activate_turbulence = .false.
+  logical :: do_compressive_turb = .false.
   logical :: read_v_turb = .false. !this is for restart purposes
   logical :: explosion_reached = .false.
   real*8 :: alpha_turb, tpb_for_turbulence
@@ -157,13 +167,13 @@ module GR1D_module
   real*8,allocatable,save :: diff_term_eps(:)
   real*8,allocatable,save :: diff_term_ye(:)
   real*8,allocatable,save :: diff_term_K(:)
-    
+
   real*8,allocatable,save :: turb_source(:,:)
   real*8,allocatable,save :: lambda_mlt(:), shear(:), diss(:), buoy(:)
-  real*8,parameter :: alpha_turb_e = 1.0/6.0
-  real*8,parameter :: alpha_turb_ye = 1.0/6.0
-  real*8,parameter :: alpha_turb_K = 1.0/6.0
-  real*8,parameter :: alpha_turb_nu = 1.0/6.0
+  real*8,parameter :: alpha_turb_e  = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_ye = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_K  = 1.0d0/6.0d0
+  real*8,parameter :: alpha_turb_nu = 1.0d0/6.0d0
 
   !testcases variables
   integer :: shocktube_problem
@@ -172,11 +182,11 @@ module GR1D_module
   logical :: do_M1 = .false.
   integer :: M1_prev_phase = 1
   logical :: do_M1_extra_heating = .false.
-  real*8 :: M1_heat_fac = 1.0d0
+  real*8  :: M1_heat_fac = 1.0d0
 
   integer :: v_order
-  real*8 :: M1_maxradii
-  real*8 :: M1_extractradii
+  real*8  :: M1_maxradii
+  real*8  :: M1_extractradii
   integer :: M1_imaxradii
   integer :: M1_iextractradii
   integer :: number_species

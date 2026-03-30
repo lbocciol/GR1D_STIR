@@ -2,7 +2,7 @@
 subroutine flux_differences_hlle
     
   use GR1D_module
-  use timers, only: t_fdhlle
+  use timers
   implicit none
   
   integer(kind=4) :: eosflag,keyerr,keytemp
@@ -15,12 +15,12 @@ subroutine flux_differences_hlle
   real(kind=8), allocatable :: eigenvaluesl(:,:), eigenvaluesr(:,:)
   
   real(kind=8) :: rp,rm,dx,dx_mod
-  
+
   !timers
   real*8 :: t1 = 0.0d0
   real*8 :: t2 = 0.0d0
   
-  call cpu_time(t1)
+  CALL GetThisTime(t1)
 
   allocate(smin(n1))
   allocate(smax(n1))
@@ -34,8 +34,8 @@ subroutine flux_differences_hlle
   allocate(acr(n1))
   allocate(dthx(n1))
   allocate(eigenvaluesl(n1,n_cons))
-  allocate(eigenvaluesr(n1,n_cons))		
-  
+  allocate(eigenvaluesr(n1,n_cons))
+
   ! Set left and right sound speeds, velocities and 
   ! eigenvalues (characteristic speeds) in Romero et al. (1996).
   ! In the case of rotation we make the approximation that
@@ -103,13 +103,13 @@ subroutine flux_differences_hlle
       
         if(activate_turbulence) then
            fluxl(i,2) = fluxl(i,2) + qp(i,6)
-           fluxl(i,3) = fluxl(i,3) + qp(i,6)*vp(i) 
+           fluxl(i,3) = fluxl(i,3) + qp(i,6)*vp(i)
            
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*vm(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*vp(i)
-	   fluxr(i,6) = qm(i+1,6)*vm(i+1)
+           fluxl(i,6) = qp(i,6)*vp(i)
+           fluxr(i,6) = qm(i+1,6)*vm(i+1)
         endif  
      else
         fluxl(i,1) = qp(i,1)*v1p(i)
@@ -129,13 +129,13 @@ subroutine flux_differences_hlle
         
         if(activate_turbulence) then
            fluxl(i,2) = fluxl(i,2) + qp(i,6)
-           fluxl(i,3) = fluxl(i,3) + qp(i,6)*v1p(i) 
-           
+           fluxl(i,3) = fluxl(i,3) + qp(i,6)*v1p(i)
+
            fluxr(i,2) = fluxr(i,2) + qm(i+1,6)
            fluxr(i,3) = fluxr(i,3) + qm(i+1,6)*v1m(i+1) 
            
-	   fluxl(i,6) = qp(i,6)*v1p(i) 
-	   fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
+           fluxl(i,6) = qp(i,6)*v1p(i) 
+           fluxr(i,6) = qm(i+1,6)*v1m(i+1) 
         endif     
      endif
   enddo
@@ -221,9 +221,9 @@ subroutine flux_differences_hlle
   deallocate(dthx)
   deallocate(eigenvaluesl)
   deallocate(eigenvaluesr)
-  
-  call cpu_time(t2)
 
-  t_fdhlle = t_fdhlle + (t2-t1)
+  CALL GetThisTime(t2)
+
+  timer_fdhlle = timer_fdhlle + (t2-t1)
   
 end subroutine flux_differences_hlle

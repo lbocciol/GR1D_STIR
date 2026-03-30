@@ -81,6 +81,10 @@ subroutine handle_output
   use timers
   use GR1D_module
   implicit none
+
+  real*8 t_now
+
+  call GetThisTime(t_now)
   
   if(dynamic_output_control) then
      call output_control
@@ -95,6 +99,7 @@ subroutine handle_output
      call output_all(2)
      call output_timers
      call restart_output_h5
+     call PrintTimers()
      stop
   endif
   
@@ -107,7 +112,18 @@ subroutine handle_output
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
+     call PrintTimers()
      stop
+  endif
+
+  if ( (t_now - t_start) .ge. tend_wallclock ) then
+    write(*,*) t_now, t_start, tend_wallclock
+    write(*,*) "Done! :-) wallclock limit reached"
+    call output_all(1)
+    call output_all(2)
+    call output_timers
+    call restart_output_h5
+    stop
   endif
 
   !!   Output/Checking
@@ -216,6 +232,38 @@ subroutine postStep_analysis
   endif
 #endif
 
-
-
 end subroutine postStep_analysis
+
+subroutine PrintTimers
+
+  use GR1D_module
+  use timers
+
+  real*8 :: tfinal, total_M1, frac_M1, frac_hydro
+
+  CALL GetThisTime(tfinal)
+  timer_code = tfinal - timer_code
+
+  total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo + timer_M1_rec + timer_M1_eas
+  frac_M1    = total_M1   / timer_step
+  frac_hydro = timer_hydro / timer_step
+
+  print *, '----------------- Timer Summary -----------------'
+  print '(A,F10.4)', 'Total code time        = ', timer_code
+  print '(A,F10.4)', 'Total step time        = ', timer_step
+  print '(A,F10.4)', '  M1 (explicit)        = ', timer_M1_exp
+  print '(A,F10.4)', '  M1 (implicit)        = ', timer_M1_imp
+  print '(A,F10.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F10.4)', '  M1 (reconstruction)  = ', timer_M1_rec
+  print '(A,F10.4)', '  M1 (updateeas)       = ', timer_M1_eas
+  print '(A,F10.4)', '  Hydro                = ', timer_hydro
+  print '(A,F10.4)', '  con2prim             = ', timer_c2p
+  print '(A,F10.4)', '  con2GR               = ', timer_c2GR
+  print '(A,F10.4)', '  reconstruction       = ', timer_rec
+  print *
+  print '(A,F6.2)',  'Fraction M1            = ', frac_M1
+  print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
+  print *, '-------------------------------------------------'
+
+  stop
+end subroutine PrintTimers

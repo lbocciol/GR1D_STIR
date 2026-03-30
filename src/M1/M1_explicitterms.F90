@@ -5,6 +5,7 @@
 !energy), flux_M1_scatter (for scattering)
 subroutine M1_explicitterms(dts,implicit_factor)
   
+  use timers
   use GR1D_module
   use nulibtable, only : nulibtable_inv_energies,nulibtable_ewidths, &
        nulibtable_energies,nulibtable_etop,nulibtable_ebottom, &
@@ -77,6 +78,7 @@ subroutine M1_explicitterms(dts,implicit_factor)
   
   real*8 :: fluxtemp_1,fluxtemp_2
   real*8 :: limitingflux
+  real*8 :: t1, t2
 
   ! turbulence
   real*8 :: diffusive_turb_flux, grad_Enu, D_nu_turb
@@ -89,6 +91,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
   flux_M1 = 0.0d0
   flux_M1_energy = 0.0d0
   flux_M1_scatter = 0.0d0
+
+  CALL GetThisTime(t1)
 
 !#################################################################
 !#################################################################
@@ -1124,5 +1128,8 @@ subroutine M1_explicitterms(dts,implicit_factor)
      enddo
      !$OMP END PARALLEL DO! end do
   endif
+
+  CALL GetThisTime(t2)
+  timer_M1_exp = timer_M1_exp + (t2 - t1)
 
 end subroutine M1_explicitterms

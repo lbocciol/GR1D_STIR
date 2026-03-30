@@ -6,6 +6,7 @@ subroutine M1_reconstruct
 
   use GR1D_module
   use ppm
+  use timers
   implicit none
 
   integer :: i,j,k
@@ -14,8 +15,12 @@ subroutine M1_reconstruct
   real*8 :: M1en_space_minus(n1),M1flux_space_minus(n1)
   real*8 :: M1_testcase_travelling_pulse,M1_testcase_diffusion_wave !function calls for test case boundary conditions
 
+  real*8 :: t1, t2
+
+  CALL GetThisTime(t1)
+
   !$OMP PARALLEL DO PRIVATE(i,k,M1en_space,M1en_space_plus,M1en_space_minus, &
-  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus) 
+  !$OMP M1flux_space,M1flux_space_plus,M1flux_space_minus)
   do j=1,number_groups
      do i=1,number_species_to_evolve
 
@@ -143,5 +148,8 @@ subroutine M1_reconstruct
      enddo
   enddo
   !$OMP END PARALLEL DO! end do
+
+  CALL GetThisTime(t2)
+  timer_M1_rec = timer_M1_rec + (t2 - t1)
 
 end subroutine M1_reconstruct

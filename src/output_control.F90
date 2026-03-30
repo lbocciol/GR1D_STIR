@@ -78,20 +78,34 @@ subroutine output_control
                     temp_vs_mass = vs_mass
                     vs_mass = .false.
                     filename = trim(adjustl(outdir))//"/mass_bary_at_bounce.xg"
-                    call output_single(mass/mass_gf,filename)
+                    call open_output_file(filename,666)
+                    call output_single(mass/mass_gf,filename,666)
+                    close(unit=666)
 
                     vs_mass = .true.
 
                     filename = trim(adjustl(outdir))//"/rho_at_bounce.xg"
-                    call output_single(rho/rho_gf,filename)
+                    call open_output_file(filename,666)
+                    call output_single(rho/rho_gf,filename,666)
+                    close(unit=666)
+
                     filename = trim(adjustl(outdir))//"/v_at_bounce.xg"
-                    call output_single(v*clite,filename)
+                    call open_output_file(filename,666)
+                    call output_single(v*clite,filename,666)
+                    close(unit=666)
+
                     filename = trim(adjustl(outdir))//"/temperature_at_bounce.xg"
-                    call output_single(temp,filename)
+                    call open_output_file(filename,666)
+                    call output_single(temp,filename,666)
+                    close(unit=666)
                     filename = trim(adjustl(outdir))//"/entropy_at_bounce.xg"
-                    call output_single(entropy,filename)
+                    call open_output_file(filename,666)
+                    call output_single(entropy,filename,666)
+                    close(unit=666)
                     filename = trim(adjustl(outdir))//"/ye_at_bounce.xg"
-                    call output_single(ye,filename)
+                    call open_output_file(filename,666)
+                    call output_single(ye,filename,666)
+                    close(unit=666)
 
                     vs_mass = temp_vs_mass
 

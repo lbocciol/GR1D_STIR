@@ -106,7 +106,7 @@ subroutine M1_conservativeupdate(dts)
   !but first, retain old eps to determined heating rate
   oldeps_forheat = eps
   call con2prim
-
+  
   ! eos update, eps fixed, find temp,entropy,cs2 etc.
   do k=ghosts1+1,n1-ghosts1
      keyerr = 0

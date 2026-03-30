@@ -59,7 +59,7 @@ subroutine problem
 
      !setup everything in for the M1test
      write(*,*) "Setting up M1 test case #",M1_testcase_number
-     call M1test(M1_testcase_number)
+     call M1test
 
   else 
      
@@ -70,7 +70,9 @@ subroutine problem
   call boundaries(0,0)
      
   outfilename = trim(adjustl(outdir))//"/volume.xg"
-  call output_single(volume,outfilename)
+  call open_output_file(outfilename,666)
+  call output_single(volume/length_gf**3,outfilename,666)
+  close(unit=666)
 
   ! set up "metric"
   if(geometry.eq.2) then

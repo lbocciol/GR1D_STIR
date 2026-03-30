@@ -28,6 +28,7 @@ end subroutine gravity
 
 subroutine con2GR
 
+  use timers
   use GR1D_module
   implicit none
 
@@ -37,10 +38,12 @@ subroutine con2GR
   integer iminb,imaxb
   real*8 discrim
   real*8 turbE(n1)
+  real*8 t1, t2
 
   iminb = ghosts1+1
   imaxb = n1-1
 
+  CALL GetThisTime(t1)
   !neutrino contribution to energy
   if (do_M1) then
      nuE(:) = energy_nu(:) !it matters how energy_nu is defined, we
@@ -110,7 +113,10 @@ subroutine con2GR
      write(*,*) "We have a black hole in GR_terms d", mgravi(n1),x1i(n1)
      stop
   endif
-  Xm(n1) = 1.0d0/sqrt(discrim)	
+  Xm(n1) = 1.0d0/sqrt(discrim)
+
+  CALL GetThisTime(t2)
+  timer_c2GR = timer_c2GR + (t2 - t1)
 
 end subroutine con2GR
 

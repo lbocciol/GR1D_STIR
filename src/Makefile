@@ -14,6 +14,7 @@ SOURCES=GR1D_module.F90 \
 	problem.F90 \
 	outinfo.F90 \
 	output.F90 \
+	output_open_close.F90 \
 	output_control.F90 \
 	grid.F90 \
 	map_profile.F90 \

@@ -1,6 +1,7 @@
 ! -*-f90-*-
 subroutine Step(dts)
 
+  use timers
   use GR1D_module
   use ye_of_rho
   use nulibtable
@@ -23,6 +24,10 @@ subroutine Step(dts)
 
   !M1 stuff
   real*8 implicit_factor
+
+  real*8 t1, t2
+
+  CALL GetThisTime(t1)
 
   ! Is it time to turn on turbulence?
   if (do_turbulence) then
@@ -99,7 +104,8 @@ subroutine Step(dts)
      coolingsource(:,:) = 0.0d0
      presssource(:,:) = 0.0d0
 
-     call reconstruct 
+     call reconstruct
+
      call boundaries(0,0)
 
      if (activate_turbulence) then
@@ -273,7 +279,7 @@ subroutine Step(dts)
      do m=1,n_cons
         if (GR) then
            q(:,m) = q_hat(:,m)
-	else 
+	   else 
            q(:,m) = q_hat(:,m) / sqrt_gamma(:)
         endif
      enddo
@@ -377,6 +383,8 @@ subroutine Step(dts)
  enddo
 
 123 continue
+ CALL GetThisTime(t2)
+ timer_hydro = timer_hydro + (t2 - t1)
 
  !do operator split here
  !M1
@@ -411,7 +419,7 @@ subroutine Step(dts)
 
     !0. update closure variables
     call M1_closure
-    
+
     !1. get explicit fluxes at time t^(n)
     call M1_explicitterms(dts,implicit_factor)
 
@@ -445,8 +453,10 @@ subroutine Step(dts)
     if (M1_do_backwardfix.eq.1) then
        !reconstruct energy and flux in space and energy
        call M1_reconstruct
+
        !0. update closure variables
        call M1_closure
+
        !1. get explicit fluxes at time t^(n)
        call M1_explicitterms(dts,implicit_factor)
 

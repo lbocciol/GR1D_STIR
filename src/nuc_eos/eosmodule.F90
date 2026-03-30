@@ -46,6 +46,26 @@
    real*8,allocatable,save :: logtemp(:)
    real*8,allocatable,save :: ye(:)
 
+   ! Add extra things needed for calculating Brunt Vaisala frequency
+   real*8,allocatable :: ynu(:,:,:)
+   real*8,allocatable :: dpdye(:,:,:)
+   real*8,allocatable :: dyLdye(:,:,:)
+   real*8,allocatable :: dsdye(:,:,:)
+   real*8,allocatable :: dyLdT(:,:,:)
+   real*8,allocatable :: dpdT(:,:,:)
+   real*8,allocatable :: dsdT(:,:,:)
+   real*8,allocatable :: dyLdrho(:,:,:)
+   real*8,allocatable :: dsdrho(:,:,:)
+   real*8,allocatable :: dpdrho(:,:,:)
+   real*8,allocatable :: dpdyL_s_rho(:,:,:), dpdye_s_rho(:,:,:)
+   real*8,allocatable :: dpds_rho_yL(:,:,:), dpds_rho_ye(:,:,:)
+   real*8,allocatable :: dpdrho_s_yL(:,:,:), dpdrho_s_ye(:,:,:)
+
+   real*8,allocatable :: dlnpdlns_rho_ye(:,:,:), dlnpdlnye_s_rho(:,:,:)
+   real*8,allocatable :: dlnsdlnt(:,:,:), dlnpdlnt(:,:,:)
+   real*8,allocatable :: dlnPdlnrho_s_ye(:,:,:), dlnsdlnye(:,:,:)
+   real*8,allocatable :: dlnpdlnye(:,:,:), dlnPdlnrho(:,:,:), dlnsdlnrho(:,:,:)
+
 ! constants
    real*8,save :: mev_to_erg = 1.60217733d-6
    real*8,save :: amu_cgs = 1.66053873d-24
