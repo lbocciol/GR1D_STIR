@@ -105,6 +105,9 @@ subroutine con2prim_1
                  stop
               endif
               keytemp = 0
+              
+              ! Limit eos variables, very drastic approach
+              call ApplyEOS_limits
               call eos(i,rho(i),temp(i),ye(i),eps(i),pp, keytemp,keyerr,1, eoskey,eos_rf_prec)
               press(i) = pp
            else
@@ -133,6 +136,8 @@ subroutine con2prim_1
                  eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
 
                  keytemp = 0
+                 ! Limit eos variables, very drastic approach
+                 call ApplyEOS_limits
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
                       eosdummy,eosdummy,eosdummy,eosdummy,&
                       dpde,dpdrh, &
@@ -256,6 +261,9 @@ subroutine con2prim_1
                  stop
               endif
               keytemp = 0
+
+              ! Limit eos variables, very drastic approach
+              call ApplyEOS_limits
               call eos(i,rho(i),temp(i),ye(i),eps(i),pp, keytemp,keyerr,1, eoskey,eos_rf_prec)
               press(i) = pp
            else
@@ -295,6 +303,9 @@ subroutine con2prim_1
                  rrho = q(i,1)/X(i)/ww
                  eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
                  keytemp = 0
+                 
+                 ! Limit eos variables, very drastic approach
+                 call ApplyEOS_limits
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
                       eosdummy,eosdummy,eosdummy,eosdummy,&
                       dpde,dpdrh, &
@@ -486,6 +497,9 @@ subroutine con2prim_pt(tol,i,success)
         eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
         
         keytemp = 0
+        
+        ! Limit eos variables, very drastic approach
+        call ApplyEOS_limits
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
              eosdummy,eosdummy,eosdummy,eosdummy,&
              dpde,dpdrh, &
@@ -619,6 +633,9 @@ subroutine con2prim_pt_rot(tol,i,success)
         rrho = q(i,1)/X(i)/ww
         eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
         keytemp = 0
+        
+        ! Limit eos variables, very drastic approach
+        call ApplyEOS_limits
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
              eosdummy,eosdummy,eosdummy,eosdummy,&
              dpde,dpdrh, &

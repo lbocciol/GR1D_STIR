@@ -76,6 +76,10 @@ ifeq ($(HAVE_LAPACK),1)
 	DEFS += -DHAVE_LAPACK
 endif	
 
+ifeq ($(HAVE_OMP),1)
+  DEFS += -DHAVE_OMP
+endif
+
 GR1D:  GR1D_module.o $(EXTRADEPS) $(OBJECTS)  
 	$(F90) $(LDFLAGS) -o ../GR1D $(OBJECTS) $(EXTRAOBJECTS)
 
