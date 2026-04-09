@@ -97,7 +97,6 @@ subroutine handle_output
      write(*,*) "Done! :-) ntmax reached"
      call output_all(1)
      call output_all(2)
-     call output_timers
      call restart_output_h5
      call PrintTimers()
      stop
@@ -107,8 +106,8 @@ subroutine handle_output
      write(*,*) "Done! :-) tend reached"
      call output_all(1)
      call output_all(2)
-     call output_timers
      call restart_output_h5
+     call PrintTimers()
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
@@ -121,7 +120,7 @@ subroutine handle_output
     write(*,*) "Done! :-) wallclock limit reached"
     call output_all(1)
     call output_all(2)
-    call output_timers
+    call PrintTimers()
     call restart_output_h5
     stop
   endif
@@ -265,5 +264,4 @@ subroutine PrintTimers
   print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
   print *, '-------------------------------------------------'
 
-  stop
 end subroutine PrintTimers
