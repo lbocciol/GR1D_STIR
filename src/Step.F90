@@ -45,8 +45,8 @@ subroutine Step(dts)
   endif
 
   !If the shock reaches the outer boundary you can safely assume that the SN exploded
-  if ( (shock_radius .ge. x1(n1-ghosts1-1)) .or. &
-       (shock_radius/length_gf .ge. 15000.0d5) .and. .not. explosion_reached) then
+  if ( (.not. explosion_reached) .and. ((shock_radius .ge. x1(n1-ghosts1-1)) .or. &
+       (shock_radius/length_gf .ge. 15000.0d5)) ) then
      write(*,*) "Explosion! :-)"
      open(unit=666,file=trim(adjustl(outdir))//"/explosion",status="unknown")
      write(666,*) 1
