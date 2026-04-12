@@ -248,17 +248,17 @@ subroutine PrintTimers
   frac_hydro = timer_hydro / timer_step
 
   print *, '----------------- Timer Summary -----------------'
-  print '(A,F10.4)', 'Total code time        = ', timer_code
-  print '(A,F10.4)', 'Total step time        = ', timer_step
-  print '(A,F10.4)', '  M1 (explicit)        = ', timer_M1_exp
-  print '(A,F10.4)', '  M1 (implicit)        = ', timer_M1_imp
-  print '(A,F10.4)', '  M1 (closure)         = ', timer_M1_clo
-  print '(A,F10.4)', '  M1 (reconstruction)  = ', timer_M1_rec
-  print '(A,F10.4)', '  M1 (updateeas)       = ', timer_M1_eas
-  print '(A,F10.4)', '  Hydro                = ', timer_hydro
-  print '(A,F10.4)', '  con2prim             = ', timer_c2p
-  print '(A,F10.4)', '  con2GR               = ', timer_c2GR
-  print '(A,F10.4)', '  reconstruction       = ', timer_rec
+  print '(A,F12.4)', 'Total code time        = ', timer_code
+  print '(A,F12.4)', 'Total step time        = ', timer_step
+  print '(A,F12.4)', '  M1 (explicit)        = ', timer_M1_exp
+  print '(A,F12.4)', '  M1 (implicit)        = ', timer_M1_imp
+  print '(A,F12.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F12.4)', '  M1 (reconstruction)  = ', timer_M1_rec
+  print '(A,F12.4)', '  M1 (updateeas)       = ', timer_M1_eas
+  print '(A,F12.4)', '  Hydro                = ', timer_hydro
+  print '(A,F12.4)', '  con2prim             = ', timer_c2p
+  print '(A,F12.4)', '  con2GR               = ', timer_c2GR
+  print '(A,F12.4)', '  reconstruction       = ', timer_rec
   print *
   print '(A,F6.2)',  'Fraction M1            = ', frac_M1
   print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro

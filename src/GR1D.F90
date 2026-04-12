@@ -1,6 +1,9 @@
 !-*-f90-*-
 program GR1D	
-    	  
+    	 
+#ifdef HAVE_OMP
+  use omp_lib
+#endif
   use GR1D_module
   use timers
   implicit none
@@ -18,6 +21,11 @@ program GR1D
   write(*,*) "################# Nov ??, 2014 ##################"
   write(*,*) "#################################################"
 
+#ifdef HAVE_OMP
+  write(*,*) "Running with", omp_get_max_threads(), "cores"
+#else
+write(*,*) "Running in serial mode, you sure you don't want OMP?"
+#endif
   ! Call problem setup and allocate/initialize variables 
   call start
   write(*,*) "Done with initial data :-)"

@@ -6,6 +6,7 @@
 
 subroutine M1_closure
 
+  use timers
   use GR1D_module
   implicit none
   
@@ -23,9 +24,12 @@ subroutine M1_closure
   integer :: h,k,i,j,ii,jj
   integer :: count
   real*8 :: justshyofone
-  
+  real*8 :: t1, t2  
+
   tol = 1.0d-8 !tolerance for convergence
   justshyofone = 0.9999999999d0
+
+  call GetThisTime(t1)
 
   if (M1_testcase_number.eq.3) then
      q_M1m(:,:,:,3,1) = justshyofone !P_{rr}/E
@@ -281,6 +285,9 @@ subroutine M1_closure
      enddo
   enddo
   !$OMP END PARALLEL DO! end do
+  
+  call GetThisTime(t2)
+  timer_M1_clo = timer_M1_clo + (t2 - t1)
 
 end subroutine M1_closure
 

@@ -115,7 +115,7 @@ subroutine Open_output_files(modeflag)
         call open_output_file(filename,iFile)
      endif
      
-     if (eoskey.eq.3) then
+     if (eoskey.eq.3 .and. (.not.small_output)) then
         iFile = iFile + 1
         filename = trim(adjustl(outdir))//"/xn.xg"
         call open_output_file(filename,iFile)
@@ -124,21 +124,21 @@ subroutine Open_output_files(modeflag)
         filename = trim(adjustl(outdir))//"/xp.xg"
         call open_output_file(filename,iFile)
         
-        if (.not.small_output) then
-          iFile = iFile + 1 
-          filename = trim(adjustl(outdir))//"/xa.xg"
-          call open_output_file(filename,iFile)
-          iFile = iFile + 1
-          filename = trim(adjustl(outdir))//"/xh.xg"
-          call open_output_file(filename,iFile)
-          iFile = iFile + 1
-          filename = trim(adjustl(outdir))//"/xabar.xg"
-          call open_output_file(filename,iFile)
-          iFile = iFile + 1
-          filename = trim(adjustl(outdir))//"/xzbar.xg"
-          call open_output_file(filename,iFile)
-        endif
-
+        iFile = iFile + 1 
+        filename = trim(adjustl(outdir))//"/xa.xg"
+        call open_output_file(filename,iFile)
+        
+        iFile = iFile + 1
+        filename = trim(adjustl(outdir))//"/xh.xg"
+        call open_output_file(filename,iFile)
+        
+        iFile = iFile + 1
+        filename = trim(adjustl(outdir))//"/xabar.xg"
+        call open_output_file(filename,iFile)
+        
+        iFile = iFile + 1
+        filename = trim(adjustl(outdir))//"/xzbar.xg"
+        call open_output_file(filename,iFile)
      endif
 
      if (.not.small_output) then

@@ -10,6 +10,7 @@
 
 subroutine M1_implicitstep(dts,implicit_factor)
 
+  use timers
   use GR1D_module
   use nulibtable, only : nulibtable_inv_energies,nulibtable_ewidths, &
        nulibtable_energies,nulibtable_etop,nulibtable_ebottom, &
@@ -81,6 +82,7 @@ subroutine M1_implicitstep(dts,implicit_factor)
   integer :: problem_zone
   integer :: myloc(1)
   real*8 :: maxRF
+  real*8 :: t1, t2
 
   problem_fixing = .false.
   problem_zone = 0
@@ -91,6 +93,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
   energy_nu = 0.0d0
   mom_nu = 0.0d0
   ynu = 0.0d0
+
+  call GetThisTime(t1)
 
   nothappenyet1 = .true.
   nothappenyet2 = .true.
@@ -1356,5 +1360,8 @@ subroutine M1_implicitstep(dts,implicit_factor)
      enddo
   enddo
   !$OMP END PARALLEL DO! end do
+
+  call GetThisTime(t2)
+  timer_M1_imp = timer_M1_imp + (t2 - t1)
 
 end subroutine M1_implicitstep

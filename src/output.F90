@@ -399,8 +399,8 @@ subroutine output_all(modeflag)
           filename = trim(adjustl(outdir))//"/M1_nue_fluxden_lab_rad.xg"
           call output_single(fluxden_rad(:,1,2),filename,iFile)
 
-           iFile = iFile + 1
-         filename = trim(adjustl(outdir))//"/M1_nue_numluminosity_fluid_rad.xg"
+          iFile = iFile + 1
+          filename = trim(adjustl(outdir))//"/M1_nue_numluminosity_fluid_rad.xg"
           call output_single(num_luminosity_rad(:,1,1),filename,iFile)
         endif
 
@@ -442,7 +442,7 @@ subroutine output_all(modeflag)
         filename = trim(adjustl(outdir))//"/M1_anue_rmsenergy_fluid_rad.xg"
         call output_single(rms_energy_rad(:,2,1),filename,iFile)
 
-         iFile = iFile + 1
+        iFile = iFile + 1
         filename = trim(adjustl(outdir))//"/M1_nux_luminosity_fluid_rad.xg"
         call output_single(luminosity_rad(:,3,1),filename,iFile)
 
