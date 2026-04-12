@@ -187,12 +187,12 @@ subroutine Open_output_files(modeflag)
           iFile = iFile + 1
           filename = trim(adjustl(outdir))//"/W.xg"
           call open_output_file(filename,iFile)
-        endif
         
-        iFile = iFile + 1
-        filename = trim(adjustl(outdir))//"/v.xg"
-        call open_output_file(filename,iFile)
-     endif
+          iFile = iFile + 1
+          filename = trim(adjustl(outdir))//"/v.xg"
+          call open_output_file(filename,iFile)
+        endif
+      endif
 
      if (do_effectivepotential .and. (.not.small_output)) then
         iFile = iFile + 1

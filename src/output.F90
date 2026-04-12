@@ -486,6 +486,7 @@ subroutine output_all(modeflag)
           filename = trim(adjustl(outdir))//"/entropy.xg"
           call output_single(entropy,filename,iFile)
         endif
+        
         iFile = iFile + 1
         filename = trim(adjustl(outdir))//"/temperature.xg"
         call output_single(temp,filename,iFile)
