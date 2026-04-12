@@ -254,6 +254,46 @@ subroutine get_extrema_EoS_table( rhomin, rhomax, &
 end subroutine get_extrema_EoS_table
 
 ! Extra things to calculate BV frequency
+subroutine Calculate_energies_eos(nu_energies_eos, nu_ewidths_eos, nE, Emax)
+    implicit none
+    ! Arguments
+    integer, intent(in) :: nE
+    real(8), intent(in) :: Emax
+    real(8), intent(out), dimension(nE) :: nu_energies_eos
+    real(8), intent(out), dimension(nE) :: nu_ewidths_eos
+    
+    ! Local variables
+    integer :: i
+    real(8) :: r, dE1, total_sum
+    
+    ! NuLib default growth factor is often around 1.1 to 1.2
+    r = 1.1d0 
+    
+    ! We solve the geometric series sum:
+    ! Emax = dE1 + dE1 + dE1*r + dE1*r^2 + ... + dE1*r^(nE-2)
+    ! Emax = dE1 * [1 + (r**(nE-1) - 1) / (r - 1)]
+    
+    dE1 = Emax / (1.0d0 + (r**(nE-1) - 1.0d0) / (r - 1.0d0))
+    
+    ! Set the first two bins to be linear (same width)
+    nu_ewidths_eos(1) = dE1
+    nu_ewidths_eos(2) = dE1
+    
+    ! Geometric growth from bin 3 onwards
+    do i = 3, nE
+        nu_ewidths_eos(i) = nu_ewidths_eos(i-1) * r
+    end do
+    
+    ! Calculate the energy centers (the "nu_energies_eos")
+    ! NuLib typically places the energy at the bin center.
+    total_sum = 0.0d0
+    do i = 1, nE
+        nu_energies_eos(i) = total_sum + (nu_ewidths_eos(i) * 0.5d0)
+        total_sum = total_sum + nu_ewidths_eos(i)
+    end do
+
+end subroutine Calculate_energies_eos
+
 
 subroutine Calculate_additional_derivs
 
@@ -263,6 +303,9 @@ subroutine Calculate_additional_derivs
   integer :: i,j,k,iE
 
   real*8 :: x1, x2, f1, f2
+  integer, parameter :: number_groups_eos = 32
+  real*8, parameter :: Emax = 250.0d0
+  real*8 :: nu_energies_eos(number_groups_eos), nu_ewidths_eos(number_groups_eos)
 
   allocate(ynu(nrho,ntemp,nye))
   allocate(dpdye(nrho,ntemp,nye))
@@ -275,13 +318,14 @@ subroutine Calculate_additional_derivs
   allocate(dsdrho(nrho,ntemp,nye))
   allocate(dpdrho(nrho,ntemp,nye))
 
-
   allocate(dpdyL_s_rho(nrho,ntemp,nye))
   allocate(dpdye_s_rho(nrho,ntemp,nye))
   allocate(dpds_rho_yL(nrho,ntemp,nye))
   allocate(dpds_rho_ye(nrho,ntemp,nye))
   allocate(dpdrho_s_yL(nrho,ntemp,nye))
   allocate(dpdrho_s_ye(nrho,ntemp,nye))
+
+  call Calculate_energies_eos(nu_energies_eos, nu_ewidths_eos, number_groups_eos, Emax)
 
   ynu = 0.0d0
   dpdye = 0.0d0
