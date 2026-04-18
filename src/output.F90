@@ -1019,18 +1019,17 @@ subroutine output_scalar(var,filename,nfile)
 
 end subroutine output_scalar
 ! *******************************************************************
-subroutine output_many_scalars(var,n0,n,filename,nfile)
-  
+subroutine output_many_scalars(var, n0, n, nfile)
   use GR1D_module, only: time
   implicit none
-  integer n,n0
-  real*8 var(n0)
-  character(len=100) filename
-  integer nt
-  integer i
-  integer nfile
-  
-  write(nfile,"(1P64E18.9)") time,var(1:n)
+
+  integer, intent(in) :: n, n0, nfile
+  real*8,  intent(in) :: var(n0)
+
+  ! Use the '*' prefix for unlimited repeat of the descriptor
+  ! This ensures all elements are printed on a single line regardless of 'n'
+  write(nfile, "(1P, *(E18.9))") time, var(1:n)
+
   flush(nfile)
 
 end subroutine output_many_scalars
