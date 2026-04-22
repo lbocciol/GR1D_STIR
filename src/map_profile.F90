@@ -49,6 +49,7 @@ subroutine map_profile(lprofile_name)
              buffer
      enddo
   endif
+  close(666)
 
   ! go to c=G=Msun=1
   if (pmass(profile_zones).lt.1.0d10) then

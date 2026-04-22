@@ -80,6 +80,10 @@ subroutine handle_output
   
   use timers
   use GR1D_module
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
+#else
+#endif
   implicit none
 
   real*8 t_now
@@ -95,8 +99,14 @@ subroutine handle_output
   
   if (nt.ge.ntmax) then
      write(*,*) "Done! :-) ntmax reached"
-     call output_all(1)
-     call output_all(2)
+#ifdef HAVE_HDF5_OUTPUT
+        call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
+        call hdf5_increment_output_counter()
+        call output_all_HDF5(2)
+#else
+        call output_all(1)  ! Grid output - opens/closes files for each variable
+        call output_all(2)
+#endif
      call restart_output_h5
      call PrintTimers()
      stop
@@ -104,22 +114,35 @@ subroutine handle_output
   
   if (time.ge.tend) then
      write(*,*) "Done! :-) tend reached"
-     call output_all(1)
-     call output_all(2)
+#ifdef HAVE_HDF5_OUTPUT
+        call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
+        call hdf5_increment_output_counter()
+        call output_all_HDF5(2)
+#else
+        call output_all(1)  ! Grid output - opens/closes files for each variable
+        call output_all(2)
+#endif
      call restart_output_h5
      call PrintTimers()
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
      call PrintTimers()
+
      stop
   endif
 
   if ( (t_now - t_start) .ge. tend_wallclock ) then
     write(*,*) t_now, t_start, tend_wallclock
     write(*,*) "Done! :-) wallclock limit reached"
-    call output_all(1)
-    call output_all(2)
+#ifdef HAVE_HDF5_OUTPUT
+        call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
+        call hdf5_increment_output_counter()
+        call output_all_HDF5(2)
+#else
+        call output_all(1)  ! Grid output - opens/closes files for each variable
+        call output_all(2)
+#endif
     call PrintTimers()
     call restart_output_h5
     stop
@@ -154,7 +177,12 @@ subroutine handle_output
   endif
   
   if (OutputFlag) then
-     call output_all(1)
+#ifdef HAVE_HDF5_OUTPUT
+        call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
+        call hdf5_increment_output_counter()
+#else
+        call output_all(1)  ! Grid output - opens/closes files for each variable
+#endif
      call output_timers
      OutputFlag = .false.
   endif
@@ -166,10 +194,14 @@ subroutine handle_output
   endif
   
   if (OutputFlagScalar) then
-     call output_all(2)
-     OutputFlagScalar = .false.
+#ifdef HAVE_HDF5_OUTPUT
+        call output_all_HDF5(2)
+#else
+        call output_all(2)
+#endif
+    OutputFlagScalar = .false.
   endif
-  
+
   if ((time+dt/time_gf).gt.tend) then
     dt = (tend-time)*time_gf
   endif

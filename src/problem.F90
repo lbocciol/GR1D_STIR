@@ -5,6 +5,10 @@ subroutine problem
   use hybrid_eos_module
   use poly_eos_module
   use ideal_eos_module
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
+  use nulibtable
+#endif
   implicit none
   
   integer i
@@ -59,7 +63,7 @@ subroutine problem
 
      !setup everything in for the M1test
      write(*,*) "Setting up M1 test case #",M1_testcase_number
-     call M1test
+     call M1test(M1_testcase_number)
 
   else 
      
@@ -69,17 +73,20 @@ subroutine problem
   
   call boundaries(0,0)
      
+#ifdef HAVE_HDF5_OUTPUT
+  call hdf5_initialize()
+  call hdf5_write_root_dataset_1d("radius", x1(1:n1)/length_gf , n1)
+  call hdf5_write_root_dataset_1d("volume", volume/length_gf**3, n1)
+  call hdf5_finalize()
+#else
   outfilename = trim(adjustl(outdir))//"/volume.xg"
-  call open_output_file(outfilename,666)
-  call output_single(volume/length_gf**3,outfilename,666)
-  close(unit=666)
-
+  call output_single(volume/length_gf**3,outfilename)
+#endif
   ! set up "metric"
   if(geometry.eq.2) then
      sqrt_gamma(:) = X(:)*x1(:)**2
   else
      sqrt_gamma(:) = 1.0d0
   endif
-  
-  
+
 end subroutine problem

@@ -8,8 +8,11 @@ subroutine M1_init
        temp_mev_to_kelvin,number_species,volume,pi,M1_moment_to_distro,clite, &
        hbarc_mevcm,M1_testcase_number,v_order,include_nes_kernels, &
        M1_moment_to_distro_inverse,nulib_kernel_gf,number_species_to_evolve, &
-       include_epannihil_kernels,M1_extractradii,M1_iextractradii
+       include_epannihil_kernels,M1_extractradii,M1_iextractradii,time,nt
   use nulibtable
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
+#endif
 
   implicit none
 
@@ -85,5 +88,12 @@ subroutine M1_init
   endif
 
   call M1_updateeas
+
+#ifdef HAVE_HDF5_OUTPUT
+  call hdf5_initialize()
+  call hdf5_write_root_dataset_1d("neutrino_energies", &
+       nulibtable_energies/nulib_energy_gf, number_groups)
+  call hdf5_finalize()
+#endif
 
 end subroutine M1_init

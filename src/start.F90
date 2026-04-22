@@ -4,7 +4,10 @@ subroutine start
   use GR1D_module
   use ppm
 #if HAVE_LEAK_ROS
-  use leakage_rosswog,only: initialize_leakage_rosswog
+  use leakage_rosswog, only: initialize_leakage_rosswog
+#endif
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
 #endif
   implicit none
 
@@ -77,6 +80,22 @@ subroutine start
       //"/parameters"
   call system(cpstring)
 
+#ifdef HAVE_HDF5_OUTPUT
+  write(*,*) "Initializing HDF5 output"
+  call hdf5_output_init()
+#endif
+  !setup dumping variables
+  tdump_scalar = dtout_scalar
+  tdump = dtout
+  tdump_restart = 0.0d0 !make a restart file at the beginning
+  
+  time = 0.0d0
+  time_c = 0.0d0
+  nt = 0
+
+  OutputFlag = .false.
+  OutputFlagScalar = .false.
+
   !setting up initial data
   call problem
 
@@ -117,23 +136,10 @@ subroutine start
 #endif
   endif
 
-
   !if leaking, initialize variables etc.
 #if HAVE_LEAK_ROS
   call initialize_leakage_rosswog
 #endif
-
-  !setup dumping variables
-  tdump_scalar = dtout_scalar
-  tdump = dtout
-  tdump_restart = 0.0d0 !make a restart file at the beginning
-  
-  time = 0.0d0
-  time_c = 0.0d0
-  nt = 0
-
-  OutputFlag = .false.
-  OutputFlagScalar = .false.
 
   !if doing restart here is where we call to read in file.
   if (do_restart) then
@@ -150,9 +156,5 @@ subroutine start
      endif
      call restart_output_h5
   endif
-
-  ! open files for output
-  call Open_output_files(1)
-  call Open_output_files(2)
 
 end subroutine start

@@ -13,9 +13,8 @@ SOURCES=GR1D_module.F90 \
 	input_parser.F90 \
 	problem.F90 \
 	outinfo.F90 \
-	output.F90 \
-	output_open_close.F90 \
-	output_control.F90 \
+  output.F90 \
+  output_control.F90 \
 	grid.F90 \
 	map_profile.F90 \
 	mass_interior.F90 \
@@ -66,6 +65,12 @@ ifeq ($(HAVE_LEAK_ROS),1)
 	EXTRAOBJECTS += leakage_rosswog/leakage_rosswog.a 
 	EXTRADEPS += leakage_rosswog/leakage_rosswog.a 
 endif	
+ifeq ($(HAVE_HDF5_OUTPUT),1)
+  DEFS += -DHAVE_HDF5_OUTPUT
+  EXTRAINCS += -Ihdf5_output
+  EXTRAOBJECTS += hdf5_output/hdf5_output.a
+  EXTRADEPS += hdf5_output/hdf5_output.a
+endif
 
 EXTRAINCS += -Inulibtable
 EXTRAOBJECTS += nulibtable/nulibtable.a
@@ -97,17 +102,23 @@ leakage_rosswog/leakage_rosswog.a: leakage_rosswog/leak_rosswog.F90
 nulibtable/nulibtable.a: nulibtable/*.F90
 	$(MAKE) -C nulibtable
 
+hdf5_output/hdf5_output.a: hdf5_output/*.F90 GR1D_module.o nulibtable/nulibtable.a
+	$(MAKE) -C hdf5_output
+
 clean:
 	rm -rf ../GR1D
-	rm -rf *.o 	
+	rm -rf *.o
 	rm -rf *.mod
 	rm -rf nuc_eos/*.o
 	rm -rf nuc_eos/*.mod
 	rm -rf nuc_eos/*.a
 	rm -rf leakage_rosswog/*.a
 	rm -rf leakage_rosswog/*.o
-	rm -rf leakage_rosswog/*.mod 
+	rm -rf leakage_rosswog/*.mod
 	rm -rf nulibtable/*.a
 	rm -rf nulibtable/*.o
 	rm -rf nulibtable/*.mod
 	rm -rf M1/*.o
+	rm -rf hdf5_output/*.a
+	rm -rf hdf5_output/*.o
+	rm -rf hdf5_output/*.mod
