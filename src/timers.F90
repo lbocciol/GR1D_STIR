@@ -3,6 +3,9 @@ module timers
 
   ! Add some useful timers
   real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_eosf    = 0.0d0
+  real*8 :: timer_eoss    = 0.0d0
+  real*8 :: timer_M1      = 0.0d0
   real*8 :: timer_fdhlle  = 0.0d0
   real*8 :: timer_rec     = 0.0d0
   real*8 :: timer_c2GR    = 0.0d0
@@ -13,6 +16,7 @@ module timers
   real*8 :: timer_M1_clo  = 0.0d0
   real*8 :: timer_M1_rec  = 0.0d0
   real*8 :: timer_M1_eas  = 0.0d0
+  real*8 :: timer_M1cons  = 0.0d0
   real*8 :: timer_code    = 0.0d0
   real*8 :: t_start       = 0.0d0
 
@@ -22,6 +26,9 @@ contains
     implicit none
 
     timer_hydro   = 0.0d0
+    timer_eosf    = 0.0d0
+    timer_eoss    = 0.0d0
+    timer_M1      = 0.0d0
     timer_fdhlle  = 0.0d0
     timer_rec     = 0.0d0
     timer_c2GR    = 0.0d0
@@ -32,6 +39,7 @@ contains
     timer_M1_clo  = 0.0d0
     timer_M1_rec  = 0.0d0
     timer_M1_eas  = 0.0d0
+    timer_M1cons  = 0.0d0
     timer_code    = 0.0d0
 
   end subroutine start_timers
@@ -56,15 +64,5 @@ contains
   
   end subroutine GetThisTime
 #endif
-
-  subroutine output_timers
-
-    use GR1D_module
-    implicit none
-    open(666,file=trim(adjustl(outdir))//"/timers.dat",status="unknown",position="append")
-    write(666,"(i8,1P10E15.6)") nt, time, dt
-    close(666)
-
-  end subroutine output_timers
 
 end module timers

@@ -925,4 +925,14 @@ subroutine output_singlemod(var,filename,maxr)
   
 end subroutine output_singlemod
 
+subroutine output_timers
+
+  use GR1D_module
+  implicit none
+  open(666,file=trim(adjustl(outdir))//"/timers.dat",status="unknown",position="append")
+  write(666,"(i8,1P10E15.6)") nt, time, dt
+  close(666)
+
+end subroutine output_timers
+
 ! ******************************************************************

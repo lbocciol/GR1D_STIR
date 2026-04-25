@@ -270,14 +270,12 @@ subroutine PrintTimers
   use GR1D_module
   use timers
 
-  real*8 :: tfinal, total_M1, frac_M1, frac_hydro
+  real*8 :: tfinal, total_M1
 
   CALL GetThisTime(tfinal)
   timer_code = tfinal - timer_code
 
   total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo + timer_M1_rec + timer_M1_eas
-  frac_M1    = total_M1   / timer_step
-  frac_hydro = timer_hydro / timer_step
 
   print *, '----------------- Timer Summary -----------------'
   print '(A,F12.4)', 'Total code time        = ', timer_code
@@ -287,13 +285,18 @@ subroutine PrintTimers
   print '(A,F12.4)', '  M1 (closure)         = ', timer_M1_clo
   print '(A,F12.4)', '  M1 (reconstruction)  = ', timer_M1_rec
   print '(A,F12.4)', '  M1 (updateeas)       = ', timer_M1_eas
+  print '(A,F12.4)', '  M1 (cons. update)    = ', timer_M1cons
+  print '(A,F12.4)', '  M1 (neutrinos only)  = ', total_M1
+  print '(A,F12.4)', '  M1                   = ', timer_M1
+  print '(A,F12.4)', '  EOS full             = ', timer_eosf
+  print '(A,F12.4)', '  EOS short            = ', timer_eoss
   print '(A,F12.4)', '  Hydro                = ', timer_hydro
   print '(A,F12.4)', '  con2prim             = ', timer_c2p
   print '(A,F12.4)', '  con2GR               = ', timer_c2GR
   print '(A,F12.4)', '  reconstruction       = ', timer_rec
   print *
-  print '(A,F6.2)',  'Fraction M1            = ', frac_M1
-  print '(A,F6.2)',  'Fraction Hydro         = ', frac_hydro
+  print '(A,F6.2)',  'Fraction Neutrinos     = ', total_M1 / timer_step
+  print '(A,F6.2)',  'Fraction Hydro         = ', timer_hydro / timer_step
   print *, '-------------------------------------------------'
 
 end subroutine PrintTimers

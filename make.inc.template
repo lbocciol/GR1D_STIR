@@ -1,7 +1,17 @@
 F90=
-F90FLAGS= -g -O3 -fopenmp 
-LDFLAGS= -g -O3 -fopenmp 
-MODINC="-I ./"
+DEBUG=0
+F90FLAGS= -g -O3 -fopenmp
+LDFLAGS= -g -O3 -fopenmp
+
+# --- Conditional debug flags ---
+DEBUG_FLAGS = -g -O0 -Wall -Wextra -fcheck=all -fsanitize=address,undefined
+
+ifeq ($(DEBUG),1)
+    F90FLAGS = $(DEBUG_FLAGS)
+    LDFLAGS = $(DEBUG_FLAGS)
+endif
+
+MODINC = "-I ./"
 
 HDF5DIR=
 HDF5INCS=-I${HDF5DIR}/include
@@ -10,6 +20,8 @@ HDF5LIBS=-L${HDF5DIR}/lib -lhdf5 -lhdf5_fortran -lhdf5  -lz
 LAPACKDIR=
 LAPACKLIBS=-L${LAPACKDIR}/lib -llapack -lblas
 
+HAVE_OMP=1
+HAVE_HDF5_OUTPUT=0
 HAVE_NUC_EOS=1
 HAVE_RESTART=1
 HAVE_LEAK_ROS=0

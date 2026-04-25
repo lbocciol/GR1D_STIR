@@ -393,12 +393,12 @@ subroutine Step(dts)
  ! Limit eos variables, very drastic approach
  call ApplyEOS_limits
 
-
  CALL GetThisTime(t2)
  timer_hydro = timer_hydro + (t2 - t1)
 
  !do operator split here
  !M1
+ CALL GetThisTime(t1)
  if (do_M1) then
 
     !we need to find the new plus/minus states, GR (alp,X) boundaries are done
@@ -525,6 +525,9 @@ subroutine Step(dts)
        endif
     endif
  endif
+
+ CALL GetThisTime(t2)
+ timer_M1 = timer_M1 + (t2 - t1)
 
 end subroutine Step
 

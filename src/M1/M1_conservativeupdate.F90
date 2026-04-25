@@ -6,6 +6,7 @@
 
 subroutine M1_conservativeupdate(dts)
 
+  use timers
   use GR1D_module
 
   implicit none
@@ -19,7 +20,9 @@ subroutine M1_conservativeupdate(dts)
   real*8 eosdummy(14)
   logical ::  passfluxtest
   real*8 :: oldeps_forheat(n1)
+  real*8 :: t1, t2
 
+  CALL GetThisTime(t1)
   nogain = .true.
   total_net_heating = 0.0d0
   total_net_deintdt = 0.0d0
@@ -146,5 +149,7 @@ subroutine M1_conservativeupdate(dts)
   endif
   call mass_interior
   call boundaries(0,0)   
+  CALL GetThisTime(t2)
+  timer_M1cons = timer_M1cons + (t2 - t1)
 
 end subroutine M1_conservativeupdate
