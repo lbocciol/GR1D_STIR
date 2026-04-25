@@ -78,8 +78,15 @@ contains
       write(*,*) "ERROR: Failed to create xg.h5"
       stop
     endif
-    call h5fclose_f(file_id, error)
     
+        ! Create /metadata group
+    call h5gcreate_f(file_id, "/metadata", group_id, error)
+    if (error /= 0) then
+      write(*,*) "ERROR: Failed to create /metadata group"
+      stop
+    endif
+    call h5fclose_f(file_id, error)
+
     ! Create dat.h5 file with /scalars and /metadata groups
     call h5fcreate_f(trim(dat_file_path), H5F_ACC_TRUNC_F, file_id, error)
     if (error /= 0) then
@@ -540,19 +547,23 @@ contains
     
   end subroutine hdf5_append_scalar_array
 
-  subroutine hdf5_write_metadata(n1, eoskey, do_M1, do_rotation, do_turbulence, GR, &
-                                  number_groups, number_species)
-    !! Write simulation metadata to dat.h5
-    integer, intent(in) :: n1, eoskey, number_groups, number_species
+  subroutine hdf5_write_metadata(file_path, n1, ghosts1, eoskey, do_M1, do_rotation, &
+                                 do_turbulence, GR, &
+                                 number_groups, number_species)
+
+    !! Write simulation metadata to dat.h5 and xg.h5
+
+    character(len=256), intent(in) :: file_path
+    integer, intent(in) :: n1, ghosts1, eoskey, number_groups, number_species
     logical, intent(in) :: do_M1, do_rotation, do_turbulence, GR
     integer :: error
     integer(HID_T) :: file_id, metadata_group_id, aid, asid
     integer :: int_val
     
     ! Open file
-    call h5fopen_f(trim(dat_file_path), H5F_ACC_RDWR_F, file_id, error)
+    call h5fopen_f(trim(file_path), H5F_ACC_RDWR_F, file_id, error)
     if (error /= 0) then
-      write(*,*) "ERROR: Failed to open dat.h5 for metadata writing"
+      write(*,*) "ERROR: Failed to open ", file_path ," for metadata writing"
       return
     endif
     
@@ -641,12 +652,16 @@ contains
     call hdf5_create_output_files(outdir)
     
     ! Write metadata to dat.h5
-    call hdf5_write_metadata(n1, eoskey, do_M1, do_rotation, do_turbulence, GR, &
+    call hdf5_write_metadata(dat_file_path, n1, ghosts1, eoskey, do_M1, &
+                             do_rotation, do_turbulence, GR, &
                              number_groups, number_species)
-    
+    call hdf5_write_metadata(xg_file_path, n1, ghosts1, eoskey, do_M1, &
+                             do_rotation, do_turbulence, GR, &
+                             number_groups, number_species)
+
     write(*,*) "HDF5 output initialized successfully"
-    write(*,*) "  Grid output: ", trim(adjustl(outdir))//"/xg.h5"
-    write(*,*) "  Scalar output: ", trim(adjustl(outdir))//"/dat.h5"
+    write(*,*) "  Grid output: ", trim(adjustl(dat_file_path))
+    write(*,*) "  Scalar output: ", trim(adjustl(xg_file_path))
     
     call hdf5_finalize()
 

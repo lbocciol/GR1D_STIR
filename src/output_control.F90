@@ -2,6 +2,9 @@
 subroutine output_control
   
   use GR1D_module
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
+#endif
   implicit none
 
   real*8 t_pb, minalp
@@ -64,15 +67,24 @@ subroutine output_control
                     do while(mass(ig) .le. 2.5d0 .and. ig.lt.n1)
                        ig = ig+1
                     enddo
+                    i = n1-ghosts1
 
+#ifdef HAVE_HDF5_OUTPUT
+                    call hdf5_initialize()
+                    call hdf5_append_scalar("tbounce", t_bounce)
+                    call hdf5_write_root_dataset_1d("mass_bary_at_bounce", mass/mass_gf, n1)
+                    call hdf5_write_root_dataset_1d("v_at_bounce", v*clite, n1)
+                    call hdf5_write_root_dataset_1d("temperature_at_bounce", temp, n1)
+                    call hdf5_write_root_dataset_1d("entropy_at_bounce", entropy, n1)
+                    call hdf5_write_root_dataset_1d("ye_at_bounce", ye, n1)
+                    call hdf5_finalize()
+#else
                     open(unit=666,file=trim(adjustl(outdir))//"/tbounce.dat", &
                          status='unknown',form='formatted',position='rewind')
                     write(666,"(E27.18)") t_bounce,x1i(ig)/length_gf, mass(ig) / (x1i(ig)/length_gf/1.0d8), &
                          mass(i),mass(ig)
                     close(666)
-
-                    i = n1-ghosts1
-
+                    
                     ! write mbary vs. radius profile for compactness parameter
                     ! evaluation
                     temp_vs_mass = vs_mass
@@ -94,7 +106,7 @@ subroutine output_control
                     call output_single(ye,filename)
 
                     vs_mass = temp_vs_mass
-
+#endif
                  else
                     i = i+1
                  endif
@@ -105,10 +117,14 @@ subroutine output_control
                  bounce = .true.
                  t_bounce = time
                  write(*,"(A20,1P10E15.6)") "bounce! Hybrid, rho > 2.0d14", t_bounce
+#ifdef HAVE_HDF5_OUTPUT
+                    call hdf5_append_scalar("tbounce", t_bounce)
+#else
                  open(unit=666,file=trim(adjustl(outdir))//"/tbounce.dat", &
                       status='unknown',form='formatted',position='rewind')
                  write(666,"(E27.18)") t_bounce
                  close(666)
+#endif
               endif
            endif
         else

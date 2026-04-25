@@ -97,7 +97,8 @@ def convert_xg_file(hdf5_file, output_dir):
         
         # Get variable names (exclude coordinate/metadata datasets)
         exclude_keys = {'time', 'radius', 'mass', 'volume', 'neutrino_energies'}
-        variables = sorted([k for k in first_group.keys() if k not in exclude_keys])
+        variables = sorted([k for k in first_group.keys() if k not in exclude_keys and not 
+                            'bounce' in k])
         
         print(f"Found {len(output_groups)} timesteps with {len(variables)} variables")
         print(f"Coordinate system: {'radius' if has_radius else 'mass' if has_mass else 'grid index'}")
@@ -136,6 +137,38 @@ def convert_xg_file(hdf5_file, output_dir):
         
         print(f"  {len(grid_vars)} grid variables, {len(spectrum_vars)} spectrum variables")
         
+        # Process bounce variables
+        bounce_vars = [var for var in variables if 'at_bounce' in var]
+        if bounce_vars:
+            tbounce = f['tbounce'][0]
+            for var in bounce_vars:
+                xg_file = output_dir / f"{var}.xg"
+                print(f"  Writing {var}.xg...", end='', flush=True)
+                
+                with open(xg_file, 'w') as out:
+                    group = f[output_group]
+                    
+                    # Write time header in Fortran list-directed format
+                    out.write(f' "Time = {tbounce:25.16E}\n')
+
+                    # Get variable data
+                    data = group[var][:]
+                    
+                    # Get coordinate system (radius is at root level in new structure)
+                    if 'mass' in var:
+                        coords = radius
+                    else:
+                        coords = group['mass'][:]
+                    
+                    # Write data in columns
+                    for i in range(len(data)):
+                        write_xg_line(out, coords[i], data[i])
+                    
+                    # Write blank lines between outputs
+                    out.write("\n\n")
+                
+                print(" done")
+
         # Process grid data variables
         if grid_vars:
             for var in grid_vars:
@@ -147,7 +180,6 @@ def convert_xg_file(hdf5_file, output_dir):
                         group = f[output_group]
                         time = group['time'][0]
                         
-                        print(time, output_group)
                         # Write time header in Fortran list-directed format
                         if time == 0:
                             out.write(f' "Time =    0.0000000000000000     \n')
@@ -240,7 +272,6 @@ def convert_xg_file(hdf5_file, output_dir):
         
         print(f"Successfully converted {len(variables)} variables to .xg files")
 
-
 def convert_dat_file(hdf5_file, output_dir):
     """
     Convert dat.h5 to individual .dat text files.
@@ -259,24 +290,23 @@ def convert_dat_file(hdf5_file, output_dir):
         
         scalars_group = f['scalars']
         
-        # Get all variables except 'metadata'
-        exclude_keys = {'metadata'}
+        # Get all variables except 'metadata' and explicitly exclude 'accretion_radii'
+        exclude_keys = {'metadata', 'accretion_radii'}
         all_variables = sorted([k for k in scalars_group.keys() if k not in exclude_keys])
         
         # Find time array - look for time_c or any variable that could be time
         time = None
         time_var_name = 'time'
         
-        time = scalars_group[time_var_name][:]
-
-        # If no time found, we can't proceed
-        if time is None:
+        if time_var_name not in scalars_group:
             print(f"Error: No time dataset found. Available datasets: {all_variables}")
             return
-        
+            
+        time = scalars_group[time_var_name][:]
+
         print(f"Found time in '{time_var_name}' with {len(time)} timesteps")
         
-        # Get data variables (exclude time and metadata)
+        # Get data variables (exclude time and already excluded keys)
         exclude_keys.add(time_var_name)
         variables = sorted([k for k in all_variables if k not in exclude_keys])
         
@@ -293,7 +323,6 @@ def convert_dat_file(hdf5_file, output_dir):
                 # Handle 1D and 2D data
                 if data.ndim == 1:
                     # 1D scalar time series (single value per timestep)
-                    # Check that data length matches time length
                     if len(data) != len(time):
                         print(f"\nWarning: Length mismatch for {var}: data has {len(data)} entries, time has {len(time)}")
                         continue
@@ -304,7 +333,6 @@ def convert_dat_file(hdf5_file, output_dir):
                     # Need to transpose to (time, components) for output
                     n_components, n_time = data.shape
                     
-                    # Check that time dimension matches
                     if n_time != len(time):
                         print(f"\nWarning: Length mismatch for {var}: data has {n_time} timesteps, time has {len(time)}")
                         continue
@@ -319,8 +347,42 @@ def convert_dat_file(hdf5_file, output_dir):
             
             print(" done")
         
+        # Handle special cases with headers
+        # Read accretion_radii (Fortran implies root dataset, but checking scalars group too just in case)
+        radii_data = None
+        if 'accretion_radii' in f:
+            radii_data = f['accretion_radii'][:]
+        elif 'accretion_radii' in scalars_group:
+            radii_data = scalars_group['accretion_radii'][:]
+            
+        if radii_data is not None:
+            # Format to match Fortran: ('#Radii: ',1P20E18.9)
+            # Python's {val:18.9E} identically replicates the 1P scale and width
+            header_str = "#Radii: " + "".join(f"{r:18.9E}" for r in radii_data) + "\n"
+            
+            # Prepend the header to specific files
+            target_files = ["accretion_rates.dat", "accreted_mass.dat"]
+            for target in target_files:
+                target_path = output_dir / target
+                if target_path.exists():
+                    print(f"  Prepending header to {target}...")
+                    # Read existing content
+                    with open(target_path, 'r') as file:
+                        original_content = file.read()
+                    # Rewrite with header
+                    with open(target_path, 'w') as file:
+                        file.write(header_str)
+                        file.write(original_content)
+                else:
+                    print(f"  Warning: {target} was not generated; skipping header injection.")
+
         print(f"Successfully converted {len(variables)} scalar time series to .dat files")
 
+def write_scalar_line(file_obj, time_val, *values):
+    """Helper to write time and values to file in standard format"""
+    # Assuming standard scientific notation formatting for the columns
+    line = f"{time_val:18.9E} " + " ".join(f"{v:18.9E}" for v in values) + "\n"
+    file_obj.write(line)
 
 def main():
     if len(sys.argv) != 2:

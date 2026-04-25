@@ -2,6 +2,9 @@
 subroutine findaccretionradii
 
   use GR1D_module
+#ifdef HAVE_HDF5_OUTPUT
+  use hdf5_output_utils
+#endif
   implicit none
 
   integer i
@@ -71,6 +74,11 @@ subroutine findaccretionradii
      stop "Missing outer accretion radii, decrease shell radius"
   endif
 
+#ifdef HAVE_HDF5_OUTPUT
+  call hdf5_initialize()
+  call hdf5_append_scalar_array("accretion_radii", x1(accretion_radii(1:11))/length_gf, 11)
+  call hdf5_finalize()
+#else
   !Write out headers
   open(unit=666,file=trim(adjustl(outdir))//trim(adjustl("/accretion_rates.dat")),status= &
        "unknown", form='formatted',position="append")
@@ -90,7 +98,7 @@ subroutine findaccretionradii
         x1(accretion_radii(8))/length_gf, x1(accretion_radii(9))/length_gf, &
         x1(accretion_radii(10))/length_gf, x1(accretion_radii(11))/length_gf
    close(666)
-
+#endif
 
 end subroutine findaccretionradii
 

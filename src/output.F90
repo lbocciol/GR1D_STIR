@@ -853,19 +853,21 @@ subroutine output_scalar(var,filename)
 
 end subroutine output_scalar
 ! *******************************************************************
-subroutine output_many_scalars(var,n0,n,filename)
-  
+subroutine output_many_scalars(var, n0, n, filename)
+
   use GR1D_module, only: time
   implicit none
-  integer n,n0
-  real*8 var(n0)
-  character(len=100) filename
-  integer nt
-  integer i
+  integer, intent(in)          :: n, n0
+  real*8, intent(in)           :: var(n0)
+  character(len=*), intent(in) :: filename
   
-  open(unit=666,file=filename,status="unknown",form='formatted',position="append")
+  character(len=32) :: fmt_str
   
-  write(666,"(1P256E18.9)") time,var(1:n)
+  open(unit=666, file=filename, status="unknown", form='formatted', position="append")
+  
+  ! Build format string: e.g., if n=250, n+1=251. String becomes "(1P, 251E18.9)"
+  write(fmt_str, '("(1P, ", I0, "E18.9)")') n + 1
+  write(666, fmt_str) time, var(1:n)
   
   close(666)
   
