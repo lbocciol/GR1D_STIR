@@ -66,7 +66,7 @@ subroutine output_all_HDF5(modeflag)
   else if(modeflag.eq.1) then
      
      ! Open xg.h5 file ONCE at the beginning
-     call hdf5_open_xg_for_output()
+     call hdf5_open_xg_file()
 
      do k=ghosts1+1,n1-ghosts1
         keyerr = 0
@@ -368,7 +368,7 @@ subroutine output_all_HDF5(modeflag)
   else if(modeflag.eq.2) then
      
      ! Open dat.h5 file ONCE at the beginning
-     call hdf5_open_dat_for_scalars()
+     call hdf5_open_dat_file()
       
      call hdf5_append_scalar("time", time)
      if (initial_data.eq.'Collapse') then

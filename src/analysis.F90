@@ -76,7 +76,7 @@ subroutine findaccretionradii
 
 #ifdef HAVE_HDF5_OUTPUT
   call hdf5_initialize()
-  call hdf5_open_dat_for_scalars()
+  call hdf5_open_dat_file()
   call hdf5_append_scalar_array("accretion_radii", x1(accretion_radii(1:11))/length_gf, 11)
   call hdf5_close_dat_file()
   call hdf5_finalize()

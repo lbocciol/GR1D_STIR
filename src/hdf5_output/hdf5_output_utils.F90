@@ -22,9 +22,9 @@ module hdf5_output_utils
   public :: hdf5_write_metadata
   public :: hdf5_increment_output_counter
   public :: hdf5_output_init
-  public :: hdf5_open_xg_for_output
+  public :: hdf5_open_xg_file
   public :: hdf5_close_xg_file
-  public :: hdf5_open_dat_for_scalars
+  public :: hdf5_open_dat_file
   public :: hdf5_close_dat_file
   
   ! Module variables
@@ -113,7 +113,7 @@ contains
     
   end subroutine hdf5_create_output_files
 
-  subroutine hdf5_open_xg_for_output()
+  subroutine hdf5_open_xg_file()
     !! Open xg.h5 file and create/open output_#### group for persistent writing
     integer :: error
     character(len=256) :: group_name
@@ -172,7 +172,7 @@ contains
       endif
     endif
     
-  end subroutine hdf5_open_xg_for_output
+  end subroutine hdf5_open_xg_file
 
   subroutine hdf5_close_xg_file()
     !! Close xg.h5 file and group
@@ -190,7 +190,7 @@ contains
     
   end subroutine hdf5_close_xg_file
 
-  subroutine hdf5_open_dat_for_scalars()
+  subroutine hdf5_open_dat_file()
     !! Open dat.h5 file and get /scalars group for persistent writing
     integer :: error
     
@@ -213,7 +213,7 @@ contains
       dat_file_open = .true.
     endif
     
-  end subroutine hdf5_open_dat_for_scalars
+  end subroutine hdf5_open_dat_file
 
   subroutine hdf5_close_dat_file()
     !! Close dat.h5 file and scalars group
@@ -289,7 +289,7 @@ contains
 
   subroutine hdf5_write_grid_data_1d(varname, data, n1)
     !! Write 1D grid variable to xg.h5 using persistent file handles
-    !! Assumes xg_file_id and xg_group_id are already open via hdf5_open_xg_for_output()
+    !! Assumes xg_file_id and xg_group_id are already open via hdf5_open_xg_file()
     character(len=*), intent(in) :: varname
     integer, intent(in) :: n1
     real(kind=8), intent(in) :: data(n1)
@@ -299,7 +299,7 @@ contains
     
     ! Validate that file is open
     if (.not. xg_file_open .or. xg_group_id < 0) then
-      write(*,*) "ERROR: xg.h5 file/group not open. Call hdf5_open_xg_for_output() first"
+      write(*,*) "ERROR: xg.h5 file/group not open. Call hdf5_open_xg_file() first"
       return
     endif
     
@@ -340,7 +340,7 @@ contains
 
   subroutine hdf5_write_grid_data_2d(varname, data, n1, n2)
     !! Write 2D grid variable (e.g., spectra) to xg.h5 using persistent file handles
-    !! Assumes xg_file_id and xg_group_id are already open via hdf5_open_xg_for_output()
+    !! Assumes xg_file_id and xg_group_id are already open via hdf5_open_xg_file()
     character(len=*), intent(in) :: varname
     integer, intent(in) :: n1, n2
     real(kind=8), intent(in) :: data(n1, n2)
@@ -350,7 +350,7 @@ contains
     
     ! Validate that file is open
     if (.not. xg_file_open .or. xg_group_id < 0) then
-      write(*,*) "ERROR: xg.h5 file/group not open. Call hdf5_open_xg_for_output() first"
+      write(*,*) "ERROR: xg.h5 file/group not open. Call hdf5_open_xg_file() first"
       return
     endif
     
@@ -392,7 +392,7 @@ contains
 
   subroutine hdf5_append_scalar(varname, value)
     !! Append scalar value to time series in dat.h5 using persistent file handles
-    !! Assumes dat_file_id and dat_scalars_group_id are already open via hdf5_open_dat_for_scalars()
+    !! Assumes dat_file_id and dat_scalars_group_id are already open via hdf5_open_dat_file()
     character(len=*), intent(in) :: varname
     real(kind=8), intent(in) :: value
     integer :: error
@@ -403,7 +403,7 @@ contains
     
     ! Validate that file is open
     if (.not. dat_file_open .or. dat_scalars_group_id < 0) then
-      write(*,*) "ERROR: dat.h5 file/group not open. Call hdf5_open_dat_for_scalars() first"
+      write(*,*) "ERROR: dat.h5 file/group not open. Call hdf5_open_dat_file() first"
       return
     endif
     
@@ -469,7 +469,7 @@ contains
 
   subroutine hdf5_append_scalar_array(varname, values, n)
     !! Append array of scalars to 2D time series in dat.h5 using persistent file handles
-    !! Assumes dat_file_id and dat_scalars_group_id are already open via hdf5_open_dat_for_scalars()
+    !! Assumes dat_file_id and dat_scalars_group_id are already open via hdf5_open_dat_file()
     character(len=*), intent(in) :: varname
     integer, intent(in) :: n
     real(kind=8), intent(in) :: values(n)
@@ -480,7 +480,7 @@ contains
     
     ! Validate that file is open
     if (.not. dat_file_open .or. dat_scalars_group_id < 0) then
-      write(*,*) "ERROR: dat.h5 file/group not open. Call hdf5_open_dat_for_scalars() first"
+      write(*,*) "ERROR: dat.h5 file/group not open. Call hdf5_open_dat_file() first"
       return
     endif
     
