@@ -75,14 +75,12 @@ subroutine output_control
                     call hdf5_append_scalar("tbounce", t_bounce)
                     call hdf5_close_dat_file()
                     
-                    call hdf5_open_xg_file()
                     call hdf5_write_root_dataset_1d("tbounce", [t_bounce], 1)
                     call hdf5_write_root_dataset_1d("mass_bary_at_bounce", mass/mass_gf, n1)
                     call hdf5_write_root_dataset_1d("v_at_bounce", v*clite, n1)
                     call hdf5_write_root_dataset_1d("temperature_at_bounce", temp, n1)
                     call hdf5_write_root_dataset_1d("entropy_at_bounce", entropy, n1)
                     call hdf5_write_root_dataset_1d("ye_at_bounce", ye, n1)
-                    call hdf5_close_xg_file()
                     call hdf5_finalize()
 #else
                     open(unit=666,file=trim(adjustl(outdir))//"/tbounce.dat", &
