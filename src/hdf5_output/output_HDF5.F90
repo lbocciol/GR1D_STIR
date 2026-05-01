@@ -84,7 +84,6 @@ subroutine output_all_HDF5(modeflag)
 
      ! Write time and grid coordinates
      call hdf5_write_grid_data_1d("time", [time], 1)
-     call hdf5_write_grid_data_1d("mass", mass(1:n1)/mass_gf, n1)
      
      ! Write velocity
      if (.not.small_output) call hdf5_write_grid_data_1d("v1", v1(1:n1)*clite, n1)

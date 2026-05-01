@@ -131,7 +131,7 @@ contains
     endif
     
     ! Create group name for this output timestep
-    write(group_name, '(A,I4.4)') "/output_", output_counter
+    write(group_name, '(A,I5.5)') "/output_", output_counter
     
     ! Check if group exists
     call h5lexists_f(xg_file_id, trim(group_name), group_exists, error)

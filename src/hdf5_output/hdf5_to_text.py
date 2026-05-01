@@ -246,27 +246,27 @@ def convert_xg_file(hdf5_file, output_dir):
             xg_file = output_dir / "volume.xg"
             
             with open(xg_file, 'w') as out:
-                for output_group in output_groups:
-                    group = f[output_group]
-                    time = group.attrs.get('time', 0.0)
-                    
-                    # Write time header in Fortran list-directed format
-                    out.write(f' "Time = " {time}\n')
-                    
-                    # Get coordinate system (radius is at root level in new structure)
-                    if has_radius:
-                        coords = radius
-                    elif has_mass and 'mass' in group:
-                        coords = group['mass'][:]
-                    else:
-                        coords = np.arange(len(volume))
-                    
-                    # Write data in columns
-                    for i in range(len(volume)):
-                        write_xg_line(out, coords[i], volume[i])
-                    
-                    # Write blank lines between outputs
-                    out.write("\n\n")
+                # Write volume only ONCE, since it's a static root-level dataset
+                # We pull the first output group just to evaluate coordinates if needed
+                first_group = f[output_groups[0]]
+                
+                # Write the static time header using your 0.0 format
+                out.write(' "Time =    0.0000000000000000    \n')
+                
+                # Get coordinate system
+                if has_radius:
+                    coords = radius
+                elif has_mass and 'mass' in first_group:
+                    coords = first_group['mass'][:]
+                else:
+                    coords = np.arange(len(volume))
+                
+                # Write data in columns
+                for i in range(len(volume)):
+                    write_xg_line(out, coords[i], volume[i])
+                
+                # Write final blank lines
+                out.write("\n\n")
             
             print(" done")
         
@@ -356,9 +356,8 @@ def convert_dat_file(hdf5_file, output_dir):
             radii_data = scalars_group['accretion_radii'][:]
             
         if radii_data is not None:
-            # Format to match Fortran: ('#Radii: ',1P20E18.9)
-            # Python's {val:18.9E} identically replicates the 1P scale and width
-            header_str = "#Radii: " + "".join(f"{r:18.9E}" for r in radii_data) + "\n"
+            # FORMAT FIX HERE: Flatten the 2D (11, 1) array into a 1D sequence and cast to float
+            header_str = "#Radii: " + "".join(f"{float(r):18.9E}" for r in radii_data.flatten()) + "\n"
             
             # Prepend the header to specific files
             target_files = ["accretion_rates.dat", "accreted_mass.dat"]
