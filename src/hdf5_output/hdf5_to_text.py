@@ -280,6 +280,8 @@ def convert_dat_file(hdf5_file, output_dir):
     - Create .dat file with: time + value(s) per row
     - Handle both 1D (single value) and 2D (multiple values) data
     - Time is stored in time_c or similar dataset that matches data length
+    - Automatically adjusts time arrays for post-bounce variables
+    - Writes tbounce as a single number in tbounce.dat
     """
     print(f"Converting {hdf5_file.name} to text format...")
     
@@ -295,17 +297,29 @@ def convert_dat_file(hdf5_file, output_dir):
         all_variables = sorted([k for k in scalars_group.keys() if k not in exclude_keys])
         
         # Find time array - look for time_c or any variable that could be time
-        time = None
         time_var_name = 'time'
-        
         if time_var_name not in scalars_group:
             print(f"Error: No time dataset found. Available datasets: {all_variables}")
             return
             
         time = scalars_group[time_var_name][:]
-
         print(f"Found time in '{time_var_name}' with {len(time)} timesteps")
         
+        # --- NEW: Extract tbounce, write to tbounce.dat, and exclude it from the loop ---
+        tbounce_val = None
+        if 'tbounce' in scalars_group:
+            tbounce_val = scalars_group['tbounce'][0]
+        elif 'tbounce' in f:
+            tbounce_val = f['tbounce'][0]
+            
+        if tbounce_val is not None:
+            print(f"Found tbounce = {tbounce_val}. Writing tbounce.dat and preparing to adjust arrays.")
+            with open(output_dir / "tbounce.dat", 'w') as tb_out:
+                tb_out.write(f"{tbounce_val:18.9E}\n")
+            
+            # Make sure we don't try to process tbounce as a time series below
+            exclude_keys.add('tbounce')
+
         # Get data variables (exclude time and already excluded keys)
         exclude_keys.add(time_var_name)
         variables = sorted([k for k in all_variables if k not in exclude_keys])
@@ -320,27 +334,40 @@ def convert_dat_file(hdf5_file, output_dir):
             with open(dat_file, 'w') as out:
                 data = scalars_group[var][:]
                 
-                # Handle 1D and 2D data
+                # Determine data length along time axis
+                data_len = len(data) if data.ndim == 1 else data.shape[1]
+                current_time = time
+                
+                # Check for mismatch and apply post-bounce time slicing
+                if data_len != len(time):
+                    if tbounce_val is not None:
+                        post_bounce_time = time[time >= tbounce_val]
+                        
+                        if data_len == len(post_bounce_time):
+                            current_time = post_bounce_time
+                        elif data_len < len(time):
+                            # Fallback: Slicing from the tail is bulletproof for post-bounce arrays
+                            current_time = time[-data_len:]
+                        else:
+                            print(f"\nWarning: Length mismatch for {var}: data has {data_len} entries, time has {len(time)}")
+                            continue
+                    else:
+                        print(f"\nWarning: Length mismatch for {var}: data has {data_len} entries, time has {len(time)} (No tbounce found to adjust)")
+                        continue
+                
+                # Handle 1D and 2D data using the properly sized current_time array
                 if data.ndim == 1:
                     # 1D scalar time series (single value per timestep)
-                    if len(data) != len(time):
-                        print(f"\nWarning: Length mismatch for {var}: data has {len(data)} entries, time has {len(time)}")
-                        continue
-                    for t, val in zip(time, data):
+                    for t, val in zip(current_time, data):
                         write_scalar_line(out, t, val)
+                        
                 elif data.ndim == 2:
                     # 2D array stored as (components, time) in HDF5
                     # Need to transpose to (time, components) for output
-                    n_components, n_time = data.shape
-                    
-                    if n_time != len(time):
-                        print(f"\nWarning: Length mismatch for {var}: data has {n_time} timesteps, time has {len(time)}")
-                        continue
-                    
-                    # Write time series with components
-                    for t_idx, t in enumerate(time):
+                    for t_idx, t in enumerate(current_time):
                         values = data[:, t_idx]  # Get all components for this timestep
                         write_scalar_line(out, t, *values)
+                        
                 else:
                     print(f"\nWarning: Unexpected data dimensionality for {var}: {data.ndim}")
                     continue
@@ -356,7 +383,7 @@ def convert_dat_file(hdf5_file, output_dir):
             radii_data = scalars_group['accretion_radii'][:]
             
         if radii_data is not None:
-            # FORMAT FIX HERE: Flatten the 2D (11, 1) array into a 1D sequence and cast to float
+            # Flatten the 2D (11, 1) array into a 1D sequence and cast to float
             header_str = "#Radii: " + "".join(f"{float(r):18.9E}" for r in radii_data.flatten()) + "\n"
             
             # Prepend the header to specific files
