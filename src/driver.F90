@@ -248,6 +248,7 @@ subroutine postStep_analysis
         lrho = rho(i)/rho_gf
         ltemp = temp(i)
         lye = ye(i)
+        call ApplyEOS_limits
         call nuc_eos_full(lrho,ltemp,lye,eosdummy(1),eosdummy(2),eosdummy(3), &
              eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),massfrac_a(i),massfrac_h(i), &
              massfrac_n(i),massfrac_p(i),massfrac_abar(i),massfrac_zbar(i),eosdummy(8), &

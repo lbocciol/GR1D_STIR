@@ -778,6 +778,7 @@ contains
        !call eos to get quantities we need
        keytemp = 1 !keep temperature
        keyerr = 0       
+       call ApplyEOS_limits 
        call nuc_eos_full(lrho(i),ltemp(i),lye(i),eosdummy(1),eosdummy(2),eosdummy(3), &
             eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),xxa(i),xxh(i), &
             xxn(i),xxp(i),xabar(i),xzbar(i),xmu_e,xmu_n,xmu_p,eosdummy(9),keytemp,keyerr,eos_rf_prec)
