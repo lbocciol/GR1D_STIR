@@ -74,6 +74,7 @@ subroutine output_all_HDF5(modeflag)
 
         ! This is to calculate things like mass fractions and chemical
         ! potentials
+        call ApplyEOS_limits
         call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
           entropy(k),cs2(k),eosdummy(2),&
           eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &

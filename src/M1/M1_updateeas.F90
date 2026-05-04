@@ -156,6 +156,7 @@ subroutine M1_updateeas
            keytemp = 1 !keep temperature, not resetting any hydro variables
            keyerr = 0       
 #if HAVE_NUC_EOS
+           call ApplyEOS_limits
            call nuc_eos_full(xrho,xtemp,xye,eosdummy(1),eosdummy(2),eosdummy(3), &
                 eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),eosdummy(8), &
                 eosdummy(9),eosdummy(10),eosdummy(11),eosdummy(12), &
