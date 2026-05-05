@@ -111,10 +111,10 @@ subroutine M1_conservativeupdate(dts)
   call con2prim
   
   ! eos update, eps fixed, find temp,entropy,cs2 etc.
+  call ApplyEOS_limits
   do k=ghosts1+1,n1-ghosts1
      keyerr = 0
      keytemp = 0
-     call ApplyEOS_limits
      call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), & 
           entropy(k),cs2(k),eosdummy(2),&
           eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &

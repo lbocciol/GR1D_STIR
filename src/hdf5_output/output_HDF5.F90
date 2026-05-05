@@ -68,13 +68,13 @@ subroutine output_all_HDF5(modeflag)
      ! Open xg.h5 file ONCE at the beginning
      call hdf5_open_xg_file()
 
+     call ApplyEOS_limits
      do k=ghosts1+1,n1-ghosts1
         keyerr = 0
         keytemp = 0
 
         ! This is to calculate things like mass fractions and chemical
         ! potentials
-        call ApplyEOS_limits
         call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
           entropy(k),cs2(k),eosdummy(2),&
           eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &

@@ -26,6 +26,7 @@ subroutine SetTimeStep
   ! Note: so far only cfl-stability conditions is implemented
   ! Other conditions may be added
   ! get the speed of sound from the eos
+  call ApplyEOS_limits
   do i=1,n1
      keytemp = 0 ! not coming in with temperature (that would reset the energy), needs to be zero for the hybrid/poly/ideal EOS
      eosflag = 6 ! we want cs2 to be reset
