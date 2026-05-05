@@ -29,6 +29,7 @@ subroutine M1_updateeas
 
   CALL GetThisTime(t1)
 
+  call ApplyEOS_limits
   if (M1_testcase_number.eq.0.or.M1_testcase_number.eq.1) then
 
      !$OMP PARALLEL DO PRIVATE(xrho,xtemp,xye,tempspectrum,singlespecies_tempspectrum, &
@@ -113,7 +114,6 @@ subroutine M1_updateeas
            keytemp = 1 !keep temperature
            keyerr = 0
 #if HAVE_NUC_EOS
-           call ApplyEOS_limits
            call nuc_eos_full(xrho,xtemp,xye,eosdummy(1),eosdummy(2),eosdummy(3), &
                 eosdummy(4),eosdummy(5),eosdummy(6),eosdummy(7),eosdummy(8), &
                 eosdummy(9),eosdummy(10),eosdummy(11),eosdummy(12), &

@@ -84,7 +84,7 @@ subroutine con2prim_1
            v(i) = 0.0d0
            rho(i) = 0.0d0
            eps(i) = 0.0d0
-	   press(i) = 0.0d0
+           press(i) = 0.0d0
         else
            ! atmosphere handling:
            if(rho(i).eq.atmo_rho) then
@@ -93,7 +93,7 @@ subroutine con2prim_1
               q(i,3) = rho(i)*eps(i)
               W(i) = 1.0d0
            endif
- 	   if (q(i,2).eq.0.0d0) then
+           if (q(i,2).eq.0.0d0) then
               v1(i) = 0.0d0
               v(i) = 0.0d0
               W(i) = 1.0d0

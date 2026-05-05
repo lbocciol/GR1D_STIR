@@ -45,28 +45,28 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   call GetThisTime(t1)
 
   if(xrho.gt.eos_rhomax) then
-     stop "nuc_eos: rho > rhomax"
+     stop "nuc_eos_full: rho > rhomax"
   endif
 
   if(xrho.lt.eos_rhomin) then
-     stop "nuc_eos: rho < rhomin"
+     stop "nuc_eos_full: rho < rhomin"
   endif
 
   if(xye.gt.eos_yemax) then
-     stop "nuc_eos: ye > yemax"
+     stop "nuc_eos_full: ye > yemax"
   endif
 
   if(xye.lt.eos_yemin) then
-     stop "nuc_eos: ye < yemin"
+     stop "nuc_eos_full: ye < yemin"
   endif
 
   if(keytemp.eq.1) then
      if(xtemp.gt.eos_tempmax) then
-        stop "nuc_eos: temp > tempmax"
+        stop "nuc_eos_full: temp > tempmax"
      endif
      
      if(xtemp.lt.eos_tempmin) then
-        stop "nuc_eos: temp < tempmin"
+        stop "nuc_eos_full: temp < tempmin"
      endif
   endif
 
@@ -191,7 +191,7 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   call GetThisTime(t1)
 
   if(xrho.gt.eos_rhomax) then
-     stop "nuc_eos: rho > rhomax"
+     stop "nuc_eos_short: rho > rhomax"
   endif
 
   if(xrho.lt.eos_rhomin*1.2d0) then
@@ -201,16 +201,16 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   endif
 
   if(xye.gt.eos_yemax) then
-     stop "nuc_eos: ye > yemax"
+     stop "nuc_eos_short: ye > yemax"
   endif
 
   if(xye.lt.eos_yemin) then
-     stop "nuc_eos: ye < yemin"
+     stop "nuc_eos_short: ye < yemin"
   endif
 
   if(keytemp.eq.1) then
      if(xtemp.gt.eos_tempmax) then
-        stop "nuc_eos: temp > tempmax"
+        stop "nuc_eos_short: temp > tempmax"
      endif
      
      if(xtemp.lt.eos_tempmin) then
