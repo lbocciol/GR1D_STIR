@@ -1,3 +1,5 @@
 GR1D
 RunDir
 make.inc
+.vscode*
+net

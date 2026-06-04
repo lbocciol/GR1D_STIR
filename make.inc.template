@@ -26,3 +26,9 @@ HAVE_NUC_EOS=1
 HAVE_RESTART=1
 HAVE_LEAK_ROS=0
 HAVE_LAPACK=1
+# nuclear burning network + Helmholtz EOS (requires HAVE_LAPACK=1)
+HAVE_BURN=0
+
+# C++ compiler for the pynucastro-generated network wrapper (only used if HAVE_BURN=1)
+CXX=g++
+CXXFLAGS=-O2 -std=c++20 -DSCREENING

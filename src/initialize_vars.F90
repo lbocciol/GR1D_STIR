@@ -262,6 +262,13 @@ subroutine initialize_arrays
   denergyloss(:) = 0.0d0
 
   atmo(:) = 0
+
+#ifdef HAVE_BURN
+  Yion(:,:) = 0.0d0
+  aion(:) = 0.0d0
+  zion(:) = 0.0d0
+#endif
+
 !##########################################
 ! GR VARIABLES
   phi(:) = 0.0d0

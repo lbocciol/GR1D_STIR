@@ -391,6 +391,16 @@ module GR1D_module
   real*8,allocatable,save :: eps_kin(:)
   real*8,allocatable,save :: binding_energy(:)
 
+#ifdef HAVE_BURN
+  ! Burning network
+  integer :: nspec                       !number of species (set from pynet at startup)
+  real*8,allocatable,save :: aion(:)     !atomic mass numbers, shape (nspec)
+  real*8,allocatable,save :: zion(:)     !atomic numbers, shape (nspec)
+  real*8,allocatable,save :: Yion(:,:)   !molar abundances Y=X/A per species per zone, shape (nspec,n1)
+  real*8 :: T_NSE = 5.8d9 !temperature above which we assume NSE
+  real*8 :: T_interp = 5.0d9 !temperature for the interpolation of EOSs
+#endif
+
   ! constants
   real*8,parameter :: pi = 3.14159265358979d0
   real*8,parameter :: pi4 = 12.5663706143592d0

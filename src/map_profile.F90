@@ -2,7 +2,7 @@
 subroutine map_profile(lprofile_name)
 
   use GR1D_module
-  use grad_module, only: QuadraticInterpolation1D
+  use grad_module, only: QuadraticInterpolation1D, LinearInterpolation1D
   implicit none
 
   character*(*) lprofile_name
@@ -71,7 +71,7 @@ subroutine map_profile(lprofile_name)
         pradius_new(i) = (pradius(i)+pradius(i-1))/2.0d0
      enddo
      do i=1,profile_zones
-       call QuadraticInterpolation1D(pradius, pvel, profile_zones,&
+       call LinearInterpolation1D(pradius, pvel, profile_zones,&
            pradius_new(i), pvel_new(i))
      enddo
      pradius(:) = pradius_new(:)
@@ -99,6 +99,13 @@ subroutine map_profile(lprofile_name)
         call map_map(omega(i),x1(i),pomega,pradius,profile_zones)
      endif
   enddo
+
+#ifdef HAVE_BURN
+  ! TODO(Phase 2): read the initial composition from a composition-profile file,
+  ! convert mass fractions X -> molar abundances Y, and map onto the grid into
+  ! Yion(:,i) using map_map (note Yion is shaped (nspec,n1)). Left as a no-op for
+  ! now so HAVE_BURN builds; Yion keeps its initialized value (see initialize_vars).
+#endif
 
   if (do_rotation.and.set_omega) then
      !omega_c and omega_A already in code units

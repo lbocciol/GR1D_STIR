@@ -76,6 +76,18 @@ EXTRAINCS += -Inulibtable
 EXTRAOBJECTS += nulibtable/nulibtable.a
 EXTRADEPS += nulibtable/nulibtable.a
 
+ifeq ($(HAVE_BURN),1)
+	DEFS += -DHAVE_BURN
+	CXX ?= g++
+	CXXFLAGS ?= -O2 -std=c++20 -DSCREENING
+	EXTRAINCS += -Iburn -Iburn/pynucnet -Ihelmeos
+	BURNOBJECTS = burn/pynucnet/fortran_interface.o burn/pynucnet/wrapper.o \
+		burn/burn.o helmeos/helmholtzEOS.o
+	# listed before LAPACK below so burn.o (needs dgesv) precedes -llapack at link
+	EXTRAOBJECTS += $(BURNOBJECTS) -lstdc++
+	EXTRADEPS += $(BURNOBJECTS)
+endif
+
 ifeq ($(HAVE_LAPACK),1)
 	EXTRAOBJECTS += $(LAPACKLIBS)
 	DEFS += -DHAVE_LAPACK
@@ -105,6 +117,27 @@ nulibtable/nulibtable.a: nulibtable/*.F90
 hdf5_output/hdf5_output.a: hdf5_output/*.F90 GR1D_module.o nulibtable/nulibtable.a
 	$(MAKE) -C hdf5_output
 
+ifeq ($(HAVE_BURN),1)
+# pynucastro-generated interface (lowercase .f90 -> no cpp); produces pynet.mod
+burn/pynucnet/fortran_interface.o: burn/pynucnet/fortran_interface.f90
+	$(F90) $(F90FLAGS) -Jburn/pynucnet -Iburn/pynucnet -c $< -o $@
+
+# pynucastro-generated C++ rate wrapper (do not edit)
+burn/pynucnet/wrapper.o: burn/pynucnet/wrapper.cpp
+	$(CXX) $(CXXFLAGS) -Iburn/pynucnet -c $< -o $@
+
+# burn integrator; produces burn.mod, needs pynet.mod
+burn/burn.o: burn/burn.F90 burn/pynucnet/fortran_interface.o
+	$(F90) $(F90FLAGS) $(DEFS) -Iburn/pynucnet -Jburn -c $< -o $@
+
+# Helmholtz EOS module; produces wlhelmholtzeos.mod
+helmeos/helmholtzEOS.o: helmeos/helmholtzEOS.F90
+	$(F90) $(F90FLAGS) $(DEFS) -Ihelmeos -Jhelmeos -c $< -o $@
+
+# main objects that `use burn` / `use pynet` need those .mod files first
+start.o Step.o: burn/burn.o
+endif
+
 clean:
 	rm -rf ../GR1D
 	rm -rf *.o
@@ -122,3 +155,10 @@ clean:
 	rm -rf hdf5_output/*.a
 	rm -rf hdf5_output/*.o
 	rm -rf hdf5_output/*.mod
+	rm -rf burn/*.o
+	rm -rf burn/*.mod
+	rm -rf burn/pynucnet/fortran_interface.o
+	rm -rf burn/pynucnet/wrapper.o
+	rm -rf burn/pynucnet/*.mod
+	rm -rf helmeos/*.o
+	rm -rf helmeos/*.mod

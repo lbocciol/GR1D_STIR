@@ -132,6 +132,12 @@ subroutine allocate_vars
   
   allocate(atmo(n1))
   
+#ifdef HAVE_BURN
+  allocate(aion(nspec))
+  allocate(zion(nspec))
+  allocate(Yion(nspec,n1))
+#endif
+
 ! #############################################
 ! GR VARIABLES
 

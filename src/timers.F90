@@ -3,6 +3,7 @@ module timers
 
   ! Add some useful timers
   real*8 :: timer_hydro   = 0.0d0
+  real*8 :: timer_burn    = 0.0d0
   real*8 :: timer_eosf    = 0.0d0
   real*8 :: timer_eoss    = 0.0d0
   real*8 :: timer_M1      = 0.0d0
@@ -26,6 +27,7 @@ contains
     implicit none
 
     timer_hydro   = 0.0d0
+    timer_burn    = 0.0d0
     timer_eosf    = 0.0d0
     timer_eoss    = 0.0d0
     timer_M1      = 0.0d0

@@ -9,6 +9,10 @@ subroutine start
 #ifdef HAVE_HDF5_OUTPUT
   use hdf5_output_utils
 #endif
+#ifdef HAVE_BURN
+  use burn, only: burn_init
+  use pynet, only: pynet_nspec => nspec, pynet_aion => aion, pynet_zion => zion
+#endif
   implicit none
 
   character(len=128) cpstring
@@ -44,6 +48,12 @@ subroutine start
 #endif
   endif
 
+#ifdef HAVE_BURN
+  call burn_init
+  ! cache the species count from the generated network before allocating arrays
+  nspec = pynet_nspec
+#endif
+
   !total zones
   n1 = radial_zones+ghosts1*2
 
@@ -52,6 +62,13 @@ subroutine start
   !allocate & initialize variables
   call allocate_vars
   call initialize_vars
+
+#ifdef HAVE_BURN
+  ! copy the network's mass/charge numbers into the global arrays
+  ! (initialize_vars has just zeroed them)
+  aion = pynet_aion
+  zion = pynet_zion
+#endif
 
   !this time to set all variables requested values
   call input_parser

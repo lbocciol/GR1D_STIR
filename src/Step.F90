@@ -8,6 +8,9 @@ subroutine Step(dts)
 #if HAVE_LEAK_ROS
   use leakage_rosswog
 #endif
+#ifdef HAVE_BURN
+  use burn, only: burn_newton
+#endif
   implicit none
   
   real*8 dts !time step that is passed in
@@ -20,7 +23,10 @@ subroutine Step(dts)
   real*8 tempeps1(n1), tempeps2(n1)
   real*8 epsin0
   
-  logical nan,inf
+  logical nan,inf,burn_converged
+#ifdef HAVE_BURN
+  real*8 e_step
+#endif
 
   !M1 stuff
   real*8 implicit_factor
@@ -397,6 +403,24 @@ subroutine Step(dts)
  timer_hydro = timer_hydro + (t2 - t1)
 
  !do operator split here
+ !BURN
+ CALL GetThisTime(t1)
+#ifdef HAVE_BURN
+  ! Ok here is where burn happens. But then I should call the EOS
+  ! again to update the variables after burning, and then do the neutrino stuff maybe?
+  do i=ghosts1+1,n1-ghosts1
+     call burn_newton(rho(i), temp(i), Yion(:,i), &
+                      dts, e_step, burn_converged)
+     if (.not. burn_converged) then
+        write(*,*) "burn not converged!"
+        stop "Aborting!"
+     endif
+     eps(i) = eps(i) + e_step
+  enddo
+#endif
+ CALL GetThisTime(t2)
+ timer_burn = timer_burn + (t2 - t1)
+
  !M1
  CALL GetThisTime(t1)
  if (do_M1) then
