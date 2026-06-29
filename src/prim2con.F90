@@ -10,11 +10,17 @@ end subroutine prim2con
 
 
 subroutine prim2con_1
-  
+
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
-  
+
   integer i
+#ifdef HAVE_BURN
+  integer k
+#endif
   real*8 h
   
   if (GR) then 
@@ -25,6 +31,12 @@ subroutine prim2con_1
         q(i,2) = rho(i)*h*W(i)**2*v(i)
         q(i,3) = rho(i)*h*W(i)**2 - press(i) - q(i,1) 
         q(i,4) = X(i)*W(i)*rho(i)*ye(i)
+
+#ifdef HAVE_BURN
+        do k=1,nspec
+           q(i,6+k) = X(i)*W(i)*rho(i)*Yion(k,i)
+        enddo
+#endif
 
         if(do_rotation) then
            q(i,5) = rho(i)*h*W(i)**2*vphi(i)*x1(i)
@@ -44,6 +56,11 @@ subroutine prim2con_1
            q(i,3) = q(i,3) + 0.5d0*rho(i)*twothirds*vphi1(i)**2
         endif
         q(i,4) = rho(i)*ye(i)
+#ifdef HAVE_BURN
+        do k=1,nspec
+           q(i,6+k) = rho(i)*Yion(k,i)
+        enddo
+#endif
      enddo
      if(do_rotation) then
         do i=1,n1
@@ -62,11 +79,17 @@ subroutine prim2con_1
 end subroutine prim2con_1
 
 subroutine prim2con_if
-  
+
   use GR1D_module
-  
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
+
   implicit none
   integer i
+#ifdef HAVE_BURN
+  integer k
+#endif
   real*8 hp,hm
   
   if (GR) then 
@@ -84,6 +107,13 @@ subroutine prim2con_if
         qm(i,2) = rhom(i) * hm * Wm(i)**2 * vm(i)
         qm(i,3) = rhom(i) * hm * Wm(i)**2 - pressm(i) - qm(i,1) 
         qm(i,4) = Xm(i) * Wm(i) * rhom(i) * yem(i)
+
+#ifdef HAVE_BURN
+        do k=1,nspec
+           qp(i,6+k) = Xp(i) * Wp(i) * rhop(i) * Yionp(k,i)
+           qm(i,6+k) = Xm(i) * Wm(i) * rhom(i) * Yionm(k,i)
+        enddo
+#endif
 
         if(do_rotation) then
            qp(i,5) = rhop(i) * hp * Wp(i)**2 * vphip(i) * x1i(i+1)
@@ -107,6 +137,13 @@ subroutine prim2con_if
         qm(i,2) = rhom(i)*v1m(i)
         qm(i,3) = rhom(i)*epsm(i) + 0.5d0*rhom(i)*v1m(i)**2 
         qm(i,4) = rhom(i)*yem(i)
+
+#ifdef HAVE_BURN
+        do k=1,nspec
+           qp(i,6+k) = rhop(i)*Yionp(k,i)
+           qm(i,6+k) = rhom(i)*Yionm(k,i)
+        enddo
+#endif
 
         if(do_rotation) then
            qp(i,5) = rhop(i)*vphi1p(i)*x1i(i+1)

@@ -3,3 +3,5 @@ RunDir
 make.inc
 .vscode*
 net
+*.h5
+folder*

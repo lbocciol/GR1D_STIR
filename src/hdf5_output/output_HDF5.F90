@@ -74,12 +74,20 @@ subroutine output_all_HDF5(modeflag)
 
         ! This is to calculate things like mass fractions and chemical
         ! potentials
+        if (temp(k) .lt. 1.0d-5) then
+              write(*,*) "temp do loop 3: ", temp(k)
+              stop "temperature too low before eos"
+          endif
         call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
           entropy(k),cs2(k),eosdummy(2),&
           eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &
           massfrac_n(k),massfrac_p(k),massfrac_abar(k),massfrac_zbar(k), &
           elechem(k),eosdummy(12),eosdummy(13),eosdummy(14), &
           keytemp,keyerr,eoskey,eos_rf_prec)
+          if (temp(k) .lt. 1.0d-5) then
+              write(*,*) "temp do loop 3: ", temp(k)
+              stop "temperature too low after eos"
+          endif
      enddo
 
      ! Write time and grid coordinates

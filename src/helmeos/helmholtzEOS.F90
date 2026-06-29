@@ -157,14 +157,181 @@ MODULE wlHelmholtzEOS
     
     REAL(8) :: abar
     REAL(8) :: zbar
-    
+
     REAL(8) :: conductivity
-    
+
+    ! energy offset
+    REAL(8) :: e_offset = 0.0d0 
+
   END TYPE HelmholtzStateType
 
+  ! REAL(8) :: e_offset = -1.352940895191586e+18 ! This is neutron mass
+  REAL(8) :: e_offset = -8.987551787368177e+2
+
   PUBLIC :: FullHelmEOS
-  
+
+  ! Module-level table, populated once by ReadHelmTable at startup. Hidden behind
+  ! the HelmEOS wrapper so callers never touch the HelmTableType directly.
+  TYPE(HelmTableType), SAVE :: eos_helm_table
+  LOGICAL, SAVE :: helm_table_loaded = .false.
+
+  PUBLIC :: ReadHelmTable, HelmEOS
+  PUBLIC :: eos_input_rt, eos_input_re
+
+  ! This is EOS specific, but it is a constant. Be careful how you define it!
 CONTAINS
+
+  ! ---------------------------------------------------------------------------
+  ! Read the (standard Timmes/StarKiller) Helmholtz free-energy table from
+  ! `table_file` into the module-level eos_helm_table. Call this once at startup.
+  !
+  ! Table layout (iDensMax x iTempMax = 541 x 201):
+  !   axis 1 (i): electron density proxy  d = ye*rho, log10 from -12 to +15
+  !   axis 2 (j): temperature             T,          log10 from   3 to  13
+  ! File is four blocks, each looped (j outer, i inner):
+  !   1) free energy + derivs : 9 columns  f,fd,ft,fdd,ftt,fdt,fddt,fdtt,fddtt
+  !   2) dpdf table           : 4 columns  dpdf,dpdfd,dpdft,dpdfdt
+  !   3) electron chem-pot    : 4 columns  ef,efd,eft,efdt
+  !   4) number density       : 4 columns  xf,xfd,xft,xfdt
+  SUBROUTINE ReadHelmTable(table_file)
+
+    CHARACTER(LEN=*), INTENT(IN) :: table_file
+
+    INTEGER :: imax, jmax, i, j, lun, ios
+    REAL(8) :: tlo, thi, tstp, dlo, dhi, dstp, tsav, dsav
+    REAL(8) :: dth, ddn
+
+    imax = iDensMax   ! 541 density points
+    jmax = iTempMax   ! 201 temperature points
+
+    eos_helm_table % nPointsDen  = imax
+    eos_helm_table % nPointsTemp = jmax
+
+    ! grid extent of the standard 541x201 table (log10)
+    tlo = 3.0d0  ; thi = 13.0d0
+    dlo = -12.0d0; dhi = 15.0d0
+    tstp = (thi - tlo)/dble(jmax-1)
+    dstp = (dhi - dlo)/dble(imax-1)
+
+    ! allocate everything the table type carries
+    ALLOCATE(eos_helm_table % t(jmax), eos_helm_table % d(imax))
+    ALLOCATE(eos_helm_table % f(imax,jmax),     eos_helm_table % fd(imax,jmax),  &
+             eos_helm_table % ft(imax,jmax),    eos_helm_table % fdd(imax,jmax), &
+             eos_helm_table % ftt(imax,jmax),   eos_helm_table % fdt(imax,jmax), &
+             eos_helm_table % fddt(imax,jmax),  eos_helm_table % fdtt(imax,jmax),&
+             eos_helm_table % fddtt(imax,jmax))
+    ALLOCATE(eos_helm_table % dpdf(imax,jmax),  eos_helm_table % dpdfd(imax,jmax), &
+             eos_helm_table % dpdft(imax,jmax), eos_helm_table % dpdfdt(imax,jmax))
+    ALLOCATE(eos_helm_table % ef(imax,jmax),    eos_helm_table % efd(imax,jmax), &
+             eos_helm_table % eft(imax,jmax),   eos_helm_table % efdt(imax,jmax))
+    ALLOCATE(eos_helm_table % xf(imax,jmax),    eos_helm_table % xfd(imax,jmax), &
+             eos_helm_table % xft(imax,jmax),   eos_helm_table % xfdt(imax,jmax))
+    ALLOCATE(eos_helm_table % dt(jmax), eos_helm_table % dt2(jmax), &
+             eos_helm_table % dti(jmax), eos_helm_table % dt2i(jmax))
+    ALLOCATE(eos_helm_table % dd(imax), eos_helm_table % dd2(imax), &
+             eos_helm_table % ddi(imax), eos_helm_table % dd2i(imax))
+
+    ! build the log-spaced coordinate axes
+    DO j = 1, jmax
+      tsav = tlo + dble(j-1)*tstp
+      eos_helm_table % t(j) = 10.0d0**tsav
+    END DO
+    DO i = 1, imax
+      dsav = dlo + dble(i-1)*dstp
+      eos_helm_table % d(i) = 10.0d0**dsav
+    END DO
+
+    OPEN(NEWUNIT=lun, FILE=TRIM(table_file), STATUS='OLD', ACTION='READ', IOSTAT=ios)
+    IF (ios /= 0) THEN
+      WRITE(*,*) "ReadHelmTable: cannot open ", TRIM(table_file)
+      STOP "Aborting!"
+    END IF
+
+    ! 1) free energy and its derivatives
+    DO j = 1, jmax
+      DO i = 1, imax
+        READ(lun,*) eos_helm_table % f(i,j),    eos_helm_table % fd(i,j),   &
+                    eos_helm_table % ft(i,j),   eos_helm_table % fdd(i,j),  &
+                    eos_helm_table % ftt(i,j),  eos_helm_table % fdt(i,j),  &
+                    eos_helm_table % fddt(i,j), eos_helm_table % fdtt(i,j), &
+                    eos_helm_table % fddtt(i,j)
+      END DO
+    END DO
+
+    ! 2) pressure derivative with density
+    DO j = 1, jmax
+      DO i = 1, imax
+        READ(lun,*) eos_helm_table % dpdf(i,j),  eos_helm_table % dpdfd(i,j), &
+                    eos_helm_table % dpdft(i,j), eos_helm_table % dpdfdt(i,j)
+      END DO
+    END DO
+
+    ! 3) electron chemical potential
+    DO j = 1, jmax
+      DO i = 1, imax
+        READ(lun,*) eos_helm_table % ef(i,j),  eos_helm_table % efd(i,j), &
+                    eos_helm_table % eft(i,j), eos_helm_table % efdt(i,j)
+      END DO
+    END DO
+
+    ! 4) number density
+    DO j = 1, jmax
+      DO i = 1, imax
+        READ(lun,*) eos_helm_table % xf(i,j),  eos_helm_table % xfd(i,j), &
+                    eos_helm_table % xft(i,j), eos_helm_table % xfdt(i,j)
+      END DO
+    END DO
+
+    CLOSE(lun)
+
+    ! spacing helpers used by the quintic interpolation in FullHelmEOS
+    DO j = 1, jmax-1
+      dth  = eos_helm_table % t(j+1) - eos_helm_table % t(j)
+      eos_helm_table % dt(j)   = dth
+      eos_helm_table % dt2(j)  = dth*dth
+      eos_helm_table % dti(j)  = 1.0d0/dth
+      eos_helm_table % dt2i(j) = 1.0d0/(dth*dth)
+    END DO
+    DO i = 1, imax-1
+      ddn = eos_helm_table % d(i+1) - eos_helm_table % d(i)
+      eos_helm_table % dd(i)   = ddn
+      eos_helm_table % dd2(i)  = ddn*ddn
+      eos_helm_table % ddi(i)  = 1.0d0/ddn
+      eos_helm_table % dd2i(i) = 1.0d0/(ddn*ddn)
+    END DO
+
+    eos_helm_table % mintemp = eos_helm_table % t(1)
+    eos_helm_table % maxtemp = eos_helm_table % t(jmax)
+    eos_helm_table % mindens = eos_helm_table % d(1)
+    eos_helm_table % maxdens = eos_helm_table % d(imax)
+
+    helm_table_loaded = .true.
+    WRITE(*,*) "ReadHelmTable: loaded ", imax, "x", jmax, " Helmholtz table"
+
+  END SUBROUTINE ReadHelmTable
+
+  ! ---------------------------------------------------------------------------
+  ! Thin wrapper so callers evaluate the EOS against the module table without
+  ! handling the HelmTableType themselves.
+  SUBROUTINE HelmEOS(input, HelmholtzState)
+    INTEGER, INTENT(IN) :: input
+    TYPE(HelmholtzStateType), INTENT(INOUT) :: HelmholtzState
+    IF (.not. helm_table_loaded) STOP "HelmEOS called before ReadHelmTable"
+
+    ! Remove the energy offset from the input
+    IF (input .eq. eos_input_re) THEN
+         HelmholtzState % e = HelmholtzState % e - HelmholtzState % e_offset - e_offset
+         IF ( HelmholtzState % e < 0.0d0) THEN
+            WRITE(*,*) "Warning: HelmEOS input e = ", HelmholtzState % e, " is negative after subtracting e_offset = ", HelmholtzState % e_offset
+            STOP "Aborting!"
+          END IF
+    ENDIF
+
+    CALL FullHelmEOS(input, eos_helm_table, HelmholtzState)
+    HelmholtzState % e = HelmholtzState % e + HelmholtzState % e_offset + e_offset
+    HelmholtzState % h = HelmholtzState % h + HelmholtzState % e_offset + e_offset
+
+  END SUBROUTINE HelmEOS
 
   SUBROUTINE FullHelmEOS(input, HelmTable, HelmholtzState)
     

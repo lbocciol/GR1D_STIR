@@ -11,14 +11,16 @@ subroutine start
 #endif
 #ifdef HAVE_BURN
   use burn, only: burn_init
-  use pynet, only: pynet_nspec => nspec, pynet_aion => aion, pynet_zion => zion
+  use composition, only: composition_init, nspec
+  use nse, only: nse_init
+  use wlHelmholtzEOS, only: ReadHelmTable
 #endif
   implicit none
 
   character(len=128) cpstring
   character(len=128) rmstring
   logical :: outdirthere
-  integer :: num_args
+  integer :: num_args, i
 
   num_args = command_argument_count()
   if ( num_args .eq. 0 ) then
@@ -49,26 +51,46 @@ subroutine start
   endif
 
 #ifdef HAVE_BURN
+    do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp before: ", temp(i)
+        stop "temperature too low in start"
+    endif
+  enddo
+
   call burn_init
-  ! cache the species count from the generated network before allocating arrays
-  nspec = pynet_nspec
+  ! build the GR1D composition (network species, plus inert free n,p when
+  ! track_free_nucleons) BEFORE allocate_vars (sizes Yion) and nse_init
+  call composition_init(track_free_nucleons)
+  call nse_init
+  ! load the Helmholtz EOS table once (used by the composite EOS in the burn regime)
+  call ReadHelmTable(helm_table_name)
+  ! build the Helmholtz<->nuc_eos energy-offset table (needs both EOS tables loaded)
+#if HAVE_NUC_EOS
+  if (eoskey .eq. 3) call build_energy_offset_OttEOS
+#endif
+
+    do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp after: ", temp(i)
+        stop "temperature too low in start"
+    endif
+  enddo
+
 #endif
 
   !total zones
   n1 = radial_zones+ghosts1*2
 
   n_cons = 6
-  
+#ifdef HAVE_BURN
+  ! advect each nuclear species as an extra conserved scalar (slots 7..6+nspec)
+  n_cons = 6 + nspec
+#endif
+
   !allocate & initialize variables
   call allocate_vars
   call initialize_vars
-
-#ifdef HAVE_BURN
-  ! copy the network's mass/charge numbers into the global arrays
-  ! (initialize_vars has just zeroed them)
-  aion = pynet_aion
-  zion = pynet_zion
-#endif
 
   !this time to set all variables requested values
   call input_parser
@@ -115,6 +137,13 @@ subroutine start
 
   !setting up initial data
   call problem
+
+      do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp after problem: ", temp(i)
+        stop "temperature too low in start"
+    endif
+  enddo
 
   !Collapse specific setups
   if(initial_data.eq."Collapse") then
@@ -173,5 +202,12 @@ subroutine start
      endif
      call restart_output_h5
   endif
+
+        do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp end start: ", temp(i)
+        stop "temperature too low in start"
+    endif
+  enddo
 
 end subroutine start

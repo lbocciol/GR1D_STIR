@@ -54,11 +54,17 @@ subroutine reconstruct_1
 end subroutine reconstruct_1
 
 subroutine reconstruct_with_pc
-  
+
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
-  
+
   integer i
+#ifdef HAVE_BURN
+  integer k
+#endif
   real*8 discrim
 
   do i=1,n1-1
@@ -77,7 +83,14 @@ subroutine reconstruct_with_pc
         
      yep(i) = ye(i)
      yem(i) = ye(i)
-        
+
+#ifdef HAVE_BURN
+     do k=1,nspec
+        Yionp(k,i) = Yion(k,i)
+        Yionm(k,i) = Yion(k,i)
+     enddo
+#endif
+
      v1p(i) = v1(i)
      v1m(i) = v1(i)
 
@@ -142,15 +155,33 @@ end subroutine reconstruct_with_pc
 subroutine reconstruct_with_tvd
 
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
-  
+
   integer i
   real*8 discrim
   real*8 tvdomega(n1),tvdomegap(n1),tvdomegam(n1)
-  
+#ifdef HAVE_BURN
+  integer k
+  real*8 ytmp(n1),ytmpp(n1),ytmpm(n1)
+#endif
+
   call tvd_reconstruction(n1,ghosts1,rho,rhop,rhom,tvd_limiter)
   call tvd_reconstruction(n1,ghosts1,eps,epsp,epsm,tvd_limiter)
   call tvd_reconstruction(n1,ghosts1,ye,yep,yem,tvd_limiter)
+
+#ifdef HAVE_BURN
+  ! advected nuclear species: reconstruct each as a passive mass scalar.
+  ! Yion is (nspec,n1) so a per-species row is non-contiguous -> use a 1-D buffer.
+  do k=1,nspec
+     ytmp = Yion(k,:)
+     call tvd_reconstruction(n1,ghosts1,ytmp,ytmpp,ytmpm,tvd_limiter)
+     Yionp(k,:) = ytmpp
+     Yionm(k,:) = ytmpm
+  enddo
+#endif
   call tvd_reconstruction(n1,ghosts1,v1,v1p,v1m,tvd_limiter)
   call tvd_reconstruction(n1,ghosts1,v,vp,vm,tvd_limiter)
 
@@ -216,11 +247,18 @@ subroutine reconstruct_with_ppm
 
   use GR1D_module
   use ppm
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
 
   integer i,gi
   real*8 discrim, cv
   real*8 ppmomega(n1),ppmomegap(n1),ppmomegam(n1)
+#ifdef HAVE_BURN
+  integer k
+  real*8 ytmp(n1),ytmpp(n1),ytmpm(n1)
+#endif
 
   call ppm_interpolate(rho,rhop,rhom)
   call ppm_steepen
@@ -229,6 +267,15 @@ subroutine reconstruct_with_ppm
   call ppm_interpolate(eps,epsp,epsm)
   call ppm_interpolate(ye,yep,yem)
   call ppm_interpolate(v,vp,vm)
+
+#ifdef HAVE_BURN
+  do k=1,nspec
+     ytmp = Yion(k,:)
+     call ppm_interpolate(ytmp,ytmpp,ytmpm)
+     Yionp(k,:) = ytmpp
+     Yionm(k,:) = ytmpm
+  enddo
+#endif
 
   if(do_rotation) then
      if (GR) then
@@ -264,6 +311,17 @@ subroutine reconstruct_with_ppm
   call ppm_monotonize(eps,epsp,epsm)
   call ppm_monotonize(ye,yep,yem)
   call ppm_monotonize(v,vp,vm)
+
+#ifdef HAVE_BURN
+  do k=1,nspec
+     ytmp  = Yion(k,:)
+     ytmpp = Yionp(k,:)
+     ytmpm = Yionm(k,:)
+     call ppm_monotonize(ytmp,ytmpp,ytmpm)
+     Yionp(k,:) = ytmpp
+     Yionm(k,:) = ytmpm
+  enddo
+#endif
 
   if(do_rotation) then
      if (GR) then

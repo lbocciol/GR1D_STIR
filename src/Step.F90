@@ -10,6 +10,8 @@ subroutine Step(dts)
 #endif
 #ifdef HAVE_BURN
   use burn, only: burn_newton
+  use nse, only: nse_solve
+  use composition, only: nspec_net, nspec
 #endif
   implicit none
   
@@ -25,7 +27,9 @@ subroutine Step(dts)
   
   logical nan,inf,burn_converged
 #ifdef HAVE_BURN
-  real*8 e_step
+  real*8 e_step, T_kelvin, T_next
+  integer nse_ierr
+  logical last_NSE_found
 #endif
 
   !M1 stuff
@@ -59,6 +63,13 @@ subroutine Step(dts)
      close(666)
      explosion_reached = .true.
   endif
+    
+  do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp top: ", temp(i)
+        stop "temperature too low in Step"
+    endif
+  enddo
 
   !calculate v_turb for this time step
   if (activate_turbulence) then
@@ -70,6 +81,13 @@ subroutine Step(dts)
 
   !set up conserved variables
   call prim2con
+    
+  do i=ghosts1+1,n1-ghosts1
+    if (temp(i) .lt. 1.0d-5) then
+        write(*,*) "temp prim2con: ", temp(i)
+        stop "temperature too low in Step"
+    endif
+  enddo
 
   !GR, do not need sqrt_gamma
   if (GR) then
@@ -169,9 +187,16 @@ subroutine Step(dts)
            ! ye
            q_hat(i,4) = q_hat_old(i,4) + dts * ( - flux_diff(i,4) &
                 + coolingsource(i,4))
-           
+
+#ifdef HAVE_BURN
+           ! nuclear species: pure advection (burn is an operator-split source)
+           do k=1,nspec
+              q_hat(i,6+k) = q_hat_old(i,6+k) + dts * ( - flux_diff(i,6+k) )
+           enddo
+#endif
+
         enddo
-        
+
         if(do_rotation) then
            do i=ghosts1,n1-1
               q_hat(i,5) = q_hat_old(i,5) + dts * ( - flux_diff(i,5) &
@@ -213,7 +238,15 @@ subroutine Step(dts)
                 + q_hat(i,4)                            &
                 + dts * ( - flux_diff(i,4)    &
                 + coolingsource(i,4) ) ) / alpha_rk
-           
+
+#ifdef HAVE_BURN
+           do k=1,nspec
+              q_hat(i,6+k) = ( beta_rk * q_hat_old(i,6+k)  &
+                   + q_hat(i,6+k)                          &
+                   + dts * ( - flux_diff(i,6+k) ) ) / alpha_rk
+           enddo
+#endif
+
         enddo
 
         if(do_rotation) then
@@ -258,8 +291,15 @@ subroutine Step(dts)
            q_hat(i,4) = ( q_hat_old(i,4) + 2.0d0*q_hat(i,4)  &
                 + 2.0d0*dts * ( - flux_diff(i,4)    &
                 + coolingsource(i,4) ) ) / 3.0d0
+
+#ifdef HAVE_BURN
+           do k=1,nspec
+              q_hat(i,6+k) = ( q_hat_old(i,6+k) + 2.0d0*q_hat(i,6+k)  &
+                   + 2.0d0*dts * ( - flux_diff(i,6+k) ) ) / 3.0d0
+           enddo
+#endif
         enddo
-        
+
         if(do_rotation) then
            do i=ghosts1,n1-1
               q_hat(i,5) = ( q_hat_old(i,5) + 2.0d0*q_hat(i,5)  &
@@ -297,8 +337,8 @@ subroutine Step(dts)
         !find mgrav & X
         call con2GR
      endif
-     
-     !reconstruct primatives
+
+     !reconstruct primitives
      call con2prim
 
      ! Limit eos variables, very drastic approach
@@ -317,6 +357,7 @@ subroutine Step(dts)
              eosdummy(7),eosdummy(8),eosdummy(9),eosdummy(10), &
              eosdummy(11),eosdummy(12),eosdummy(13),nuchem(i), &
              keytemp,keyerr,eoskey,eos_rf_prec)
+
         tempeps2(i) = eps(i)
         if(keyerr.ne.0) then
            ! -> Issues with the EOS, this can happen around bounce
@@ -406,16 +447,31 @@ subroutine Step(dts)
  !BURN
  CALL GetThisTime(t1)
 #ifdef HAVE_BURN
-  ! Ok here is where burn happens. But then I should call the EOS
-  ! again to update the variables after burning, and then do the neutrino stuff maybe?
+
   do i=ghosts1+1,n1-ghosts1
-     call burn_newton(rho(i), temp(i), Yion(:,i), &
-                      dts, e_step, burn_converged)
-     if (.not. burn_converged) then
-        write(*,*) "burn not converged!"
-        stop "Aborting!"
+     T_kelvin = temp(i)*temp_mev_to_kelvin
+     T_next   = temp(i+1)*temp_mev_to_kelvin
+     if ((T_kelvin .le. T_NSE) .and. (T_kelvin .ge. T_interp)) then
+        call nse_solve(rho(i) / rho_gf, T_kelvin, ye(i), Yion(:,i), nse_ierr)
+        if (nse_ierr .ne. 0) then
+          write(*,*) "nse_solve not converged at zone", i
+          write(*,*) rho(i) / rho_gf, T_kelvin, ye(i)
+          stop "Aborting!"
+        endif
+     else
+        ! network regime: evolve the composition and add the energy released.
+        ! Only the network species (slots 1..nspec_net) are advanced; any appended
+        ! free nucleons (n,p) are left frozen so Ye/=0.5 is carried through.
+        call burn_newton(rho(i) / rho_gf, T_kelvin, Yion(1:nspec_net,i), &
+                         dts, e_step, burn_converged)
+        if (.not. burn_converged) then
+           write(*,*) i, "burn not converged!"
+           write(*,*) "rho,T:", rho(i) / rho_gf, T_kelvin
+           stop "Aborting!"
+        endif
+        WRITE(*,*) 'eps burn', eps(i) / eps_gf, e_step / eps_gf, e_step / eps_gf
+        eps(i) = eps(i) + e_step * eps_gf
      endif
-     eps(i) = eps(i) + e_step
   enddo
 #endif
  CALL GetThisTime(t2)

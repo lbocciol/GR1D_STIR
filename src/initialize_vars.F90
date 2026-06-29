@@ -265,8 +265,6 @@ subroutine initialize_arrays
 
 #ifdef HAVE_BURN
   Yion(:,:) = 0.0d0
-  aion(:) = 0.0d0
-  zion(:) = 0.0d0
 #endif
 
 !##########################################

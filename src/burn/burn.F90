@@ -141,7 +141,11 @@ contains
       end if
     end do
 
-    if (.not. converged) return
+    if (.not. converged) then
+      write(*,*) "burn_newton: FAILED to converge after ", iter, " iterations; res =", res
+      write(*,*) rho, T, X_k
+      return
+    endif
 
     ! edot at end
     X_k = Y_k * aion

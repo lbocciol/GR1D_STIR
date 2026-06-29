@@ -56,6 +56,7 @@ EXTRAOBJECTS += $(HDF5LIBS)
 
 ifeq ($(HAVE_NUC_EOS),1)
 	DEFS += -DHAVE_NUC_EOS
+	EXTRAINCS += -Inuc_eos
 	EXTRADEPS += nuc_eos/nuc_eos.a
 	EXTRAOBJECTS += nuc_eos/nuc_eos.a
 endif
@@ -82,7 +83,7 @@ ifeq ($(HAVE_BURN),1)
 	CXXFLAGS ?= -O2 -std=c++20 -DSCREENING
 	EXTRAINCS += -Iburn -Iburn/pynucnet -Ihelmeos
 	BURNOBJECTS = burn/pynucnet/fortran_interface.o burn/pynucnet/wrapper.o \
-		burn/burn.o helmeos/helmholtzEOS.o
+		burn/burn.o burn/composition.o burn/nse.o helmeos/helmholtzEOS.o
 	# listed before LAPACK below so burn.o (needs dgesv) precedes -llapack at link
 	EXTRAOBJECTS += $(BURNOBJECTS) -lstdc++
 	EXTRADEPS += $(BURNOBJECTS)
@@ -130,12 +131,25 @@ burn/pynucnet/wrapper.o: burn/pynucnet/wrapper.cpp
 burn/burn.o: burn/burn.F90 burn/pynucnet/fortran_interface.o
 	$(F90) $(F90FLAGS) $(DEFS) -Iburn/pynucnet -Jburn -c $< -o $@
 
+# GR1D-level composition (network species, plus inert free n,p); produces
+# composition.mod, needs pynet.mod and burn.mod
+burn/composition.o: burn/composition.F90 burn/burn.o burn/pynucnet/fortran_interface.o
+	$(F90) $(F90FLAGS) $(DEFS) -Iburn -Iburn/pynucnet -Jburn -c $< -o $@
+
+# NSE composition solver; produces nse.mod, needs composition.mod (and pynet.mod)
+burn/nse.o: burn/nse.F90 burn/composition.o burn/pynucnet/fortran_interface.o
+	$(F90) $(F90FLAGS) $(DEFS) -Iburn -Iburn/pynucnet -Jburn -c $< -o $@
+
 # Helmholtz EOS module; produces wlhelmholtzeos.mod
 helmeos/helmholtzEOS.o: helmeos/helmholtzEOS.F90
 	$(F90) $(F90FLAGS) $(DEFS) -Ihelmeos -Jhelmeos -c $< -o $@
 
-# main objects that `use burn` / `use pynet` need those .mod files first
-start.o Step.o: burn/burn.o
+# main objects that `use burn` / `use composition` / `use wlHelmholtzEOS` need those .mod files first
+start.o Step.o: burn/burn.o burn/nse.o
+start.o eos.o: helmeos/helmholtzEOS.o
+# eos.o uses the nuc_eos `eosmodule` (offset-table grids); needs its .mod built first
+eos.o: nuc_eos/nuc_eos.a
+start.o Step.o eos.o allocate_vars.o map_profile.o: burn/composition.o
 endif
 
 clean:

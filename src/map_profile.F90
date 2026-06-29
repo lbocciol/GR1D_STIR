@@ -3,6 +3,9 @@ subroutine map_profile(lprofile_name)
 
   use GR1D_module
   use grad_module, only: QuadraticInterpolation1D, LinearInterpolation1D
+#ifdef HAVE_BURN
+  use composition, only: nspec_net, aion, composition_set_free_nucleons
+#endif
   implicit none
 
   character*(*) lprofile_name
@@ -22,6 +25,12 @@ subroutine map_profile(lprofile_name)
   
   real*8 :: kboltz_cgs = 1.380662d-16
   
+#ifdef HAVE_BURN
+  integer profile_compo_zones, nspec_profile, j
+  real*8, allocatable, dimension(:) :: pY
+  real*8, allocatable, dimension(:,:) :: x_profile
+#endif
+
 ! read profile      
   open(666,file=trim(lprofile_name),status='unknown', & 
        form='formatted',action='read')
@@ -101,17 +110,56 @@ subroutine map_profile(lprofile_name)
   enddo
 
 #ifdef HAVE_BURN
-  ! TODO(Phase 2): read the initial composition from a composition-profile file,
-  ! convert mass fractions X -> molar abundances Y, and map onto the grid into
-  ! Yion(:,i) using map_map (note Yion is shaped (nspec,n1)). Left as a no-op for
-  ! now so HAVE_BURN builds; Yion keeps its initialized value (see initialize_vars).
+  ! Read the initial composition from the composition-profile file, convert mass
+  ! fractions X -> molar abundances Y, and map onto the grid into Yion(:,i).
+  ! The profile carries the NETWORK species only (nspec_net); any appended free
+  ! nucleons (slots nspec_net+1..nspec) are not in the file and keep their
+  ! initialized value of 0 (see initialize_vars).
+  open(666,file=trim(lprofile_name) // '_compo',status='unknown', &
+       form='formatted',action='read')
+  read(666,*) profile_compo_zones, nspec_profile
+
+  if (profile_compo_zones .ne. profile_zones) then
+     write(*,*) 'profile_compo_zones != profile_zones'
+     stop
+  endif
+
+  if (nspec_profile .ne. nspec_net) then
+    write(*,*) nspec_profile, nspec_net
+    write(*,*) 'nspec_profile != nspec_net'
+    stop
+  endif
+
+  allocate(x_profile(nspec_net, profile_zones))
+  do i=1,profile_zones
+    read(666,*) ibuffer, (x_profile(j,i), j=1,nspec_net)
+  enddo
+  close(666)
+
+  allocate(pY(profile_zones))
+  do i=1,n1
+     do j=1,nspec_net
+      pY = x_profile(j,:) / aion(j)
+      call map_map(Yion(j,i),x1(i),pY,pradius,profile_zones)
+    enddo
+  enddo
+  Yion = MAX(Yion, 1.0d-50) ! floor to avoid small overshoots above 1 in some zones
+
+  ! The progenitor compo file carries only the network species (which sum to < 1 in
+  ! mass; the rest is free nucleons).  Fill the appended n,p slots so the full
+  ! composition carries every baryon and matches ye(i) -- this is what feeds a
+  ! complete, Ye-consistent composition into the EOS evaluations.  No-op for a
+  ! network that already includes n,p (nspec == nspec_net).
+  do i=1,n1
+     call composition_set_free_nucleons(Yion(:,i), ye(i))
+  enddo
+  deallocate(x_profile, pY)
 #endif
 
   if (do_rotation.and.set_omega) then
      !omega_c and omega_A already in code units
      omega(:) = omega_c/(1.0d0+(x1(:)/omega_A)**2)
   endif
-
 
   if(do_rotation) then
      write(*,*) "Have Rotation"

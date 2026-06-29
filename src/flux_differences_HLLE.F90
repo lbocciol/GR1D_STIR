@@ -3,10 +3,16 @@ subroutine flux_differences_hlle
     
   use GR1D_module
   use timers
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
-  
+
   integer(kind=4) :: eosflag,keyerr,keytemp
   integer(kind=4) :: i1,i,mw,m
+#ifdef HAVE_BURN
+  integer(kind=4) :: k
+#endif
   
   real(kind=8), allocatable :: smin(:),smax(:), dspeed(:), acl(:), acr(:)
   real(kind=8), allocatable :: flux(:,:), fluxl(:,:), fluxr(:,:)
@@ -95,7 +101,14 @@ subroutine flux_differences_hlle
         fluxr(i,2) = qm(i+1,2)*vm(i+1) + pressm(i+1)
         fluxr(i,3) = (qm(i+1,3)+pressm(i+1))*vm(i+1)
         fluxr(i,4) = qm(i+1,4)*vm(i+1)
-        
+
+#ifdef HAVE_BURN
+        do k=1,nspec
+           fluxl(i,6+k) = qp(i,6+k)*vp(i)
+           fluxr(i,6+k) = qm(i+1,6+k)*vm(i+1)
+        enddo
+#endif
+
         if(do_rotation) then
            fluxl(i,5) = qp(i,5)*vp(i)
            fluxr(i,5) = qm(i+1,5)*vm(i+1)
@@ -121,7 +134,14 @@ subroutine flux_differences_hlle
         fluxr(i,2) = qm(i+1,2)*v1m(i+1) + pressm(i+1)
         fluxr(i,3) = (qm(i+1,3)+pressm(i+1))*v1m(i+1)
         fluxr(i,4) = qm(i+1,4)*v1m(i+1)
-        
+
+#ifdef HAVE_BURN
+        do k=1,nspec
+           fluxl(i,6+k) = qp(i,6+k)*v1p(i)
+           fluxr(i,6+k) = qm(i+1,6+k)*v1m(i+1)
+        enddo
+#endif
+
         if(do_rotation) then
            fluxl(i,5) = qp(i,5)*v1p(i)
            fluxr(i,5) = qm(i+1,5)*v1m(i+1)

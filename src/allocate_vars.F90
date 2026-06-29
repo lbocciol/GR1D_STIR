@@ -2,6 +2,9 @@
 subroutine allocate_vars
 
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
 
   allocate(x1(n1))
   allocate(x1i(n1))
@@ -133,9 +136,9 @@ subroutine allocate_vars
   allocate(atmo(n1))
   
 #ifdef HAVE_BURN
-  allocate(aion(nspec))
-  allocate(zion(nspec))
   allocate(Yion(nspec,n1))
+  allocate(Yionp(nspec,n1))
+  allocate(Yionm(nspec,n1))
 #endif
 
 ! #############################################

@@ -2,11 +2,17 @@
 subroutine boundaries(innerflag,outerflag)
 
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
 
   integer innerflag, outerflag
   integer iflag, oflag
   integer i,gi
+#ifdef HAVE_BURN
+  integer k
+#endif
   real*8 centralvalue
   
   iflag = innerflag
@@ -56,6 +62,13 @@ subroutine boundaries(innerflag,outerflag)
         ye(i) = ye(gi)
         yep(i) = yem(gi)
         yem(i) = yep(gi)
+#ifdef HAVE_BURN
+        do k=1,nspec
+           Yion(k,i)  = Yion(k,gi)
+           Yionp(k,i) = Yionm(k,gi)
+           Yionm(k,i) = Yionp(k,gi)
+        enddo
+#endif
 
         if(do_rotation.and..not.GR) then
            vphi1(i) = -vphi1(gi)
@@ -76,6 +89,11 @@ subroutine boundaries(innerflag,outerflag)
      pressm(gi) = press(gi)
      v1m(gi) = v1(gi)
      yem(gi) = ye(gi)
+#ifdef HAVE_BURN
+     do k=1,nspec
+        Yionm(k,gi) = Yion(k,gi)
+     enddo
+#endif
      do i=ghosts1,1,-1
         rho(i) = rho(gi)
         rhop(i) = rho(gi)
@@ -102,6 +120,13 @@ subroutine boundaries(innerflag,outerflag)
         ye(i) = ye(gi)
         yem(i) = ye(gi)
         yep(i) = ye(gi)
+#ifdef HAVE_BURN
+        do k=1,nspec
+           Yion(k,i)  = Yion(k,gi)
+           Yionm(k,i) = Yion(k,gi)
+           Yionp(k,i) = Yion(k,gi)
+        enddo
+#endif
 
      enddo
   endif
@@ -160,7 +185,15 @@ subroutine boundaries(innerflag,outerflag)
      ye(i) = ye(gi)
      yem(i) = ye(gi)
      yep(i) = ye(gi)
-     
+#ifdef HAVE_BURN
+     do k=1,nspec
+        Yionp(k,gi) = Yion(k,gi)
+        Yion(k,i)   = Yion(k,gi)
+        Yionm(k,i)  = Yion(k,gi)
+        Yionp(k,i)  = Yion(k,gi)
+     enddo
+#endif
+
      if(do_rotation.and..not.GR) then
         vphip(gi) = vphi(gi)
         vphi1(i) = vphi1(gi)
