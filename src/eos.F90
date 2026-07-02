@@ -212,6 +212,7 @@ subroutine eos(i,ri,tio,y,eio,xx,keytemp,keyerr,eosflag,eoskey,rfeps)
 
 #if HAVE_NUC_EOS
   real*8 xmunu,xent,xdedt
+  integer atmo_next
 #endif
 
   xx = 0.0d0
@@ -469,7 +470,12 @@ subroutine eos(i,ri,tio,y,eio,xx,keytemp,keyerr,eosflag,eoskey,rfeps)
 
         if(keyerr.eq.667) then
            if(i.ne.n1) then
-              if(atmo(i+1).ne.0) then
+              ! atmo(i+1) belongs to another zone: atomic, since con2prim may
+              ! run the zone loop threaded and atmos_eos writes atmo there
+              !$omp atomic read
+              atmo_next = atmo(i+1)
+              if(atmo_next.ne.0) then
+                 !$omp atomic write
                  atmo(i) = 1
                  keyerr = 0
                  call atmos_eos(i,ri,prs,eio,soundsqr)
@@ -699,6 +705,9 @@ subroutine atmos_eos(i,xrho,xprs,xenr,xcs2)
   v(i) = 0.0d0
   v1(i) = 0.0d0
   W(i) = 1.0d0
+  ! atomic: atmo(i) may be read as atmo(i+1) by the neighbouring zone's
+  ! thread in eos()'s keyerr=667 recovery path
+  !$omp atomic write
   atmo(i) = 1
 
 end subroutine atmos_eos

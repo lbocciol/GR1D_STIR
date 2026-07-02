@@ -119,7 +119,7 @@ subroutine con2prim_1
               keytemp = 0
               
               ! Limit eos variables, very drastic approach
-              call ApplyEOS_limits
+              call ApplyEOS_limits_zone(i)
               call eos(i,rho(i),temp(i),ye(i),eps(i),pp, keytemp,keyerr,1, eoskey,eos_rf_prec)
               press(i) = pp
            else
@@ -148,8 +148,7 @@ subroutine con2prim_1
                  eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
 
                  keytemp = 0
-                 ! Limit eos variables, very drastic approach
-                 call ApplyEOS_limits
+                 ! No need to limit EOS variables here
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
                       eosdummy,eosdummy,eosdummy,eosdummy,&
                       dpde,dpdrh, &
@@ -280,7 +279,7 @@ subroutine con2prim_1
               keytemp = 0
 
               ! Limit eos variables, very drastic approach
-              call ApplyEOS_limits
+              call ApplyEOS_limits_zone(i)
               call eos(i,rho(i),temp(i),ye(i),eps(i),pp, keytemp,keyerr,1, eoskey,eos_rf_prec)
               press(i) = pp
            else
@@ -321,8 +320,7 @@ subroutine con2prim_1
                  eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
                  keytemp = 0
                  
-                 ! Limit eos variables, very drastic approach
-                 call ApplyEOS_limits
+                 ! No need to limit EOS variables here
                  call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
                       eosdummy,eosdummy,eosdummy,eosdummy,&
                       dpde,dpdrh, &
@@ -526,8 +524,7 @@ subroutine con2prim_pt(tol,i,success)
         
         keytemp = 0
         
-        ! Limit eos variables, very drastic approach
-        call ApplyEOS_limits
+        ! No need to limit EOS variables here
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
              eosdummy,eosdummy,eosdummy,eosdummy,&
              dpde,dpdrh, &
@@ -675,8 +672,7 @@ subroutine con2prim_pt_rot(tol,i,success)
         eeps = (q(i,3)+q(i,1)+op(i)*(1.0d0-ww**2))/(rrho*ww**2)-1.0d0
         keytemp = 0
         
-        ! Limit eos variables, very drastic approach
-        call ApplyEOS_limits
+        ! No need to limit EOS variables here
         call eos_full(i,rrho,temp(i),ye(i),eeps,pp, & 
              eosdummy,eosdummy,eosdummy,eosdummy,&
              dpde,dpdrh, &
@@ -749,9 +745,6 @@ subroutine con2prim_grmhd
   use GR1D_module
   use atmos
   use omp_lib
-#ifdef HAVE_BURN
-  use composition, only: nspec
-#endif
   implicit none
 
   ! ---------------------------------------------------------------------------
@@ -780,12 +773,76 @@ subroutine con2prim_grmhd
   ! conservatives, and converting the recovered orthonormal v back to v1 = v^r.
   ! ---------------------------------------------------------------------------
 
+  integer iminb, imaxb
+  integer i
+
+  iminb = ghosts1+1
+  imaxb = n1-ghosts1
+
+  ! shocktube / no-gravity sanity check (mirrors con2prim_1): in such runs the
+  ! metric is trivial, X = 1 and alp = 1, which the orthonormal mapping assumes.
+  if (GR.and.(gravity_active.eqv..false.)) then
+     do i=1,n1
+        if (X(i).ne.1.0d0)   stop "con2prim_grmhd: X is not 1"
+        if (alp(i).ne.1.0d0) stop "con2prim_grmhd: alp is not 1"
+     enddo
+  endif
+
+  ! This GRMHD path is GR, non-rotating only (CLAUDE.md sec.11).
+  if (.not.GR .or. do_rotation) then
+     stop "con2prim_grmhd: only the GR non-rotating branch is implemented"
+  endif
+
+  ! Every zone solve is independent: all shared arrays are touched only at
+  ! index i.  The solve itself (with its contained hat-functions) lives in
+  ! con2prim_grmhd_zone so that each call -- hence each thread -- owns a
+  ! private host frame for the per-zone constants: OpenMP private clauses do
+  ! NOT apply to host-associated references inside contained procedures, so
+  ! the hat-functions must not live in the loop's own host scope.
+  ! schedule(dynamic): per-zone cost varies wildly (closed-form rest branch
+  ! vs. many tabulated-EOS root-finds in the Newton solve).
+  !$omp parallel do schedule(dynamic)
+  do i=iminb,imaxb
+     call con2prim_grmhd_zone(i)
+  enddo
+  !$omp end parallel do
+
+  ! a few checks (mirror con2prim_1)
+  if (GR) then
+     do i=1,n1
+        if (rho(i).le.0.0d0) then
+           write(6,*) "Density <= 0!!!"
+           write(6,"(i8,1P10E15.6)") i,x1(i),rho(i)
+           stop "Fix me please!"
+        endif
+     enddo
+  endif
+
+end subroutine con2prim_grmhd
+
+!*************************************************************************
+
+! Kastaun solve for a single zone i (see the header of con2prim_grmhd).
+! Deliberately a separate subroutine rather than the body of the driver's
+! loop: the per-zone constants below are locals of THIS call, and the
+! contained hat-functions reach them through host association -- which always
+! binds to the host's own (per-call, hence per-thread) frame.
+subroutine con2prim_grmhd_zone(i)
+
+  use GR1D_module
+  use atmos
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
+  implicit none
+
+  integer, intent(in) :: i
+
 #ifdef HAVE_BURN
   integer k
 #endif
 
-  integer iminb, imaxb
-  integer i, it
+  integer it
   integer keytemp, keyerr
 
   ! per-zone constants (fixed during the mu solve; seen by the contained
@@ -805,25 +862,6 @@ subroutine con2prim_grmhd
   integer, parameter :: ilmax = 200      ! Illinois iteration cap
   real*8,  parameter :: ftol  = 1.0d-11  ! residual tolerance on f(mu)
 
-  iminb = ghosts1+1
-  imaxb = n1-ghosts1
-
-  ! shocktube / no-gravity sanity check (mirrors con2prim_1): in such runs the
-  ! metric is trivial, X = 1 and alp = 1, which the orthonormal mapping assumes.
-  if (GR.and.(gravity_active.eqv..false.)) then
-     do i=1,n1
-        if (X(i).ne.1.0d0)   stop "con2prim_grmhd: X is not 1"
-        if (alp(i).ne.1.0d0) stop "con2prim_grmhd: alp is not 1"
-     enddo
-  endif
-
-  ! This GRMHD path is GR, non-rotating only (CLAUDE.md sec.11).
-  if (.not.GR .or. do_rotation) then
-     stop "con2prim_grmhd: only the GR non-rotating branch is implemented"
-  endif
-
-  do i=iminb,imaxb
-
      ! D == 0: nothing to recover, zero everything and skip the solve.
      if (q(i,1).eq.0.0d0) then
         v1(i)  = 0.0d0
@@ -832,7 +870,7 @@ subroutine con2prim_grmhd
         eps(i) = 0.0d0
         press(i) = 0.0d0
         W(i)   = 1.0d0
-        cycle
+        return
      endif
 
      ! Ye is fixed for the whole solve; composition / turbulence as con2prim_1.
@@ -867,7 +905,7 @@ subroutine con2prim_grmhd
         ! Note: no hard eps floor here -- with the composite EOS eps may carry a
         ! (possibly negative) nuclear zero-point offset; ApplyEOS_limits + the
         ! EOS keyerr path handle out-of-range states.
-        call ApplyEOS_limits
+        call ApplyEOS_limits_zone(i)
         call eos(i,rho(i),temp(i),ye(i),eps(i),pp,keytemp,keyerr,1,eoskey,eos_rf_prec)
         if (keyerr.ne.0) then
            write(6,*) "con2prim_grmhd: EOS error (rest branch)", i, &
@@ -875,7 +913,7 @@ subroutine con2prim_grmhd
            stop "con2prim_grmhd: Problem with EOS (rest)"
         endif
         press(i) = pp
-        cycle
+        return
      endif
 
      ! ----------------------------------------------------------------------
@@ -1015,19 +1053,6 @@ subroutine con2prim_grmhd
         stop "con2prim_grmhd: density <= 0"
      endif
 
-  enddo
-
-  ! a few checks (mirror con2prim_1)
-  if (GR) then
-     do i=1,n1
-        if (rho(i).le.0.0d0) then
-           write(6,*) "Density <= 0!!!"
-           write(6,"(i8,1P10E15.6)") i,x1(i),rho(i)
-           stop "Fix me please!"
-        endif
-     enddo
-  endif
-
 contains
 
   ! All "hat" quantities are functions of the single master variable mu; the
@@ -1094,11 +1119,7 @@ contains
     rr = rho_hat(mu)
     ee = eps_hat(mu)
     kt = 0
-    ! ApplyEOS_limits clamps the seed temp(i)/ye(i) into the valid table range
-    ! (and respects the hybrid tabulated-vs-analytic split via eoskey), exactly
-    ! as con2prim_1 does before each EOS evaluation.
-    ye(i) = Ye_fix
-    call ApplyEOS_limits
+    ! No need to limit EOS variables here
     call eos(i, rr, temp(i), ye(i), ee, px, kt, ke, 1, eoskey, eos_rf_prec)
     if (ke.ne.0) then
        write(6,*) "con2prim_grmhd: EOS error in p_hat", i, &
@@ -1136,4 +1157,4 @@ contains
     fmaster = mu - 1.0d0/(nu + mu*rb2)
   end function fmaster
 
-end subroutine con2prim_grmhd
+end subroutine con2prim_grmhd_zone

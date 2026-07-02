@@ -39,7 +39,7 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   real*8 :: lr,lt,y,xx,xeps,leps,xs
   real*8 :: d1,d2,d3
   real*8 :: ff(nvars)
-  integer :: keyerrt = 0
+  integer :: keyerrt   ! no initializer: that would imply SAVE (not thread-safe)
   real*8 :: t1, t2
 
   call GetThisTime(t1)
@@ -77,6 +77,7 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   leps = log10(max(xeps,1.0d0))
 
   keyerr = 0
+  keyerrt = 0
 
   if(keytemp.eq.0) then
      !need to find temperature based on xeps
@@ -139,6 +140,7 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   xzbar = ff(18)
 
   call GetThisTime(t2)
+  !$omp atomic
   timer_eosf = timer_eosf + (t2 - t1)
 
 end subroutine nuc_eos_full
@@ -185,7 +187,7 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   ! local variables
   real*8 :: lr,lt,y,xx,xeps,leps,xs
   real*8 :: d1,d2,d3,ff(8)
-  integer :: keyerrt = 0
+  integer :: keyerrt   ! no initializer: that would imply SAVE (not thread-safe)
   real*8 :: t1, t2
 
   call GetThisTime(t1)
@@ -227,6 +229,7 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   leps = log10(max(xeps,1.0d0))
 
   keyerr = 0
+  keyerrt = 0
 
   if(keytemp.eq.0) then
      !need to find temperature based on xeps
@@ -272,6 +275,7 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   xdpderho = ff(8)
 
   call GetThisTime(t2)
+  !$omp atomic
   timer_eoss = timer_eoss + (t2 - t1)
 
 end subroutine nuc_eos_short

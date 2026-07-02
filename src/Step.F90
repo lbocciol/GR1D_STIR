@@ -77,7 +77,7 @@ subroutine Step(dts)
   endif
 
   ! Limit eos variables, very drastic approach
-  call ApplyEOS_limits
+  call ApplyEOS_limits_everywhere
 
   !set up conserved variables
   call prim2con
@@ -342,7 +342,7 @@ subroutine Step(dts)
      call con2prim
 
      ! Limit eos variables, very drastic approach
-     call ApplyEOS_limits
+     call ApplyEOS_limits_everywhere
 
      ! eos update, eps fixed, find temp,entropy,cs2 etc.
      do i=ghosts1+1,n1-ghosts1
@@ -438,7 +438,7 @@ subroutine Step(dts)
 123 continue
 
  ! Limit eos variables, very drastic approach
- call ApplyEOS_limits
+ call ApplyEOS_limits_everywhere
 
  CALL GetThisTime(t2)
  timer_hydro = timer_hydro + (t2 - t1)
@@ -541,7 +541,7 @@ subroutine Step(dts)
     endif
 
     ! Limit eos variables, very drastic approach
-    call ApplyEOS_limits
+    call ApplyEOS_limits_everywhere
 
     !code for backward euler explicit flux fix
     if (M1_do_backwardfix.eq.1) then
