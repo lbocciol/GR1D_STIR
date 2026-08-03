@@ -2,17 +2,17 @@ program helm_test
   ! Composite (nuc_eos + Helmholtz) temperature-inversion test.
   !
   ! This mirrors the production blend in eos.F90 (nuc_helm_eos_short /
-  ! blend_invert_temp / blend_weight) as a standalone round-trip check:
+  ! blend_weight) as a standalone round-trip check:
   !
-  !   given two transition temperatures T_lo (= T_interp) and T_hi (= T_NSE),
+  !   given two transition temperatures T_lo (= T_eos_low) and T_hi (= T_eos_high),
   !       T <= T_lo            -> pure Helmholtz
   !       T >= T_hi            -> pure nuc_eos
-  !       T_lo < T < T_hi      -> smoothstep blend of BOTH backends
+  !       T_lo < T < T_hi      -> linear blend of BOTH backends
   !
   ! For a grid of (rho, T_true, Ye) we:
   !   1. forward: e_true = e_blend(rho, T_true, Ye)
-  !   2. inverse: feed e_true back and solve for T (helm at low T, nuc at high
-  !      T, bisection on the blended energy in the window)
+  !   2. inverse: feed e_true back and Newton on the piecewise blended energy
+  !      from a perturbed T guess (regime decided purely by temperature)
   !   3. check the recovered T against T_true.
   !
   ! The Helmholtz and nuc_eos energies use different zero points, so the helm
@@ -31,9 +31,9 @@ program helm_test
   real(8), parameter :: mev2k = 1.1604447522806d10
 
   ! ---- the two blend temperatures (Kelvin) -------------------------------
-  ! Change these to test other windows; defaults match GR1D's T_interp/T_NSE.
-  real(8), parameter :: T_lo = 5.0d9    ! T_interp : below this -> pure Helmholtz
-  real(8), parameter :: T_hi = 5.8d9    ! T_NSE    : above this -> pure nuc_eos
+  ! Change these to test other windows; defaults match GR1D's T_eos_low/T_eos_high.
+  real(8), parameter :: T_lo = 5.0d9    ! T_eos_low : below this -> pure Helmholtz
+  real(8), parameter :: T_hi = 5.8d9    ! T_eos_high    : above this -> pure nuc_eos
 
   ! ---- grid: crosses both seams (pure-helm, blend, pure-nuc) -------------
   integer, parameter :: nT   = 41       ! T_true, 1e9 .. 6e10 K (log10)
@@ -109,8 +109,8 @@ program helm_test
            ! ---- forward: (rho,T) -> e_blend ----
            call forward(rho, T_true, ye, e_offset, e_true, region_f)
 
-           ! ---- inverse: e_blend -> T ----
-           call invert(rho, e_true, ye, e_offset, T_rec, region_i)
+           ! ---- inverse: e_blend -> T, from a deliberately wrong T guess ----
+           call invert(rho, e_true, ye, e_offset, 1.3d0*T_true, T_rec, region_i)
 
            errT = abs(T_rec - T_true) / T_true
            npts = npts + 1
@@ -176,22 +176,6 @@ contains
     e = st%e
   end subroutine helm_e
 
-  ! Helmholtz rho-e inversion -> T [K].
-  subroutine helm_invert(rho, e_t, ye, e_offset, T_guess, T_K)
-    real(8), intent(in)  :: rho, e_t, ye, e_offset, T_guess
-    real(8), intent(out) :: T_K
-    type(HelmholtzStateType) :: st
-    st%rho      = rho
-    st%T        = T_guess
-    st%abar     = abar
-    st%zbar     = ye * abar
-    st%ye       = ye
-    st%e_offset = e_offset
-    st%e        = e_t
-    call HelmEOS(eos_input_re, st)
-    T_K = st%T
-  end subroutine helm_invert
-
   ! nuc_eos specific energy in rho-T mode [erg/g]; T in MeV.
   subroutine nuc_e(rho, T_mev, ye, e)
     real(8), intent(in)  :: rho, T_mev, ye
@@ -203,29 +187,16 @@ contains
                        1, keyerr, 1.0d-9)
   end subroutine nuc_e
 
-  ! nuc_eos rho-e inversion -> T [MeV].
-  subroutine nuc_invert(rho, e_t, ye, T_guess_mev, T_mev)
-    real(8), intent(in)  :: rho, e_t, ye, T_guess_mev
-    real(8), intent(out) :: T_mev
-    real(8) :: e, p, ent, cs2, dedt, dpde, dpdr, munu
-    integer :: keyerr
-    T_mev = T_guess_mev
-    e     = e_t
-    call nuc_eos_short(rho, T_mev, ye, e, p, ent, cs2, dedt, dpde, dpdr, munu, &
-                       0, keyerr, 1.0d-9)
-  end subroutine nuc_invert
-
-  ! smoothstep blend weight w(T_K) in [0,1]
+  ! linear blend weight w(T_K) in [0,1] (Perego et al. 2015)
   function blend_w(T_K) result(w)
     real(8), intent(in) :: T_K
-    real(8) :: w, s
+    real(8) :: w
     if (T_K >= T_hi) then
        w = 1.0d0
     else if (T_K <= T_lo) then
        w = 0.0d0
     else
-       s = (T_K - T_lo) / (T_hi - T_lo)
-       w = s*s*(3.0d0 - 2.0d0*s)
+       w = (T_K - T_lo) / (T_hi - T_lo)
     end if
   end function blend_w
 
@@ -263,41 +234,39 @@ contains
     call blend_e(rho, T_K, ye, e_offset, e)
   end subroutine forward
 
-  ! inverse: e -> T (Helmholtz below T_lo, nuc_eos above T_hi, bisection
-  ! on the blended energy in between).  Regime chosen by energy, exactly as
-  ! eos.F90's blend_invert_temp does.
-  subroutine invert(rho, e_t, ye, e_offset, T_K, region)
-    real(8), intent(in)  :: rho, e_t, ye, e_offset
+  ! inverse: e -> T.  Newton on the piecewise blended energy over the FULL
+  ! temperature range, from the guess T_g -- the regime is decided purely by
+  ! the temperature the solver is at, exactly as eos.F90's nuc_helm_eos_short
+  ! does for keytemp=0 (there with the analytic df/dT; here with a centered
+  ! finite difference, good enough for the test).
+  subroutine invert(rho, e_t, ye, e_offset, T_g, T_K, region)
+    real(8), intent(in)  :: rho, e_t, ye, e_offset, T_g
     real(8), intent(out) :: T_K
     character(len=1), intent(out) :: region
-    real(8) :: e_lo, e_hi, a, b, m, e_m, T_mev
+    real(8) :: t, f, ep, em, dfdt, h, w
     integer :: it
-    integer, parameter :: maxit = 200
+    integer, parameter :: maxit = 50
 
-    ! bracket energies at the two seams
-    call helm_e(rho, T_lo, ye, e_offset, e_lo)   ! w = 0
-    call nuc_e (rho, T_hi/mev2k, ye, e_hi)       ! w = 1
+    t = T_g
+    do it = 1, maxit
+       call blend_e(rho, t, ye, e_offset, f)
+       f = f - e_t
+       if (abs(f) <= 1.0d-10*abs(e_t)) exit
+       h = 1.0d-4 * t
+       call blend_e(rho, t+h, ye, e_offset, ep)
+       call blend_e(rho, t-h, ye, e_offset, em)
+       dfdt = (ep - em) / (2.0d0*h)
+       ! factor-of-2 step limit, as in production
+       t = max(0.5d0*t, min(t - f/dfdt, 2.0d0*t))
+    end do
+    T_K = t
 
-    if (e_t <= e_lo) then
-       call helm_invert(rho, e_t, ye, e_offset, T_lo, T_K)
+    w = blend_w(T_K)
+    if (w <= 0.0d0) then
        region = 'H'
-    else if (e_t >= e_hi) then
-       call nuc_invert(rho, e_t, ye, T_hi/mev2k, T_mev)
-       T_K    = T_mev * mev2k
+    else if (w >= 1.0d0) then
        region = 'N'
     else
-       a = T_lo; b = T_hi
-       do it = 1, maxit
-          m = 0.5d0*(a + b)
-          call blend_e(rho, m, ye, e_offset, e_m)
-          if (e_m > e_t) then
-             b = m
-          else
-             a = m
-          end if
-          if (abs(b - a) <= 1.0d-12*m) exit
-       end do
-       T_K    = 0.5d0*(a + b)
        region = 'B'
     end if
   end subroutine invert

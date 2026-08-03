@@ -28,9 +28,13 @@
 !   aion, zion           : dimensionless mass and proton numbers
 !   nuclei_binding_energy : nuclear binding energy B_i [MeV] (FLASH `bion`), same
 !                          ordering; free nucleons (n,p) have B = 0.  Consumed by the
-!                          NSE Saha solver (nse.F90).  NOTE: the composite-EOS energy
-!                          zero-point is NOT computed here anymore -- it is matched
-!                          numerically against nuc_eos in build_energy_offset_OttEOS (eos.F90).
+!                          NSE Saha solver (nse.F90).
+!   nuclei_mass_excess    : NUCLEAR mass excess Dm_i = m_i - A_i m_u [MeV] with m_i
+!                          the bare-nucleus mass (AME atomic value minus Z m_e);
+!                          nucleons included.  Consumed by get_energy_offset
+!                          (eos.F90), which puts the Helmholtz energy on the
+!                          nuc_eos zero-point by adding (1/m_u) sum_i Dm_i Y_i
+!                          to the thermal energy.
 
 module composition
 
@@ -173,10 +177,12 @@ contains
   end subroutine composition_set_free_nucleons
 
   subroutine Get_BE_and_ME_given_species(A, Z, BE, ME, nisos)
-  
+
     integer, intent(in)  :: nisos
     real(8), intent(in)  :: A(nisos), Z(nisos)
     real(8), intent(out) :: BE(nisos), ME(nisos)
+
+    real(8), parameter :: m_e_mev = 0.51099895d0  ! electron rest mass [MeV]
 
     integer :: iIso, i
     logical :: found
@@ -205,12 +211,19 @@ contains
         ! Even though BE is 0, free nucleons have a non-zero Mass Excess.
         if (.not. found) then
             if (Z(iIso) == 1 .and. A(iIso) == 1) then
-                ME(iIso) = 7.288971d0  ! Proton Mass Excess in MeV
+                ME(iIso) = 7.288971d0  ! 1H (atomic) Mass Excess in MeV
             else if (Z(iIso) == 0 .and. A(iIso) == 1) then
                 ME(iIso) = 8.071318d0  ! Neutron Mass Excess in MeV
             end if
         end if
     end do
+
+    ! 5. Atomic -> NUCLEAR mass excess: AME values are for neutral atoms and
+    ! include Z electron masses, but in the fully ionized plasma m_i is the
+    ! bare-nucleus mass (the electrons are the Helmholtz electron gas, whose
+    ! energy carries no rest mass -- same convention as the nuc_eos table).
+    ! Atomic electron binding (~keV) is neglected.
+    ME = ME - Z * m_e_mev
 
   end subroutine Get_BE_and_ME_given_species
 

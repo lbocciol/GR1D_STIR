@@ -756,15 +756,12 @@ subroutine con2prim_grmhd
   ! GRMHD-style and derivative-free, which is what we want for a hybrid
   ! tabulated/analytic nuclear EOS where derivatives are noisy or discontinuous.
   !
-  ! This routine is self-contained and is NOT wired into the con2prim dispatcher;
-  ! swapping it in for con2prim_1 is a separate task (see CLAUDE.md, this dir).
-  !
   ! GR1D is pure hydro.  The magnetic field is carried as subroutine-local
   ! variables that are identically zero, and the full Kastaun magnetic
   ! expressions are written out in the hat-functions below.  With B = 0 they
   ! reduce to the hydro limit (Chi = 1, all magnetic terms vanish) and the
   ! compiler constant-folds them away -- so the source reads as a genuine GRMHD
-  ! routine at zero runtime cost (see CLAUDE.md sec.6).
+  ! routine at zero runtime cost.
   !
   ! GR1D uses the Romero orthonormal formulation, so in the orthonormal (tetrad)
   ! frame the 3-metric is the identity delta_ij: every dot product is Euclidean
@@ -788,7 +785,7 @@ subroutine con2prim_grmhd
      enddo
   endif
 
-  ! This GRMHD path is GR, non-rotating only (CLAUDE.md sec.11).
+  ! This GRMHD path is GR, non-rotating only.
   if (.not.GR .or. do_rotation) then
      stop "con2prim_grmhd: only the GR non-rotating branch is implemented"
   endif
@@ -846,7 +843,7 @@ subroutine con2prim_grmhd_zone(i)
   integer keytemp, keyerr
 
   ! per-zone constants (fixed during the mu solve; seen by the contained
-  ! hat-functions through host association -- mirrors CLAUDE.md sec.8)
+  ! hat-functions through host association)
   real*8 :: D, q_K, r, r2, Ye_fix
   real*8 :: B_i, B_cons_r, B_cons2, rdotB, B_cons2r2_perp
   real*8 :: h_0, v0_2
@@ -918,7 +915,7 @@ subroutine con2prim_grmhd_zone(i)
 
      ! ----------------------------------------------------------------------
      ! (i) Rescale: build the undensitized, orthonormal conservatives and the
-     !     per-zone constants used throughout the solve (CLAUDE.md sec.4).
+     !     per-zone constants used throughout the solve.
      !     Romero identity: q(i,3)+q(i,1) = rho*h*W**2 - press.
      ! ----------------------------------------------------------------------
      D   = q(i,1)/X(i)                              ! = W*rho  (undensitized density)
@@ -928,14 +925,14 @@ subroutine con2prim_grmhd_zone(i)
      Ye_fix = ye(i)
 
      ! Magnetic field: identically zero in GR1D, but computed for clarity so the
-     ! hat-functions below are the genuine GRMHD expressions (CLAUDE.md sec.6).
+     ! hat-functions below are the genuine GRMHD expressions.
      B_i            = 0.0d0
      B_cons_r       = B_i/sqrt(D)                   ! orthonormal B^r / sqrt(D)
      B_cons2        = B_cons_r*B_cons_r             ! = 0
      rdotB          = r*B_cons_r                    ! Euclidean dot, = 0
      B_cons2r2_perp = B_cons2*r2 - rdotB**2         ! = 0
 
-     ! Enthalpy floor h_0 > 0 (CLAUDE.md sec.5).  It must be a true lower bound
+     ! Enthalpy floor h_0 > 0.  It must be a true lower bound
      ! on the specific enthalpy h = 1 + eps + p/rho for the bracket to contain
      ! the root; a smaller value is conservative (wider mu interval).  For the
      ! analytic EOS (ideal/poly/hybrid) h >= 1, so h_0 = 1 is exact.  For the

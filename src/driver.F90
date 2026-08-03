@@ -101,7 +101,6 @@ subroutine handle_output
      write(*,*) "Done! :-) ntmax reached"
 #ifdef HAVE_HDF5_OUTPUT
         call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
-        call hdf5_increment_output_counter()
         call output_all_HDF5(2)
 #else
         call output_all(1)  ! Grid output - opens/closes files for each variable
@@ -116,7 +115,6 @@ subroutine handle_output
      write(*,*) "Done! :-) tend reached"
 #ifdef HAVE_HDF5_OUTPUT
         call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
-        call hdf5_increment_output_counter()
         call output_all_HDF5(2)
 #else
         call output_all(1)  ! Grid output - opens/closes files for each variable
@@ -127,8 +125,6 @@ subroutine handle_output
      open(unit=666,file=trim(adjustl(outdir))//"/done",status="unknown")
      write(666,*) 1
      close(666)
-     call PrintTimers()
-
      stop
   endif
 
@@ -137,7 +133,6 @@ subroutine handle_output
     write(*,*) "Done! :-) wallclock limit reached"
 #ifdef HAVE_HDF5_OUTPUT
         call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
-        call hdf5_increment_output_counter()
         call output_all_HDF5(2)
 #else
         call output_all(1)  ! Grid output - opens/closes files for each variable
@@ -179,7 +174,6 @@ subroutine handle_output
   if (OutputFlag) then
 #ifdef HAVE_HDF5_OUTPUT
         call output_all_HDF5(1)  ! Grid output - opens/closes files for each variable
-        call hdf5_increment_output_counter()
 #else
         call output_all(1)  ! Grid output - opens/closes files for each variable
 #endif
@@ -278,25 +272,27 @@ subroutine PrintTimers
   total_M1   = timer_M1_exp + timer_M1_imp + timer_M1_clo + timer_M1_rec + timer_M1_eas
 
   print *, '----------------- Timer Summary -----------------'
-  print '(A,F12.4)', 'Total code time        = ', timer_code
-  print '(A,F12.4)', 'Total step time        = ', timer_step
-  print '(A,F12.4)', '  M1 (explicit)        = ', timer_M1_exp
-  print '(A,F12.4)', '  M1 (implicit)        = ', timer_M1_imp
-  print '(A,F12.4)', '  M1 (closure)         = ', timer_M1_clo
-  print '(A,F12.4)', '  M1 (reconstruction)  = ', timer_M1_rec
-  print '(A,F12.4)', '  M1 (updateeas)       = ', timer_M1_eas
-  print '(A,F12.4)', '  M1 (cons. update)    = ', timer_M1cons
-  print '(A,F12.4)', '  M1 (neutrinos only)  = ', total_M1
-  print '(A,F12.4)', '  M1                   = ', timer_M1
-  print '(A,F12.4)', '  EOS full             = ', timer_eosf
-  print '(A,F12.4)', '  EOS short            = ', timer_eoss
-  print '(A,F12.4)', '  Hydro                = ', timer_hydro
-  print '(A,F12.4)', '  con2prim             = ', timer_c2p
-  print '(A,F12.4)', '  con2GR               = ', timer_c2GR
-  print '(A,F12.4)', '  reconstruction       = ', timer_rec
+  print '(A,F16.4)', 'Total code time        = ', timer_code
+  print '(A,F16.4)', 'Total step time        = ', timer_step
+  print '(A,F16.4)', '  M1 (explicit)        = ', timer_M1_exp
+  print '(A,F16.4)', '  M1 (implicit)        = ', timer_M1_imp
+  print '(A,F16.4)', '  M1 (closure)         = ', timer_M1_clo
+  print '(A,F16.4)', '  M1 (reconstruction)  = ', timer_M1_rec
+  print '(A,F16.4)', '  M1 (updateeas)       = ', timer_M1_eas
+  print '(A,F16.4)', '  M1 (cons. update)    = ', timer_M1cons
+  print '(A,F16.4)', '  M1 (neutrinos only)  = ', total_M1
+  print '(A,F16.4)', '  M1                   = ', timer_M1
+  print '(A,F16.4)', '  EOS full             = ', timer_eosf
+  print '(A,F16.4)', '  EOS short            = ', timer_eoss
+  print '(A,F16.4)', '  Hydro                = ', timer_hydro
+  print '(A,F16.4)', '  con2prim             = ', timer_c2p
+  print '(A,F16.4)', '  con2GR               = ', timer_c2GR
+  print '(A,F16.4)', '  burn                 = ', timer_burn
+  print '(A,F16.4)', '  nse/burn             = ', timer_nse/timer_burn
   print *
   print '(A,F6.2)',  'Fraction Neutrinos     = ', total_M1 / timer_step
   print '(A,F6.2)',  'Fraction Hydro         = ', timer_hydro / timer_step
+  print '(A,F6.2)',  'Fraction Burn          = ', timer_burn / timer_step
   print *, '-------------------------------------------------'
 
 end subroutine PrintTimers

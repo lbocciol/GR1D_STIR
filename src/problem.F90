@@ -77,6 +77,10 @@ subroutine problem
   call hdf5_initialize()
   call hdf5_write_root_dataset_1d("radius", x1(1:n1)/length_gf , n1)
   call hdf5_write_root_dataset_1d("volume", volume/length_gf**3, n1)
+#ifdef HAVE_BURN
+  ! copy radius into burn.h5 so it stands alone
+  call hdf5_write_burn_root_dataset_1d("radius", x1(1:n1)/length_gf , n1)
+#endif
   call hdf5_finalize()
 #else
   outfilename = trim(adjustl(outdir))//"/volume.xg"

@@ -6,6 +6,11 @@ H5_SOURCES=hdf5_output_utils.F90 \
 H5_OBJECTS=$(H5_SOURCES:.F90=.o)
 
 EXTRAINCS = $(HDF5INCS) -I.. -I../nulibtable
+
+ifeq ($(HAVE_BURN),1)
+  DEFS += -DHAVE_BURN
+  EXTRAINCS += -I../burn -I../burn/pynucnet
+endif
 # Note: You don't usually need EXTRAOBJECTS (like HDF5LIBS) when creating the .a archive,
 # those are resolved later when linking the final executable in the main directory.
 

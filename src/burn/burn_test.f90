@@ -2,6 +2,7 @@ program burn_test
 
   use pynet, only: nspec, spec_names, aion, zion
   use burn,  only: burn_init, burn_rhs, burn_state, burn_newton
+  use composition, only: composition_init
   use nse,   only: nse_init, nse_solve, nse_solve_core
 
   implicit none
@@ -64,6 +65,9 @@ program burn_test
   print *, " NSE solver tests"
   print *, "========================================================"
 
+  ! bare network composition (no appended n,p): these checks probe the
+  ! all-N=Z alpha chain, including the expected ye/=0.5 failure below
+  call composition_init(.false.)
   call nse_init()
 
   ! (1) conservation + detailed balance at a representative handoff state
@@ -99,7 +103,7 @@ contains
   !   - dominant species
   subroutine nse_check(rho_in, T_in, ye_in)
     real(8), intent(in) :: rho_in, T_in, ye_in
-    real(8) :: Ynse(nspec), Xnse(nspec), dY(nspec), edot_nse
+    real(8) :: Ynse(nspec), Xnse(nspec), dY(nspec), edoT_eos_high
     real(8) :: Yrel(nspec), e_rel, dXmax
     real(8) :: mass_err, ye_nse, ydot_max, ydot_rel
     integer :: jerr, k, kmax, irelax
@@ -118,7 +122,7 @@ contains
     ye_nse   = sum(zion*Ynse)
 
     ! detailed balance: dY/dt should ~vanish at the NSE composition
-    call burn_rhs(rho_in, T_in, Xnse, dY, edot_nse)
+    call burn_rhs(rho_in, T_in, Xnse, dY, edoT_eos_high)
     ydot_max = maxval(abs(dY))
     ydot_rel = ydot_max / (maxval(abs(Ynse)) + 1.0d-30)
 
@@ -126,7 +130,7 @@ contains
     print '(a,f10.6)',  "   Ye = sum Z_i Y_i    =", ye_nse
     print '(a,es10.3)', "   max|dY/dt| [mol/g/s]=", ydot_max
     print '(a,es10.3)', "   max|dY/dt|/max(Y)/s =", ydot_rel
-    print '(a,es10.3)', "   edot @ NSE [erg/g/s]=", edot_nse
+    print '(a,es10.3)', "   edot @ NSE [erg/g/s]=", edoT_eos_high
 
     ! Cross-check: relax the Saha NSE composition through the network's own
     ! (backward-Euler) integrator to its true fixed point.  A correct NSE seed

@@ -11,7 +11,8 @@ subroutine start
 #endif
 #ifdef HAVE_BURN
   use burn, only: burn_init
-  use composition, only: composition_init, nspec
+  use composition, only: composition_init, nspec, aion, zion, &
+       nuclei_binding_energy, nuclei_mass_excess
   use nse, only: nse_init
   use wlHelmholtzEOS, only: ReadHelmTable
 #endif
@@ -20,7 +21,7 @@ subroutine start
   character(len=128) cpstring
   character(len=128) rmstring
   logical :: outdirthere
-  integer :: num_args, i
+  integer :: num_args
 
   num_args = command_argument_count()
   if ( num_args .eq. 0 ) then
@@ -51,13 +52,6 @@ subroutine start
   endif
 
 #ifdef HAVE_BURN
-    do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp before: ", temp(i)
-        stop "temperature too low in start"
-    endif
-  enddo
-
   call burn_init
   ! build the GR1D composition (network species, plus inert free n,p when
   ! track_free_nucleons) BEFORE allocate_vars (sizes Yion) and nse_init
@@ -65,18 +59,6 @@ subroutine start
   call nse_init
   ! load the Helmholtz EOS table once (used by the composite EOS in the burn regime)
   call ReadHelmTable(helm_table_name)
-  ! build the Helmholtz<->nuc_eos energy-offset table (needs both EOS tables loaded)
-#if HAVE_NUC_EOS
-  if (eoskey .eq. 3) call build_energy_offset_OttEOS
-#endif
-
-    do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp after: ", temp(i)
-        stop "temperature too low in start"
-    endif
-  enddo
-
 #endif
 
   !total zones
@@ -122,6 +104,16 @@ subroutine start
 #ifdef HAVE_HDF5_OUTPUT
   write(*,*) "Initializing HDF5 output"
   call hdf5_output_init()
+#ifdef HAVE_BURN
+  ! one-shot per-species nuclear data so burn.h5 stands alone
+  ! (mass excess is the NUCLEAR mass excess: Z*m_e already subtracted)
+  call hdf5_initialize()
+  call hdf5_write_burn_root_dataset_1d("burn_A", aion, nspec)
+  call hdf5_write_burn_root_dataset_1d("burn_Z", zion, nspec)
+  call hdf5_write_burn_root_dataset_1d("burn_binding_energy", nuclei_binding_energy, nspec)
+  call hdf5_write_burn_root_dataset_1d("burn_mass_excess", nuclei_mass_excess, nspec)
+  call hdf5_finalize()
+#endif
 #endif
   !setup dumping variables
   tdump_scalar = dtout_scalar
@@ -137,13 +129,6 @@ subroutine start
 
   !setting up initial data
   call problem
-
-      do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp after problem: ", temp(i)
-        stop "temperature too low in start"
-    endif
-  enddo
 
   !Collapse specific setups
   if(initial_data.eq."Collapse") then
@@ -202,12 +187,5 @@ subroutine start
      endif
      call restart_output_h5
   endif
-
-        do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp end start: ", temp(i)
-        stop "temperature too low in start"
-    endif
-  enddo
 
 end subroutine start

@@ -17,26 +17,58 @@ end subroutine reconstruct
 subroutine reconstruct_1
   use GR1D_module
   implicit none
-  
+
   integer i,m
   real*8 discrim
   real*8 temp_cell(n1)
-  
+#ifdef HAVE_BURN
+  real*8 e_off_cell(n1), e_off_if
+#endif
+
+#ifdef HAVE_BURN
+  ! Composite EOS: eps carries the composition's nuclear mass-excess offset,
+  ! which JUMPS at shell interfaces (by ~1e18 erg/g at composition contacts).
+  ! eps and Yion are reconstructed with independent limiters, so pairing a
+  ! reconstructed eps with a reconstructed composition of a slightly
+  ! different offset produces an unphysical interface state (target energy
+  ! below the cold curve).  Reconstruct the THERMAL part of eps instead, and
+  ! re-add the offset of the RECONSTRUCTED composition afterwards, so every
+  ! interface (eps, Yion) pair is offset-consistent by construction.
+  if (eoskey.eq.3) then
+     do i=1,n1
+        call get_energy_offset(Yion(:,i), e_off_cell(i))
+     enddo
+     eps(1:n1) = eps(1:n1) - e_off_cell(1:n1)*eps_gf
+  endif
+#endif
+
   !piecewise constant...
-  
+
   if(reconstruction_method.eq.'pc') then
      call reconstruct_with_pc
-     
+
   else if(reconstruction_method.eq.'tvd') then
      call reconstruct_with_tvd
 
   else if(reconstruction_method.eq.'ppm') then
      call reconstruct_with_ppm
-     
+
   else
      stop 'reconstruction method not implemented'
-     
+
   endif
+
+#ifdef HAVE_BURN
+  if (eoskey.eq.3) then
+     eps(1:n1) = eps(1:n1) + e_off_cell(1:n1)*eps_gf
+     do i=1,n1
+        call get_energy_offset(Yionp(:,i), e_off_if)
+        epsp(i) = epsp(i) + e_off_if*eps_gf
+        call get_energy_offset(Yionm(:,i), e_off_if)
+        epsm(i) = epsm(i) + e_off_if*eps_gf
+     enddo
+  endif
+#endif
 
   !call the EOS to update the pressure and the speed of sound at the
   !interfaces, this uses keytemp = 0, need to keep temp at the cell
@@ -436,15 +468,21 @@ end subroutine reconstruct_with_ppm
 subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
 
   use GR1D_module
+#ifdef HAVE_BURN
+  use composition, only: nspec
+#endif
   implicit none
-  
+
   integer keytemp,keyerr,eosflag
   integer i,idir,itc,j
   real*8 eosdummy(20)
   real*8 rhoin(n1),tempin(n1),yein(n1),epsin(n1),pressin(n1),cs2in(n1)
   real*8 epsin0
   real*8 rfeps
-     
+#ifdef HAVE_BURN
+  real*8 Ysave(nspec)
+#endif
+
   character(len=256) warnline
 
   do i=ghosts1,n1-ghosts1+1
@@ -452,10 +490,25 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
        keytemp = 0
        keyerr = 0
 
+#ifdef HAVE_BURN
+       ! The composite EOS reads the zone composition Yion(:,i).  Interface
+       ! states must be paired with the RECONSTRUCTED composition: eps and
+       ! the composition's mass-excess offset jump together across shell
+       ! interfaces, so the cell composition with the interface eps is an
+       ! inconsistent state (offset mismatch ~1e18 erg/g at contacts).
+       ! Temporarily swap in Yionp/Yionm (this loop is serial).
+       Ysave = Yion(:,i)
+       if (idir.eq.1) then
+          Yion(:,i) = Yionp(:,i)
+       else
+          Yion(:,i) = Yionm(:,i)
+       endif
+#endif
+
        ! No need to limit eos variables here
-       call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), & 
+       call eos_full(i,rhoin(i),tempin(i),yein(i),epsin(i),pressin(i),eosdummy(20), &
             eosdummy(19), &
-            cs2in(i), & 
+            cs2in(i), &
             eosdummy(2),&
             eosdummy(3),eosdummy(4),eosdummy(5),eosdummy(6), &
             eosdummy(7),eosdummy(8),eosdummy(9),eosdummy(10), &
@@ -610,6 +663,10 @@ subroutine reconstruction_eos_call(rhoin,tempin,yein,epsin,pressin,cs2in,idir)
              stop "problem in reconstruct: eos"
           endif
        endif
+
+#ifdef HAVE_BURN
+       Yion(:,i) = Ysave
+#endif
   enddo
-  
+
 end subroutine reconstruction_eos_call

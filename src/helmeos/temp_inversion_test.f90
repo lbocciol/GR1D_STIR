@@ -9,7 +9,7 @@ program temp_inversion_test
   ! The Helmholtz Newton solver (FullHelmEOS) silently returns the last
   ! temperature if it fails to converge, so this is the only way to catch
   ! inversion failures across the (rho,T,Ye) space.
-  use wlHelmholtzEOS, only: ReadHelmTable, HelmEOS, HelmholtzStateType, &
+  use wlHelmholtzEOS, only: ReadHelmTable, FullHelmEOS, HelmEOS, HelmholtzStateType, &
                             eos_input_rt, eos_input_re
   implicit none
 

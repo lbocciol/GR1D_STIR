@@ -106,7 +106,6 @@ subroutine input_parser
 #ifdef HAVE_BURN
      call get_string_parameter('helm_table_name',helm_table_name)
      call get_logical_parameter('track_free_nucleons',track_free_nucleons)
-     call get_double_parameter('eos_offset_rho',eos_offset_rho)
 #endif
   endif
   if(eoskey.eq.1) then

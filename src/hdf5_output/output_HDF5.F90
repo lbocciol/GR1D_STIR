@@ -4,6 +4,9 @@ subroutine output_all_HDF5(modeflag)
   use GR1D_module
   use hdf5_output_utils
   use nulibtable
+#ifdef HAVE_BURN
+  use composition, only: nspec, aion, zion
+#endif
   implicit none
 
   character*1024 filename
@@ -59,6 +62,11 @@ subroutine output_all_HDF5(modeflag)
   integer keyerr,keytemp
   real*8 eosdummy(14)
 
+#ifdef HAVE_BURN
+  real*8 abar_buf(n1),zbar_buf(n1),regime_buf(n1)
+  real*8 ysum,T_kelvin
+#endif
+
   call hdf5_initialize()
 
   if(modeflag.eq.0) then
@@ -75,7 +83,7 @@ subroutine output_all_HDF5(modeflag)
         ! This is to calculate things like mass fractions and chemical
         ! potentials
         if (temp(k) .lt. 1.0d-5) then
-              write(*,*) "temp do loop 3: ", temp(k)
+              write(*,*) "temp do loop 3: ", k, temp(k), rho(k)/rho_gf, eps(k)/eps_gf, ye(k), atmo(k)
               stop "temperature too low before eos"
           endif
         call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
@@ -90,84 +98,84 @@ subroutine output_all_HDF5(modeflag)
           endif
      enddo
 
-     ! Write time and grid coordinates
-     call hdf5_write_grid_data_1d("time", [time], 1)
+     ! Append time for this dump
+     call hdf5_append_xg_scalar("time", time)
      
      ! Write velocity
-     if (.not.small_output) call hdf5_write_grid_data_1d("v1", v1(1:n1)*clite, n1)
+     if (.not.small_output) call hdf5_append_grid_data_1d("hydro", "v1", v1(1:n1)*clite, n1)
      
      if(do_rotation) then
-        call hdf5_write_grid_data_1d("omega", omega(1:n1)*time_gf, n1)
-        call hdf5_write_grid_data_1d("ToverW", ToverW(1:n1), n1)
+        call hdf5_append_grid_data_1d("hydro", "omega", omega(1:n1)*time_gf, n1)
+        call hdf5_append_grid_data_1d("hydro", "ToverW", ToverW(1:n1), n1)
         
         if(GR) then
-           call hdf5_write_grid_data_1d("vphi", vphi(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "vphi", vphi(1:n1), n1)
         else
-           call hdf5_write_grid_data_1d("vphi1", vphi1(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "vphi1", vphi1(1:n1), n1)
         endif
      endif
 
      if (do_turbulence) then
-        call hdf5_write_grid_data_1d("omega2_BV", omega2_BV(1:n1)*time_gf**2, n1)
-        call hdf5_write_grid_data_1d("v_turb", v_turb(1:n1)*time_gf/length_gf, n1)
+        call hdf5_append_grid_data_1d("hydro", "omega2_BV", omega2_BV(1:n1)*time_gf**2, n1)
+        call hdf5_append_grid_data_1d("hydro", "v_turb", v_turb(1:n1)*time_gf/length_gf, n1)
         if (.not. small_output) then
-          call hdf5_write_grid_data_1d("dissipated_turb_eps", diss(1:n1)*time_gf/eps_gf, n1)
-          call hdf5_write_grid_data_1d("buoyancy_turb_eps", buoy(1:n1)*time_gf/eps_gf, n1)
-          call hdf5_write_grid_data_1d("shear_turb_eps", shear(1:n1)*time_gf/eps_gf, n1)
-          call hdf5_write_grid_data_1d("Lambda_MLT", lambda_mlt(1:n1)/length_gf, n1)
+          call hdf5_append_grid_data_1d("hydro", "dissipated_turb_eps", diss(1:n1)*time_gf/eps_gf, n1)
+          call hdf5_append_grid_data_1d("hydro", "buoyancy_turb_eps", buoy(1:n1)*time_gf/eps_gf, n1)
+          call hdf5_append_grid_data_1d("hydro", "shear_turb_eps", shear(1:n1)*time_gf/eps_gf, n1)
+          call hdf5_append_grid_data_1d("hydro", "Lambda_MLT", lambda_mlt(1:n1)/length_gf, n1)
         endif
      endif   
 
-     call hdf5_write_grid_data_1d("rho", rho(1:n1)/rho_gf, n1)
+     call hdf5_append_grid_data_1d("hydro", "rho", rho(1:n1)/rho_gf, n1)
      
      if (do_nupress.or.do_M1) then
-        if (.not.small_output) call hdf5_write_grid_data_1d("nuchem", nuchem(1:n1), n1)
-        if (.not.small_output) call hdf5_write_grid_data_1d("press_nu", press_nu(1:n1)/press_gf, n1)
-        if (.not.small_output) call hdf5_write_grid_data_1d("energy_nu", energy_nu(1:n1)/press_gf, n1)
-        if (.not.small_output) call hdf5_write_grid_data_1d("dnupdr", dnupdr(1:n1)/press_gf*length_gf, n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("M1", "nuchem", nuchem(1:n1), n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("M1", "press_nu", press_nu(1:n1)/press_gf, n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("M1", "energy_nu", energy_nu(1:n1)/press_gf, n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("M1", "dnupdr", dnupdr(1:n1)/press_gf*length_gf, n1)
      endif
 
-     call hdf5_write_grid_data_1d("ye", ye(1:n1), n1)
+     call hdf5_append_grid_data_1d("hydro", "ye", ye(1:n1), n1)
      if (do_M1 .and. (.not.small_output)) then
-        call hdf5_write_grid_data_1d("dyedt_hydro", dyedt_hydro(1:n1)*time_gf, n1)
-        call hdf5_write_grid_data_1d("depsdt", depsdt(1:n1), n1)
-        call hdf5_write_grid_data_1d("ynu", ynu(1:n1), n1)
+        call hdf5_append_grid_data_1d("M1", "dyedt_hydro", dyedt_hydro(1:n1)*time_gf, n1)
+        call hdf5_append_grid_data_1d("M1", "depsdt", depsdt(1:n1), n1)
+        call hdf5_append_grid_data_1d("M1", "ynu", ynu(1:n1), n1)
      endif
      
-     call hdf5_write_grid_data_1d("press", press(1:n1)/press_gf, n1)
+     call hdf5_append_grid_data_1d("hydro", "press", press(1:n1)/press_gf, n1)
      
      if (.not.small_output) then
-       call hdf5_write_grid_data_1d("eps", eps(1:n1)/eps_gf, n1)
+       call hdf5_append_grid_data_1d("hydro", "eps", eps(1:n1)/eps_gf, n1)
      endif
 
      if (GR) then
-        call hdf5_write_grid_data_1d("mass_grav", mgrav(1:n1)/mass_gf, n1)
-        call hdf5_write_grid_data_1d("mass_bary", mass(1:n1)/mass_gf, n1)
+        call hdf5_append_grid_data_1d("hydro", "mass_grav", mgrav(1:n1)/mass_gf, n1)
+        call hdf5_append_grid_data_1d("hydro", "mass_bary", mass(1:n1)/mass_gf, n1)
      else
-        call hdf5_write_grid_data_1d("mass_bary", mass(1:n1)/mass_gf, n1)
+        call hdf5_append_grid_data_1d("hydro", "mass_bary", mass(1:n1)/mass_gf, n1)
      endif
      
      if (eoskey.eq.3) then
         if (.not.small_output) then
-           call hdf5_write_grid_data_1d("xn", massfrac_n(1:n1), n1)
-           call hdf5_write_grid_data_1d("xp", massfrac_p(1:n1), n1)
-           call hdf5_write_grid_data_1d("xa", massfrac_a(1:n1), n1)
-           call hdf5_write_grid_data_1d("xh", massfrac_h(1:n1), n1)
-           call hdf5_write_grid_data_1d("xabar", massfrac_abar(1:n1), n1)
-           call hdf5_write_grid_data_1d("xzbar", massfrac_zbar(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xn", massfrac_n(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xp", massfrac_p(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xa", massfrac_a(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xh", massfrac_h(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xabar", massfrac_abar(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "xzbar", massfrac_zbar(1:n1), n1)
         endif
      endif
 
      if (.not.small_output) then
        if (eoskey.eq.1) then
-          call hdf5_write_grid_data_1d("pressth", pressth(1:n1)/press_gf, n1)
+          call hdf5_append_grid_data_1d("hydro", "pressth", pressth(1:n1)/press_gf, n1)
        endif
 
-       call hdf5_write_grid_data_1d("eps_kin", eps_kin(1:n1)/eps_gf, n1)
+       call hdf5_append_grid_data_1d("hydro", "eps_kin", eps_kin(1:n1)/eps_gf, n1)
 
        allocate(cs(n1))
        cs(:) = sqrt(cs2(:))*clite
-       call hdf5_write_grid_data_1d("cs", cs, n1)
+       call hdf5_append_grid_data_1d("hydro", "cs", cs, n1)
        deallocate(cs)
      endif
 
@@ -175,23 +183,23 @@ subroutine output_all_HDF5(modeflag)
         if(initial_data.eq."OSC") then
            call analytic_OSC_alpha(time*time_gf,10.d0,1.0d0, &
                 alp_ana,rho_ana,vel_ana,X_ana,maxr)
-           call hdf5_write_grid_data_1d("alpha_analytic", alp_ana(1:n1), n1)
-           call hdf5_write_grid_data_1d("rho_analytic", rho_ana(1:n1)/rho_gf, n1)
-           call hdf5_write_grid_data_1d("vel_analytic", vel_ana(1:n1)*clite, n1)
-           call hdf5_write_grid_data_1d("alphamod", alp(1:n1), n1)
-           call hdf5_write_grid_data_1d("X_analytic", X_ana(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "alpha_analytic", alp_ana(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "rho_analytic", rho_ana(1:n1)/rho_gf, n1)
+           call hdf5_append_grid_data_1d("hydro", "vel_analytic", vel_ana(1:n1)*clite, n1)
+           call hdf5_append_grid_data_1d("hydro", "alphamod", alp(1:n1), n1)
+           call hdf5_append_grid_data_1d("hydro", "X_analytic", X_ana(1:n1), n1)
         endif
-        if (.not.small_output) call hdf5_write_grid_data_1d("alpha", alp(1:n1), n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("hydro", "alpha", alp(1:n1), n1)
         
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("X", X(1:n1), n1)
-          call hdf5_write_grid_data_1d("W", W(1:n1), n1)
+          call hdf5_append_grid_data_1d("hydro", "X", X(1:n1), n1)
+          call hdf5_append_grid_data_1d("hydro", "W", W(1:n1), n1)
         endif
-        call hdf5_write_grid_data_1d("v", v(1:n1)*clite, n1)
+        call hdf5_append_grid_data_1d("hydro", "v", v(1:n1)*clite, n1)
       endif
 
      if (do_effectivepotential) then
-        if (.not.small_output) call hdf5_write_grid_data_1d("alpha", alp(1:n1), n1)
+        if (.not.small_output) call hdf5_append_grid_data_1d("hydro", "alpha", alp(1:n1), n1)
      endif
 
      if (do_M1) then
@@ -262,63 +270,63 @@ subroutine output_all_HDF5(modeflag)
         enddo
 
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("M1_fluxfactor_enweighted_nue", fluxfactor_enweighted(:,1), n1)
-          call hdf5_write_grid_data_1d("M1_fluxfactor_enweighted_anue", fluxfactor_enweighted(:,2), n1)
-          call hdf5_write_grid_data_1d("M1_fluxfactor_enweighted_nux", fluxfactor_enweighted(:,3), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_enweighted_nue", fluxfactor_enweighted(:,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_enweighted_anue", fluxfactor_enweighted(:,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_enweighted_nux", fluxfactor_enweighted(:,3), n1)
           
-          call hdf5_write_grid_data_1d("M1_fluxfactor_fluxweighted_nue", fluxfactor_fluxweighted(:,1), n1)
-          call hdf5_write_grid_data_1d("M1_fluxfactor_fluxweighted_anue", fluxfactor_fluxweighted(:,2), n1)
-          call hdf5_write_grid_data_1d("M1_fluxfactor_fluxweighted_nux", fluxfactor_fluxweighted(:,3), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_fluxweighted_nue", fluxfactor_fluxweighted(:,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_fluxweighted_anue", fluxfactor_fluxweighted(:,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_fluxfactor_fluxweighted_nux", fluxfactor_fluxweighted(:,3), n1)
 
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_enweighted_nue", eddingtonfactor_enweighted(:,1), n1)
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_enweighted_anue", eddingtonfactor_enweighted(:,2), n1)
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_enweighted_nux", eddingtonfactor_enweighted(:,3), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_enweighted_nue", eddingtonfactor_enweighted(:,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_enweighted_anue", eddingtonfactor_enweighted(:,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_enweighted_nux", eddingtonfactor_enweighted(:,3), n1)
 
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_fluxweighted_nue", eddingtonfactor_fluxweighted(:,1), n1)
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_fluxweighted_anue", eddingtonfactor_fluxweighted(:,2), n1)
-          call hdf5_write_grid_data_1d("M1_eddingtonfactor_fluxweighted_nux", eddingtonfactor_fluxweighted(:,3), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_fluxweighted_nue", eddingtonfactor_fluxweighted(:,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_fluxweighted_anue", eddingtonfactor_fluxweighted(:,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_eddingtonfactor_fluxweighted_nux", eddingtonfactor_fluxweighted(:,3), n1)
 
-          call hdf5_write_grid_data_1d("dyedt_neutrino", dyedt_neutrino(1:n1)*time_gf, n1)
+          call hdf5_append_grid_data_1d("M1", "dyedt_neutrino", dyedt_neutrino(1:n1)*time_gf, n1)
         endif
 
-        call hdf5_write_grid_data_1d("M1_nue_luminosity_fluid_rad", luminosity_rad(:,1,1), n1)
-        call hdf5_write_grid_data_1d("M1_nue_luminosity_lab_rad", luminosity_rad(:,1,2), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_luminosity_fluid_rad", luminosity_rad(:,1,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_luminosity_lab_rad", luminosity_rad(:,1,2), n1)
 
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("M1_nue_enden_lab_rad", enden_rad(:,1,2), n1)
-          call hdf5_write_grid_data_1d("M1_nue_fluxden_lab_rad", fluxden_rad(:,1,2), n1)
-          call hdf5_write_grid_data_1d("M1_nue_numluminosity_fluid_rad", num_luminosity_rad(:,1,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nue_enden_lab_rad", enden_rad(:,1,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nue_fluxden_lab_rad", fluxden_rad(:,1,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nue_numluminosity_fluid_rad", num_luminosity_rad(:,1,1), n1)
         endif
 
-        call hdf5_write_grid_data_1d("M1_nue_aveenergy_fluid_rad", average_energy_rad(:,1,1), n1)
-        call hdf5_write_grid_data_1d("M1_nue_rmsenergy_fluid_rad", rms_energy_rad(:,1,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_aveenergy_fluid_rad", average_energy_rad(:,1,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_rmsenergy_fluid_rad", rms_energy_rad(:,1,1), n1)
 
-        call hdf5_write_grid_data_1d("M1_anue_luminosity_fluid_rad", luminosity_rad(:,2,1), n1)
-        call hdf5_write_grid_data_1d("M1_anue_luminosity_lab_rad", luminosity_rad(:,2,2), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_luminosity_fluid_rad", luminosity_rad(:,2,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_luminosity_lab_rad", luminosity_rad(:,2,2), n1)
 
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("M1_anue_enden_lab_rad", enden_rad(:,2,2), n1)
-          call hdf5_write_grid_data_1d("M1_anue_fluxden_lab_rad", fluxden_rad(:,2,2), n1)
-          call hdf5_write_grid_data_1d("M1_anue_numluminosity_fluid_rad", num_luminosity_rad(:,2,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_anue_enden_lab_rad", enden_rad(:,2,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_anue_fluxden_lab_rad", fluxden_rad(:,2,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_anue_numluminosity_fluid_rad", num_luminosity_rad(:,2,1), n1)
         endif
 
-        call hdf5_write_grid_data_1d("M1_anue_aveenergy_fluid_rad", average_energy_rad(:,2,1), n1)
-        call hdf5_write_grid_data_1d("M1_anue_rmsenergy_fluid_rad", rms_energy_rad(:,2,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_aveenergy_fluid_rad", average_energy_rad(:,2,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_rmsenergy_fluid_rad", rms_energy_rad(:,2,1), n1)
 
-        call hdf5_write_grid_data_1d("M1_nux_luminosity_fluid_rad", luminosity_rad(:,3,1), n1)
-        call hdf5_write_grid_data_1d("M1_nux_luminosity_lab_rad", luminosity_rad(:,3,2), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_luminosity_fluid_rad", luminosity_rad(:,3,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_luminosity_lab_rad", luminosity_rad(:,3,2), n1)
 
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("M1_nux_enden_lab_rad", enden_rad(:,3,2), n1)
-          call hdf5_write_grid_data_1d("M1_nux_fluxden_lab_rad", fluxden_rad(:,3,2), n1)
-          call hdf5_write_grid_data_1d("M1_nux_numluminosity_fluid_rad", num_luminosity_rad(:,3,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nux_enden_lab_rad", enden_rad(:,3,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nux_fluxden_lab_rad", fluxden_rad(:,3,2), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nux_numluminosity_fluid_rad", num_luminosity_rad(:,3,1), n1)
         endif
 
-        call hdf5_write_grid_data_1d("M1_nux_aveenergy_fluid_rad", average_energy_rad(:,3,1), n1)
-        call hdf5_write_grid_data_1d("M1_nux_rmsenergy_fluid_rad", rms_energy_rad(:,3,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_aveenergy_fluid_rad", average_energy_rad(:,3,1), n1)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_rmsenergy_fluid_rad", rms_energy_rad(:,3,1), n1)
 
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("M1_nue_ng1_rad", q_M1(:,1,1,1), n1)
+          call hdf5_append_grid_data_1d("M1", "M1_nue_ng1_rad", q_M1(:,1,1,1), n1)
         endif
 
      endif
@@ -327,51 +335,87 @@ subroutine output_all_HDF5(modeflag)
      if (do_M1) then
         ! Extraction radius spectra
         spectrum = q_M1(M1_iextractradii,1,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nue_fluxspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_fluxspectra_out", spectrum, number_groups)
         spectrum = q_M1(M1_iextractradii,2,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_anue_fluxspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_fluxspectra_out", spectrum, number_groups)
         spectrum = q_M1(M1_iextractradii,3,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nux_fluxspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_fluxspectra_out", spectrum, number_groups)
 
         spectrum = q_M1_fluid(M1_iextractradii,1,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nue_enspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_enspectra_out", spectrum, number_groups)
         spectrum = q_M1_fluid(M1_iextractradii,2,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_anue_enspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_enspectra_out", spectrum, number_groups)
         spectrum = q_M1_fluid(M1_iextractradii,3,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nux_enspectra_out", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_enspectra_out", spectrum, number_groups)
 
         ! Central cell spectra
         spectrum = q_M1(ghosts1+1,1,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nue_fluxspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_fluxspectra_cen", spectrum, number_groups)
         spectrum = q_M1(ghosts1+1,2,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_anue_fluxspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_fluxspectra_cen", spectrum, number_groups)
         spectrum = q_M1(ghosts1+1,3,:,2)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nux_fluxspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_fluxspectra_cen", spectrum, number_groups)
 
         spectrum = q_M1_fluid(ghosts1+1,1,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nue_enspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nue_enspectra_cen", spectrum, number_groups)
         spectrum = q_M1_fluid(ghosts1+1,2,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_anue_enspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_anue_enspectra_cen", spectrum, number_groups)
         spectrum = q_M1_fluid(ghosts1+1,3,:,1)*M1_moment_to_distro(:)
-        call hdf5_write_grid_data_1d("M1_nux_enspectra_cen", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "M1_nux_enspectra_cen", spectrum, number_groups)
 
         ! Capturing factors
         spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
              q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
-        call hdf5_write_grid_data_1d("capturing_factors", spectrum, number_groups)
+        call hdf5_append_grid_data_1d("M1", "capturing_factors", spectrum, number_groups)
      endif
 
      if(eoskey.eq.3) then
         if (.not.small_output) then
-          call hdf5_write_grid_data_1d("entropy", entropy(1:n1), n1)
+          call hdf5_append_grid_data_1d("hydro", "entropy", entropy(1:n1), n1)
         endif
         
-        call hdf5_write_grid_data_1d("temperature", temp(1:n1), n1)
+        call hdf5_append_grid_data_1d("hydro", "temperature", temp(1:n1), n1)
      endif
      
      ! Close xg.h5 file ONCE at the end of modeflag==1
      call hdf5_close_xg_file()
-     
+
+#ifdef HAVE_BURN
+     ! Nuclear-burning output: burn.h5 /fields (same dump cadence as xg.h5,
+     ! so its /fields/time stays row-aligned with the xg.h5 /time axis)
+     call hdf5_open_burn_file()
+     call hdf5_append_burn_scalar("time", time)
+     call hdf5_append_burn_2d("Yion", Yion(:,1:n1), nspec, n1)
+
+     do i=1,n1
+        ysum = sum(Yion(:,i))
+        if (ysum .gt. 0.0d0) then
+           abar_buf(i) = sum(aion(:)*Yion(:,i))/ysum
+           zbar_buf(i) = sum(zion(:)*Yion(:,i))/ysum
+        else
+           ! ghost/atmosphere zones may carry no composition
+           abar_buf(i) = 0.0d0
+           zbar_buf(i) = 0.0d0
+        endif
+        ! per-zone regime, same threshold logic as the burn operator split:
+        ! 0 = pure nuc_eos, 1 = NSE blend window, 2 = network
+        T_kelvin = temp(i)*temp_mev_to_kelvin
+        if (T_kelvin .ge. T_eos_high) then
+           regime_buf(i) = 0.0d0
+        else if (T_kelvin .ge. T_eos_low) then
+           regime_buf(i) = 1.0d0
+        else
+           regime_buf(i) = 2.0d0
+        endif
+     enddo
+
+     call hdf5_append_burn_1d("abar", abar_buf, n1)
+     call hdf5_append_burn_1d("zbar", zbar_buf, n1)
+     call hdf5_append_burn_1d("burn_regime", regime_buf, n1)
+     call hdf5_close_burn_file()
+#endif
+
+
   else if(modeflag.eq.2) then
      
      ! Open dat.h5 file ONCE at the beginning

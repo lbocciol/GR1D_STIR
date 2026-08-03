@@ -22,20 +22,18 @@ subroutine Step(dts)
   integer rkindex,i,m,gi,itc,j,k
   integer(kind=4) :: eosflag,keyerr,keytemp
   real*8 eosdummy(15)
-  real*8 tempeps1(n1), tempeps2(n1)
   real*8 epsin0
   
   logical nan,inf,burn_converged
 #ifdef HAVE_BURN
-  real*8 e_step, T_kelvin, T_next
+  real*8 e_step, T_kelvin
   integer nse_ierr
-  logical last_NSE_found
 #endif
 
   !M1 stuff
   real*8 implicit_factor
 
-  real*8 t1, t2
+  real*8 t1, t2, t3, t4
 
   CALL GetThisTime(t1)
 
@@ -63,13 +61,6 @@ subroutine Step(dts)
      close(666)
      explosion_reached = .true.
   endif
-    
-  do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp top: ", temp(i)
-        stop "temperature too low in Step"
-    endif
-  enddo
 
   !calculate v_turb for this time step
   if (activate_turbulence) then
@@ -81,13 +72,6 @@ subroutine Step(dts)
 
   !set up conserved variables
   call prim2con
-    
-  do i=ghosts1+1,n1-ghosts1
-    if (temp(i) .lt. 1.0d-5) then
-        write(*,*) "temp prim2con: ", temp(i)
-        stop "temperature too low in Step"
-    endif
-  enddo
 
   !GR, do not need sqrt_gamma
   if (GR) then
@@ -348,17 +332,15 @@ subroutine Step(dts)
      do i=ghosts1+1,n1-ghosts1
         keyerr = 0
         keytemp = 0
-        tempeps1(i) = eps(i)
-        call eos_full(i,rho(i),temp(i),ye(i),eps(i),press(i),pressth(i), & 
+        call eos_full(i,rho(i),temp(i),ye(i),eps(i),press(i),pressth(i), &
              entropy(i), &
-             cs2(i), & 
+             cs2(i), &
              eosdummy(2),&
              eosdummy(3),eosdummy(4),eosdummy(5),eosdummy(6), &
              eosdummy(7),eosdummy(8),eosdummy(9),eosdummy(10), &
              eosdummy(11),eosdummy(12),eosdummy(13),nuchem(i), &
              keytemp,keyerr,eoskey,eos_rf_prec)
 
-        tempeps2(i) = eps(i)
         if(keyerr.ne.0) then
            ! -> Issues with the EOS, this can happen around bounce
            !    and is due to very large temperature gradients
@@ -448,18 +430,32 @@ subroutine Step(dts)
  CALL GetThisTime(t1)
 #ifdef HAVE_BURN
 
+  ! Three temperature regimes:
+  !   T >= T_eos_high              : pure nuc_eos; composition unused, nothing to do
+  !   T_eos_low <= T < T_eos_high   : blend window; composition is the NSE solution
+  !   T < T_eos_low            : network regime; evolve composition, add energy
   do i=ghosts1+1,n1-ghosts1
      T_kelvin = temp(i)*temp_mev_to_kelvin
-     T_next   = temp(i+1)*temp_mev_to_kelvin
-     if ((T_kelvin .le. T_NSE) .and. (T_kelvin .ge. T_interp)) then
+     if (T_kelvin .ge. T_eos_high) then
+        cycle
+     else if (T_kelvin .ge. T_eos_low) then
+        CALL GetThisTime(t2)
         call nse_solve(rho(i) / rho_gf, T_kelvin, ye(i), Yion(:,i), nse_ierr)
+        CALL GetThisTime(t3)
+        timer_nse = timer_nse + (t3 - t2)
         if (nse_ierr .ne. 0) then
           write(*,*) "nse_solve not converged at zone", i
           write(*,*) rho(i) / rho_gf, T_kelvin, ye(i)
           stop "Aborting!"
         endif
      else
-        ! network regime: evolve the composition and add the energy released.
+        ! network regime: evolve the composition.  eps is NOT touched: it
+        ! already contains the composition's mass-excess energy (the e_offset
+        ! convention), so the burn's rest-mass release shows up automatically
+        ! as a lower offset -> higher thermal energy at fixed eps.  Adding
+        ! e_step here would double count it.  (e_step would only belong in
+        ! eps as a LOSS if the network had weak rates emitting neutrinos;
+        ! this one has none: enuc_weak is identically 0.)
         ! Only the network species (slots 1..nspec_net) are advanced; any appended
         ! free nucleons (n,p) are left frozen so Ye/=0.5 is carried through.
         call burn_newton(rho(i) / rho_gf, T_kelvin, Yion(1:nspec_net,i), &
@@ -469,13 +465,11 @@ subroutine Step(dts)
            write(*,*) "rho,T:", rho(i) / rho_gf, T_kelvin
            stop "Aborting!"
         endif
-        WRITE(*,*) 'eps burn', eps(i) / eps_gf, e_step / eps_gf, e_step / eps_gf
-        eps(i) = eps(i) + e_step * eps_gf
      endif
   enddo
 #endif
- CALL GetThisTime(t2)
- timer_burn = timer_burn + (t2 - t1)
+ CALL GetThisTime(t4)
+ timer_burn = timer_burn + (t4 - t1)
 
  !M1
  CALL GetThisTime(t1)

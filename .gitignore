@@ -5,3 +5,4 @@ make.inc
 net
 *.h5
 folder*
+*__pycache__*

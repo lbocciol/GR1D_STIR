@@ -4,8 +4,8 @@
 !
 ! PURPOSE
 !   At high temperature the composition is set by NSE rather than by the reaction
-!   network: it is a unique function of (rho, T, Ye).  GR1D assumes NSE above T_NSE
-!   and integrates the network below it; when a zone cools back below T_NSE the
+!   network: it is a unique function of (rho, T, Ye).  GR1D assumes NSE above T_eos_high
+!   and integrates the network below it; when a zone cools back below T_eos_high the
 !   network needs a starting composition.  This module provides that seed so the
 !   network has a valid handoff (see the burn loop in Step.F90).
 !

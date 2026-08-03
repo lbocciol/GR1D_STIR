@@ -5,6 +5,7 @@ subroutine map_profile(lprofile_name)
   use grad_module, only: QuadraticInterpolation1D, LinearInterpolation1D
 #ifdef HAVE_BURN
   use composition, only: nspec_net, aion, composition_set_free_nucleons
+  use nse, only: nse_solve
 #endif
   implicit none
 
@@ -26,7 +27,8 @@ subroutine map_profile(lprofile_name)
   real*8 :: kboltz_cgs = 1.380662d-16
   
 #ifdef HAVE_BURN
-  integer profile_compo_zones, nspec_profile, j
+  integer profile_compo_zones, nspec_profile, j, nse_ierr
+  real*8 tk
   real*8, allocatable, dimension(:) :: pY
   real*8, allocatable, dimension(:,:) :: x_profile
 #endif
@@ -154,6 +156,25 @@ subroutine map_profile(lprofile_name)
      call composition_set_free_nucleons(Yion(:,i), ye(i))
   enddo
   deallocate(x_profile, pY)
+
+  ! Zones that start at or above the blend window get the NSE composition: the
+  ! progenitor composition is not representable by the network in the
+  ! neutron-rich core (most of its mass lands in the appended free nucleons),
+  ! which would corrupt the Helmholtz side of the blend.  Seeding also the
+  ! T >= T_eos_high zones (whose Yion the EOS itself never reads) matters because
+  ! their composition is advected, and a zone crossing T_eos_high downward hits the
+  ! blended EOS in con2prim BEFORE the burn loop in Step.F90 can reseed it.
+  do i=1,n1
+     tk = temp(i)*temp_mev_to_kelvin
+     if (tk .ge. T_eos_low) then
+        call nse_solve(rho(i)/rho_gf, tk, ye(i), Yion(:,i), nse_ierr)
+        if (nse_ierr .ne. 0) then
+           write(*,*) "map_profile: nse_solve failed at zone", i
+           write(*,*) rho(i)/rho_gf, tk, ye(i)
+           stop "Aborting!"
+        endif
+     endif
+  enddo
 #endif
 
   if (do_rotation.and.set_omega) then

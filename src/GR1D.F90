@@ -9,7 +9,6 @@ program GR1D
   implicit none
 
   real(8) :: t1, t2
-  integer :: i
 
   CALL GetThisTime(t_start)
   timer_code = t_start
@@ -32,29 +31,11 @@ write(*,*) "Running in serial mode, you sure you don't want OMP?"
   write(*,*) "Done with initial data :-)"
 
   write(*,*) "Begin time integration loop:"
-  IntegrationLoop: do 
-    do i=ghosts1+1,n1-ghosts1
-      if (temp(i) .lt. 1.0d-5) then
-          write(*,*) "temp do loop 1: ", temp(i)
-          stop "temperature too low before Step"
-      endif
-    enddo
+  IntegrationLoop: do
      call SetTimeStep
-    do i=ghosts1+1,n1-ghosts1
-      if (temp(i) .lt. 1.0d-5) then
-          write(*,*) "temp do loop 2: ", temp(i)
-          stop "temperature too low before Step"
-      endif
-    enddo
      call handle_output
 
-    do i=ghosts1+1,n1-ghosts1
-      if (temp(i) .lt. 1.0d-5) then
-          write(*,*) "temp do loop 3: ", temp(i)
-          stop "temperature too low before Step"
-      endif
-    enddo
-!!   Integrate
+    ! Integrate
      CALL GetThisTime(t1)
      call Step(dt)
      CALL GetThisTime(t2)

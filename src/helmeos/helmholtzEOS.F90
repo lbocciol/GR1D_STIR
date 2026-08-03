@@ -165,20 +165,16 @@ MODULE wlHelmholtzEOS
 
   END TYPE HelmholtzStateType
 
-  ! REAL(8) :: e_offset = -1.352940895191586e+18 ! This is neutron mass
-  REAL(8) :: e_offset = -8.987551787368177e+2
-
-  PUBLIC :: FullHelmEOS
+  PUBLIC :: FullHelmEOS, HelmEOS
 
   ! Module-level table, populated once by ReadHelmTable at startup. Hidden behind
   ! the HelmEOS wrapper so callers never touch the HelmTableType directly.
   TYPE(HelmTableType), SAVE :: eos_helm_table
   LOGICAL, SAVE :: helm_table_loaded = .false.
 
-  PUBLIC :: ReadHelmTable, HelmEOS
+  PUBLIC :: ReadHelmTable
   PUBLIC :: eos_input_rt, eos_input_re
 
-  ! This is EOS specific, but it is a constant. Be careful how you define it!
 CONTAINS
 
   ! ---------------------------------------------------------------------------
@@ -310,26 +306,12 @@ CONTAINS
 
   END SUBROUTINE ReadHelmTable
 
-  ! ---------------------------------------------------------------------------
-  ! Thin wrapper so callers evaluate the EOS against the module table without
-  ! handling the HelmTableType themselves.
   SUBROUTINE HelmEOS(input, HelmholtzState)
+
     INTEGER, INTENT(IN) :: input
-    TYPE(HelmholtzStateType), INTENT(INOUT) :: HelmholtzState
-    IF (.not. helm_table_loaded) STOP "HelmEOS called before ReadHelmTable"
-
-    ! Remove the energy offset from the input
-    IF (input .eq. eos_input_re) THEN
-         HelmholtzState % e = HelmholtzState % e - HelmholtzState % e_offset - e_offset
-         IF ( HelmholtzState % e < 0.0d0) THEN
-            WRITE(*,*) "Warning: HelmEOS input e = ", HelmholtzState % e, " is negative after subtracting e_offset = ", HelmholtzState % e_offset
-            STOP "Aborting!"
-          END IF
-    ENDIF
-
-    CALL FullHelmEOS(input, eos_helm_table, HelmholtzState)
-    HelmholtzState % e = HelmholtzState % e + HelmholtzState % e_offset + e_offset
-    HelmholtzState % h = HelmholtzState % h + HelmholtzState % e_offset + e_offset
+    TYPE (HelmholtzStateType), INTENT(INOUT) :: HelmholtzState
+    
+    call FullHelmEOS(input, eos_helm_table, HelmholtzState)
 
   END SUBROUTINE HelmEOS
 
@@ -469,7 +451,7 @@ CONTAINS
     ELSEIF (input .eq. eos_input_re) THEN
       
       single_iter = .true.
-      v_want = HelmholtzState % e
+      v_want = HelmholtzState % e - HelmholtzState % e_offset
       var  = iener
       dvar = itemp
     
@@ -971,7 +953,6 @@ CONTAINS
       
         p_temp = prad + pion + pele + pcoul
         e_temp = erad + eion + eele + ecoul
-
         
         ! Disable Coulomb corrections IF they cause
         ! the energy or pressure to go negative.        
@@ -1125,7 +1106,7 @@ CONTAINS
         xnew = x - (v - v_want) / dvdx
         
         ! Don't let the temperature/density change by more than a factor of two
-        xnew = MAX(0.5 * x, MIN(xnew, 2.0 * x))
+        xnew = MAX(0.5d0 * x, MIN(xnew, 2.0d0 * x))
         
         ! Don't let us freeze/evacuate
         xnew = MAX(smallx, xnew)
@@ -1229,7 +1210,43 @@ CONTAINS
       ENDIF
       
     ENDDO
-    
+
+    IF (.not. converged) THEN
+      WRITE(*,*) 'FullHelmEOS: Newton did not converge after', max_newton, 'iterations'
+      WRITE(*,*) '  input  = ', input
+      WRITE(*,*) '  rho    = ', den_row
+      WRITE(*,*) '  T      = ', temp_row
+      WRITE(*,*) '  abar   = ', abar_row
+      WRITE(*,*) '  zbar   = ', zbar_row
+      WRITE(*,*) '  v_want = ', v_want
+      STOP 'FullHelmEOS: Newton did not converge'
+    ENDIF
+
+    ! A Newton clamped at a table edge "converges" on step size with the wrong
+    ! value; verify the achieved quantity actually matches the target.
+    IF (single_iter) THEN
+      IF (var .eq. ipres) THEN
+        v = ptot_row
+      ELSEIF (var .eq. iener) THEN
+        v = etot_row
+      ELSEIF (var .eq. ientr) THEN
+        v = stot_row
+      ELSEIF (var .eq. ienth) THEN
+        v = htot_row
+      ENDIF
+      IF (ABS(v - v_want) .gt. 1.0d-6 * ABS(v_want)) THEN
+        WRITE(*,*) 'FullHelmEOS: converged to the wrong value (clamped at a table edge?)'
+        WRITE(*,*) '  input      = ', input
+        WRITE(*,*) '  rho        = ', den_row
+        WRITE(*,*) '  T          = ', temp_row
+        WRITE(*,*) '  abar       = ', abar_row
+        WRITE(*,*) '  zbar       = ', zbar_row
+        WRITE(*,*) '  v_want     = ', v_want
+        WRITE(*,*) '  v achieved = ', v
+        STOP 'FullHelmEOS: target not reached'
+      ENDIF
+    ENDIF
+
     HelmholtzState % T    = temp_row
     HelmholtzState % rho  = den_row
     
@@ -1240,7 +1257,7 @@ CONTAINS
     HelmholtzState % dpde = dpe_row
     HelmholtzState % dpdr_e = dpdr_e_row
     
-    HelmholtzState % e    = etot_row
+    HelmholtzState % e    = etot_row + HelmholtzState % e_offset
     HelmholtzState % dedT = det_row
     HelmholtzState % dedr = ded_row
     
@@ -1290,8 +1307,10 @@ CONTAINS
         HelmholtzState % p = v_want
       
       ELSEIF (input .eq. eos_input_re) THEN
-        
-        HelmholtzState % e = v_want
+
+        ! v_want is the offset-SUBTRACTED target (see the input setup); hand
+        ! back the caller's original energy, consistent with the rt output
+        HelmholtzState % e = v_want + HelmholtzState % e_offset
       
       ELSEIF (input .eq. eos_input_ps) THEN
         

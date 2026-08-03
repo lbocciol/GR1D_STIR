@@ -150,6 +150,8 @@ start.o eos.o: helmeos/helmholtzEOS.o
 # eos.o uses the nuc_eos `eosmodule` (offset-table grids); needs its .mod built first
 eos.o: nuc_eos/nuc_eos.a
 start.o Step.o eos.o allocate_vars.o map_profile.o: burn/composition.o
+# hdf5_output sources use composition.mod when compiled with -DHAVE_BURN
+hdf5_output/hdf5_output.a: burn/composition.o
 endif
 
 clean:

@@ -396,17 +396,8 @@ module GR1D_module
   character*256 :: helm_table_name       !Helmholtz EOS table file (read at startup)
   real*8,allocatable,save :: Yion(:,:)   !molar abundances Y=X/A per species per zone, shape (nspec,n1)
   real*8,allocatable,save :: Yionp(:,:),Yionm(:,:)  !reconstructed +/- interface states, shape (nspec,n1)
-  real*8 :: T_NSE = 5.8d9 !temperature above which we assume NSE
-  real*8 :: T_interp = 5.0d9 !temperature for the interpolation of EOSs
-  ! Composite-EOS energy offset: the Helmholtz energy is put on the nuc_eos
-  ! zero-point by matching e_nuc - e_helm at a transition density eos_offset_rho,
-  ! tabulated per (T,Ye) on the nuc_eos grid (built once in build_energy_offset_OttEOS).
-  real*8,allocatable,save :: energy_offset_tab(:,:) !match offset [erg/g], (ntemp,nye)
-  real*8 :: eos_offset_rho = 1.0d8 !transition density rho_tr [g/cc] for the match
-  ! Lower temperature bound for running the reaction network. Below this T the
-  ! reaclib rate exponentials (exp(a1/T9 + a2/T9^(1/3) + ...)) overflow to Inf and
-  ! produce NaNs in burn_rhs, while the burning is physically negligible anyway.
-  ! Cold outer/atmosphere zones (e.g. T~1000 K) must NOT be passed to the network.
+  real*8 :: T_eos_high = 5.8d9 !temperature above which we assume NSE
+  real*8 :: T_eos_low = 3.5d9 !temperature for the interpolation of EOSs
   logical :: track_free_nucleons = .true. !track inert free n,p so NSE/composition can carry Ye/=0.5
 #endif
 
