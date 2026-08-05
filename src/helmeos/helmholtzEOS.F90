@@ -363,7 +363,7 @@ CONTAINS
     INTEGER :: var, dvar, var1, var2, iter
     REAL(8) :: v_want
     REAL(8) :: v1_want, v2_want
-    REAL(8) :: xnew, xtol, dvdx, smallx, error, v
+    REAL(8) :: xnew, xtol, dvdx, smallx, highx, error, v
     REAL(8) :: v1, v2, dv1dt, dv1dr, dv2dt,dv2dr, delr, error1, error2, told, rold, tnew, rnew, v1i, v2i
     
     REAL(8) :: x,y,z,zz,zzi,deni,tempi,xni,dxnidd,dxnida, &
@@ -1222,20 +1222,26 @@ CONTAINS
       STOP 'FullHelmEOS: Newton did not converge'
     ENDIF
 
-    ! A Newton clamped at a table edge "converges" on step size with the wrong
-    ! value; verify the achieved quantity actually matches the target.
+    ! A Newton clamped at a table edge "converges" on step size (the MAX/MIN
+    ! limiters above stop moving x) with the wrong value.  Test the edge
+    ! directly rather than the residual: for eos_input_re v_want is the
+    ! offset-STRIPPED energy, which can be many orders of magnitude larger than
+    ! the physically meaningful eps, so a relative-residual test on v_want is
+    ! far too loose to catch a clamp.
     IF (single_iter) THEN
-      IF (var .eq. ipres) THEN
-        v = ptot_row
-      ELSEIF (var .eq. iener) THEN
-        v = etot_row
-      ELSEIF (var .eq. ientr) THEN
-        v = stot_row
-      ELSEIF (var .eq. ienth) THEN
-        v = htot_row
+      IF (dvar .eq. itemp) THEN
+        x = temp_row ; smallx = smallt ; highx = hight
+      ELSE
+        x = den_row  ; smallx = smalld ; highx = highd
       ENDIF
-      IF (ABS(v - v_want) .gt. 1.0d-6 * ABS(v_want)) THEN
-        WRITE(*,*) 'FullHelmEOS: converged to the wrong value (clamped at a table edge?)'
+      IF (x .le. smallx*(1.0d0 + 1.0d-12) .or. &
+          x .ge. highx *(1.0d0 - 1.0d-12)) THEN
+        IF (var .eq. ipres) THEN ; v = ptot_row
+        ELSEIF (var .eq. iener) THEN ; v = etot_row
+        ELSEIF (var .eq. ientr) THEN ; v = stot_row
+        ELSEIF (var .eq. ienth) THEN ; v = htot_row
+        ENDIF
+        WRITE(*,*) 'FullHelmEOS: iterate clamped at a table edge, target unreachable'
         WRITE(*,*) '  input      = ', input
         WRITE(*,*) '  rho        = ', den_row
         WRITE(*,*) '  T          = ', temp_row

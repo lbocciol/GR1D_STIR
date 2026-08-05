@@ -714,6 +714,20 @@ end subroutine atmos_eos
 
 #if HAVE_NUC_EOS
 #ifdef HAVE_BURN
+! ---------------------------------------------------------------------------
+! Shared state for the composite nuc_eos <-> Helmholtz EOS.
+! ---------------------------------------------------------------------------
+module eos_blend_module
+  implicit none
+  ! regime of the composite EOS, decided ONCE per call (see nuc_helm_eos_short)
+  integer, parameter :: REG_COLD = 0   ! pure Helmholtz
+  integer, parameter :: REG_BLEND = 1  ! linear blend of both backends
+  integer, parameter :: REG_HOT = 2    ! pure tabulated nuc_eos
+  ! rate limit for the inverted-seam warning (see warn_inverted_window)
+  integer, parameter :: max_inverted_warn = 20
+  integer :: n_inverted_warn = 0
+end module eos_blend_module
+
 ! ===========================================================================
 ! Composite finite-T nuclear EOS <-> Helmholtz EOS (Perego et al. 2015;
 ! Navo et al. 2023).
@@ -723,17 +737,39 @@ end subroutine atmos_eos
 ! Yion(:,i)).  Every other argument and unit (CGS in/out) matches
 ! nuc_eos_short exactly, so the caller is unaware of the blend.
 !
-! Dispatch is purely by TEMPERATURE (no density or energy rule; the regimes
-! occur at the appropriate densities by construction):
+! The regimes are set by TEMPERATURE:
 !   T >= T_eos_high                 -> nuc_eos only    (w = 1)
 !   T <= T_eos_low                  -> Helmholtz only  (w = 0)
 !   T_eos_low < T < T_eos_high      -> blend BOTH with ONE linear weight w(T),
 !       applied identically to every returned quantity so the state stays a
 !       single consistent thermodynamic point.
-! For keytemp=0 the single T whose blended energy e_blend(T) matches the
-! target is root-found, starting from the incoming xtemp; at every iterate
-! only the backend(s) selected by w(T) are evaluated, so the solver crosses
-! the seams naturally as T moves.
+!
+! The regime is decided FIRST, then the state is obtained WITHIN that regime:
+!   keytemp=1: T is known, so the regime follows directly from it.
+!   keytemp=0: the regime follows from the two SEAM energies
+!              e_lo = e_helm(rho,T_eos_low) and e_hi = e_nuc(rho,T_eos_high)
+!              (see classify_regime), and then
+!                REG_COLD  -> Helmholtz inverts itself (eos_input_re); there is
+!                             NO outer Newton here at all.  This matters: the
+!                             Helmholtz energy carries the composition offset
+!                             (~1e17-1e18 erg/g) while eps itself is ~1e11, so
+!                             a residual formed as e_helm + e_offset - eps is
+!                             quantised far above any sensible tolerance.
+!                             eos_input_re strips the offset ONCE and converges
+!                             on the step size in T, which is offset-free.
+!                REG_HOT   -> nuc_eos_short's own findtemp, i.e. exactly what a
+!                             HAVE_BURN=0 build does.
+!                REG_BLEND -> bracketed root find on [T_eos_low, T_eos_high],
+!                             where classification has already guaranteed a
+!                             sign change (see blend_invert).
+!
+! Two deliberate deviations from a HAVE_BURN=0 build:
+!   * xmunu is hard-zeroed in every branch (nuchem stays 0 under HAVE_BURN).
+!   * below eos_rhomin*1.2 the cold branch is forced regardless of T, because
+!     nuc_eos_short silently substitutes nuc_low_eos there (a K*rho^1.41
+!     polytrope with an unrelated energy zero point and xent hardwired to 4),
+!     which would poison the seam classification.  Helmholtz with the real
+!     composition is strictly better than an arbitrary polytrope.
 !
 ! Any failure STOPs with a diagnostic: it signals a physics/modeling problem
 ! (e.g. the network composition drifting far from the table NSE) that must
@@ -744,6 +780,8 @@ subroutine nuc_helm_eos_short(i,xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt, &
 
   use GR1D_module, only: Yion, T_eos_high, T_eos_low, temp_mev_to_kelvin
   use composition, only: nspec, zion
+  use eosmodule, only: eos_rhomin
+  use eos_blend_module, only: REG_COLD, REG_BLEND, REG_HOT
   implicit none
 
   integer, intent(in)    :: i, keytemp
@@ -753,17 +791,10 @@ subroutine nuc_helm_eos_short(i,xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt, &
   real*8,  intent(out)   :: xdpderho, xdpdrhoe, xmunu
   integer, intent(out)   :: keyerr
 
-  real*8 :: Y(nspec), abar, zbar, e_offset, w, tk
-  real*8 :: t_lo_mev, t_hi_mev, t_mev, f, dfdt
-  ! nuc_eos branch outputs (local copies so xtemp/xenr aren't clobbered)
-  real*8 :: t_n, e_n, p_n, ent_n, cs2_n, dedt_n, dpde_n, dpdr_n, munu_n
-  ! Helmholtz branch outputs
-  real*8 :: tk_h, e_h, p_h, ent_h, cs2_h, dedt_h, dpde_h, dpdr_h
-  real*8 :: t_pos, t_neg, t_new
-  logical :: have_pos, have_neg
-  integer :: it
-  integer, parameter :: maxit = 200
-  real*8 :: t_hist(maxit), f_hist(maxit), w_hist(maxit), dfdt_hist(maxit)
+  real*8 :: Y(nspec), abar, zbar, e_offset
+  real*8 :: t_lo_mev, t_hi_mev, e_lo, e_hi, e_target
+  real*8 :: tk_h, e_h, dedt_h, dfdt
+  integer :: regime
 
   keyerr = 0
   xmunu  = 0.0d0
@@ -779,179 +810,420 @@ subroutine nuc_helm_eos_short(i,xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt, &
   call get_energy_offset(Y, e_offset)
 
   ! GR1D carries temperature in MeV (nuc_eos convention); the thresholds
-  ! T_eos_high/T_eos_low and the Helmholtz table are in Kelvin -> convert for
-  ! the weight and for the Helmholtz calls; nuc_eos is always called in MeV.
-  tk = xtemp * temp_mev_to_kelvin
-
-  ! =========================================================================
-  ! keytemp = 1 (T known): regime selected from the known T
-  ! =========================================================================
-  if (keytemp .eq. 1) then
-     call blend_weight(tk, w)
-
-     if (w .le. 0.0d0) then
-        tk_h = tk
-        e_h  = xenr
-        call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
-             1,xprs,xent,xcs2,xdedt,xdpderho,xdpdrhoe)
-        xenr = e_h
-        return
-     end if
-
-     if (w .ge. 1.0d0) then
-        call nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt, &
-             xdpderho,xdpdrhoe,xmunu,1,keyerr,rfeps)
-        xmunu = 0.0d0
-        return
-     end if
-
-     ! transition: evaluate BOTH backends at the known T, blend linearly
-     t_n = xtemp
-     call nuc_eos_short(xrho,t_n,xye,e_n,p_n,ent_n,cs2_n,dedt_n, &
-          dpde_n,dpdr_n,munu_n,1,keyerr,rfeps)
-     tk_h = tk
-     call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
-          1,p_h,ent_h,cs2_h,dedt_h,dpde_h,dpdr_h)
-
-     xenr     = w*e_n    + (1.0d0-w)*e_h
-     xprs     = w*p_n    + (1.0d0-w)*p_h
-     xent     = w*ent_n  + (1.0d0-w)*ent_h
-     xcs2     = w*cs2_n  + (1.0d0-w)*cs2_h
-     xdedt    = w*dedt_n + (1.0d0-w)*dedt_h
-     xdpderho = w*dpde_n + (1.0d0-w)*dpde_h
-     xdpdrhoe = w*dpdr_n + (1.0d0-w)*dpdr_h
-     return
-  end if
-
-  ! =========================================================================
-  ! keytemp = 0 (eps known): Newton on the piecewise blended energy
-  !     f(T) = w(T)*e_nuc(rho,T) + (1-w(T))*e_helm(rho,T) - xenr
-  ! over the FULL temperature range, from the incoming xtemp (in evolution
-  ! the previous T, which sits next to the root).  The regime is decided by
-  ! the temperature the solver is at -- only the backend(s) selected by w(T)
-  ! are evaluated, so cold zones never touch nuc_eos and hot zones never
-  ! touch Helmholtz -- and the iteration crosses the seams naturally.
-  ! For the linear weight dw/dT is constant inside the window and both
-  ! backends return dedt, so the derivative is analytic
-  !     df/dT = w*dedt_n + (1-w)*dedt_h*K/MeV + (e_n - e_h)/(T_hi - T_lo)
-  ! (T in MeV; dedt_n is per MeV, dedt_h = cv is per Kelvin).
-  ! =========================================================================
+  ! T_eos_high/T_eos_low and the Helmholtz table are in Kelvin.
   t_lo_mev = T_eos_low  / temp_mev_to_kelvin
   t_hi_mev = T_eos_high / temp_mev_to_kelvin
-  t_mev    = xtemp
 
-  have_pos = .false.
-  have_neg = .false.
+  e_lo = 0.0d0
+  e_hi = 0.0d0
+
+  ! ---------------- regime decision (once, for both keytemps) --------------
+  if (xrho .lt. eos_rhomin*1.2d0) then
+     ! nuclear table undefined here; nuc_eos_short would return a polytrope
+     regime = REG_COLD
+  else if (keytemp .eq. 1) then
+     if (xtemp .le. t_lo_mev) then
+        regime = REG_COLD
+     else if (xtemp .ge. t_hi_mev) then
+        regime = REG_HOT
+     else
+        regime = REG_BLEND
+     end if
+  else
+     call classify_regime(i,xrho,xtemp,xye,xenr,abar,zbar,e_offset,Y, &
+          t_lo_mev,t_hi_mev,rfeps, regime,e_lo,e_hi)
+  end if
+
+  ! ---------------- state, obtained within that regime ---------------------
+  select case (regime)
+
+  case (REG_COLD)                       ! pure Helmholtz, its OWN inversion
+
+     if (keytemp .eq. 1) then
+        tk_h = xtemp * temp_mev_to_kelvin
+        e_h  = xenr
+        call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
+             1,xprs,xent,xcs2,dedt_h,xdpderho,xdpdrhoe)
+        xenr = e_h
+     else
+        ! Seed for FullHelmEOS' Newton, in Kelvin.  The upper clamp is valid
+        ! because classification has already proved the root is at or below
+        ! T_eos_low.  The 1.0d4 floor is required: FullHelmEOS measures its
+        ! error as ABS((xnew-x)/x), so a zero seed divides by zero; its
+        ! factor-of-2 limiter climbs 1e4 -> 1e9 in 17 of its 100 iterations.
+        tk_h = min(max(xtemp*temp_mev_to_kelvin, 1.0d4), T_eos_low)
+        e_h  = xenr
+        call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
+             0,xprs,xent,xcs2,dedt_h,xdpderho,xdpdrhoe)   ! eos_input_re
+        xtemp = tk_h / temp_mev_to_kelvin
+     end if
+     xdedt = dedt_h * temp_mev_to_kelvin    ! cv is per Kelvin -> per MeV
+
+  case (REG_HOT)                        ! identical to a HAVE_BURN=0 build
+
+     call nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt, &
+          xdpderho,xdpdrhoe,xmunu,keytemp,keyerr,rfeps)
+     xmunu = 0.0d0                      ! unchanged behaviour, by decision
+
+  case (REG_BLEND)
+
+     e_target = xenr
+     if (keytemp .eq. 0) then
+        call blend_invert(i,xrho,xye,xenr,abar,zbar,e_offset,Y, &
+             t_lo_mev,t_hi_mev,e_lo,e_hi,rfeps, xtemp)
+     end if
+     call blend_state(xrho,xtemp,xye,abar,zbar,e_offset,rfeps, &
+          xenr,xprs,xent,xcs2,xdedt,xdpderho,xdpdrhoe,dfdt,keyerr)
+     ! keytemp=0: hand back the caller's target energy untouched (the
+     ! converged blended energy equals it to within the solver tolerance)
+     if (keytemp .eq. 0) xenr = e_target
+
+  end select
+
+end subroutine nuc_helm_eos_short
+
+! ---------------------------------------------------------------------------
+! keytemp=0 regime decision, from the two SEAM energies
+!     e_lo = e_helm(rho, T_eos_low)  (offset included)
+!     e_hi = e_nuc (rho, T_eos_high)
+! Each backend's energy is monotone in T inside its own regime, so
+! xenr <= e_lo means the root is cold and xenr >= e_hi means it is hot.
+!
+! The seam nearest the incoming guess is evaluated first and the other only if
+! needed: one extra backend rho-T call in the common case, none when the guess
+! is already on the right side.
+!
+! Truth table (cold_ok = xenr<=e_lo, hot_ok = xenr>=e_hi):
+!   T F -> cold
+!   F T -> hot
+!   F F -> e_lo < xenr < e_hi: normal window, sign change GUARANTEED
+!   T T -> only possible if e_lo > e_hi (inverted window, up to three roots)
+! ---------------------------------------------------------------------------
+subroutine classify_regime(i,xrho,xtemp,xye,xenr,abar,zbar,e_offset,Y, &
+     t_lo_mev,t_hi_mev,rfeps, regime,e_lo,e_hi)
+
+  use composition, only: nspec
+  use eos_blend_module, only: REG_COLD, REG_BLEND, REG_HOT
+  implicit none
+
+  integer, intent(in)  :: i
+  real*8,  intent(in)  :: xrho, xtemp, xye, xenr, abar, zbar, e_offset
+  real*8,  intent(in)  :: Y(nspec), t_lo_mev, t_hi_mev, rfeps
+  integer, intent(out) :: regime
+  real*8,  intent(out) :: e_lo, e_hi
+
+  logical :: cold_ok, hot_ok
+
+  e_lo = 0.0d0
+  e_hi = 0.0d0
+
+  if (xtemp .le. t_hi_mev) then          ! guess cold or in-window: cold seam first
+     call seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
+     if (xenr .le. e_lo) then
+        regime = REG_COLD
+        return
+     end if
+     call seam_energy_hot(xrho,xye,t_hi_mev,rfeps, e_hi)
+  else
+     call seam_energy_hot(xrho,xye,t_hi_mev,rfeps, e_hi)
+     if (xenr .ge. e_hi) then
+        regime = REG_HOT
+        return
+     end if
+     call seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
+  end if
+
+  cold_ok = (xenr .le. e_lo)
+  hot_ok  = (xenr .ge. e_hi)
+
+  if (cold_ok .and. hot_ok) then
+     ! Inverted window (e_lo > e_hi): the two backends disagree about the
+     ! energy zero point by more than the width of the blend window, e.g. a
+     ! network far from the table's NSE.  Pick by the incoming T so the zone
+     ! keeps its branch from step to step, and say so out loud.
+     call warn_inverted_window(i,xrho,xye,xenr,abar,zbar,e_lo,e_hi,e_offset,Y)
+     if (xtemp .le. t_lo_mev) then
+        regime = REG_COLD
+     else if (xtemp .ge. t_hi_mev) then
+        regime = REG_HOT
+     else
+        regime = REG_BLEND
+     end if
+  else if (cold_ok) then
+     regime = REG_COLD
+  else if (hot_ok) then
+     regime = REG_HOT
+  else
+     regime = REG_BLEND      ! e_lo < xenr < e_hi: bracketed by construction
+  end if
+
+end subroutine classify_regime
+
+! ---------------------------------------------------------------------------
+! Helmholtz energy [erg/g] at the cold seam T_eos_low (offset included).
+! ---------------------------------------------------------------------------
+subroutine seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
+
+  use GR1D_module, only: T_eos_low
+  implicit none
+
+  real*8, intent(in)  :: xrho, abar, zbar, e_offset
+  real*8, intent(out) :: e_lo
+
+  real*8 :: tk, p, ent, cs2, dedt, dpde, dpdr
+
+  tk   = T_eos_low
+  e_lo = 0.0d0
+  call eval_helm(xrho,tk,abar,zbar,e_offset,e_lo,1,p,ent,cs2,dedt,dpde,dpdr)
+
+end subroutine seam_energy_cold
+
+! ---------------------------------------------------------------------------
+! Tabulated nuc_eos energy [erg/g] at the hot seam T_eos_high.
+! ---------------------------------------------------------------------------
+subroutine seam_energy_hot(xrho,xye,t_hi_mev,rfeps, e_hi)
+
+  implicit none
+
+  real*8, intent(in)  :: xrho, xye, t_hi_mev, rfeps
+  real*8, intent(out) :: e_hi
+
+  real*8  :: t, p, ent, cs2, dedt, dpde, dpdr, munu
+  integer :: keyerr
+
+  t = t_hi_mev
+  call nuc_eos_short(xrho,t,xye,e_hi,p,ent,cs2,dedt,dpde,dpdr,munu, &
+       1,keyerr,rfeps)
+
+end subroutine seam_energy_hot
+
+! ---------------------------------------------------------------------------
+! Rate-limited warning for the inverted-seam pathology (e_lo > e_hi).  A zone
+! that flips branch between steps produces a real energy jump, and this is the
+! only signal of it.  Not fatal: the physics fix belongs in the network/NSE
+! energy zero points, not here.
+! ---------------------------------------------------------------------------
+subroutine warn_inverted_window(i,xrho,xye,xenr,abar,zbar,e_lo,e_hi,e_offset,Y)
+
+  use composition, only: nspec
+  use eos_blend_module, only: n_inverted_warn, max_inverted_warn
+  implicit none
+
+  integer, intent(in) :: i
+  real*8,  intent(in) :: xrho, xye, xenr, abar, zbar, e_lo, e_hi, e_offset
+  real*8,  intent(in) :: Y(nspec)
+
+  !$OMP CRITICAL (eos_inverted_window_warning)
+  if (n_inverted_warn .lt. max_inverted_warn) then
+     n_inverted_warn = n_inverted_warn + 1
+     write(*,*) 'nuc_helm_eos_short: WARNING inverted blend window (e_lo > e_hi)'
+     write(*,*) '  zone i     = ', i
+     write(*,*) '  rho        = ', xrho
+     write(*,*) '  ye (hydro) = ', xye
+     write(*,*) '  ye (zbar/abar) = ', zbar/abar
+     write(*,*) '  target eps = ', xenr
+     write(*,*) '  e_lo, e_hi = ', e_lo, e_hi
+     write(*,*) '  abar, zbar = ', abar, zbar
+     write(*,*) '  e_offset   = ', e_offset
+     write(*,*) '  Yion       = ', Y
+     if (n_inverted_warn .eq. max_inverted_warn) then
+        write(*,*) '  (further inverted-window warnings suppressed)'
+     end if
+  end if
+  !$OMP END CRITICAL (eos_inverted_window_warning)
+
+end subroutine warn_inverted_window
+
+! ---------------------------------------------------------------------------
+! keytemp=0 solve INSIDE the blend window: rtsafe-style Newton with bisection
+! fallback on [T_eos_low, T_eos_high], where classify_regime has already
+! guaranteed opposite signs at the ends.
+!
+! Two exit criteria, neither optional:
+!   * the relative-T exit.  The residual test ALONE can be unreachable: the
+!     blended energy carries the composition offset (~1e17 erg/g, spacing
+!     ~1e2) while the tolerance is rfeps*|eps| ~ 1e2, so |f| can be pure
+!     cancellation noise that never falls below it.
+!   * the ULP floor on the residual, for the same reason: 8*spacing(|e|) is
+!     ~1e3 erg/g there, i.e. dT ~ 1e-5 K -- thermodynamically irrelevant.
+! The bracket only ever shrinks, so 100 iterations is a hard bound (33 suffice
+! by bisection alone) and exhaustion is unreachable.
+! ---------------------------------------------------------------------------
+subroutine blend_invert(i,xrho,xye,xenr,abar,zbar,e_offset,Y, &
+     t_lo_mev,t_hi_mev,e_lo,e_hi,rfeps, xtemp)
+
+  use composition, only: nspec
+  implicit none
+
+  integer, intent(in)    :: i
+  real*8,  intent(in)    :: xrho, xye, xenr, abar, zbar, e_offset
+  real*8,  intent(in)    :: Y(nspec), t_lo_mev, t_hi_mev, e_lo, e_hi, rfeps
+  real*8,  intent(inout) :: xtemp
+
+  real*8  :: a, b, fa, fb, f, t, t_new, e, dfdt
+  real*8  :: p, ent, cs2, dedt, dpde, dpdr
+  integer :: it, keyerr
+  integer, parameter :: maxit = 100
+
+  a = t_lo_mev ; fa = e_lo - xenr
+  b = t_hi_mev ; fb = e_hi - xenr
+
+  ! classify_regime must have handed us a bracket; this solver relies on it
+  if (fa*fb .gt. 0.0d0) then
+     write(*,*) 'blend_invert: window is not bracketed'
+     call blend_diagnostics(i,xrho,xye,xenr,abar,zbar,e_offset,e_lo,e_hi,Y)
+     STOP 'blend_invert: unbracketed blend window'
+  end if
+
+  t = min(max(xtemp, a), b)
 
   do it = 1, maxit
-     tk = t_mev * temp_mev_to_kelvin
-     call blend_weight(tk, w)
 
-     if (w .gt. 0.0d0) then
-        t_n = t_mev
-        call nuc_eos_short(xrho,t_n,xye,e_n,p_n,ent_n,cs2_n,dedt_n, &
-             dpde_n,dpdr_n,munu_n,1,keyerr,rfeps)
-     end if
-     if (w .lt. 1.0d0) then
-        tk_h = tk
-        call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
-             1,p_h,ent_h,cs2_h,dedt_h,dpde_h,dpdr_h)
-     end if
+     call blend_state(xrho,t,xye,abar,zbar,e_offset,rfeps, &
+          e,p,ent,cs2,dedt,dpde,dpdr,dfdt,keyerr)
+     f = e - xenr
 
-     if (w .le. 0.0d0) then
-        f    = e_h - xenr
-        dfdt = dedt_h * temp_mev_to_kelvin
-     else if (w .ge. 1.0d0) then
-        f    = e_n - xenr
-        dfdt = dedt_n
-     else
-        f    = w*e_n + (1.0d0-w)*e_h - xenr
-        dfdt = w*dedt_n + (1.0d0-w)*dedt_h*temp_mev_to_kelvin &
-             + (e_n - e_h)/(t_hi_mev - t_lo_mev)
-     end if
-
-     ! Converged when the residual meets the tolerance, or when the sign-
-     ! change bracket has collapsed to machine precision in T: there the
-     ! residual is pure floating-point cancellation noise (the energies
-     ! carry ~1e17 erg/g composition offsets, so f cannot be resolved below
-     ! ~1e3 erg/g while xenr itself can pass near zero).  A target with NO
-     ! root never brackets and still STOPs below.
-     if (abs(f) .le. rfeps*abs(xenr) .or. &
-         (have_pos .and. have_neg .and. &
-          abs(t_pos - t_neg) .le. 4.0d0*spacing(t_mev))) then
-        xtemp = t_mev
-        if (w .le. 0.0d0) then
-           xprs     = p_h
-           xent     = ent_h
-           xcs2     = cs2_h
-           xdedt    = dedt_h
-           xdpderho = dpde_h
-           xdpdrhoe = dpdr_h
-        else if (w .ge. 1.0d0) then
-           xprs     = p_n
-           xent     = ent_n
-           xcs2     = cs2_n
-           xdedt    = dedt_n
-           xdpderho = dpde_n
-           xdpdrhoe = dpdr_n
-        else
-           xprs     = w*p_n    + (1.0d0-w)*p_h
-           xent     = w*ent_n  + (1.0d0-w)*ent_h
-           xcs2     = w*cs2_n  + (1.0d0-w)*cs2_h
-           xdedt    = w*dedt_n + (1.0d0-w)*dedt_h
-           xdpderho = w*dpde_n + (1.0d0-w)*dpde_h
-           xdpdrhoe = w*dpdr_n + (1.0d0-w)*dpdr_h
-        end if
+     if (abs(f) .le. max(rfeps*abs(xenr), 8.0d0*spacing(abs(e)))) then
+        xtemp = t
         return
      end if
 
-     t_hist(it) = t_mev
-     f_hist(it) = f
-     w_hist(it) = w
-     dfdt_hist(it) = dfdt
-
-     ! Track the sign-change bracket: f(T) is continuous but has derivative
-     ! kinks at the window edges (the w' term), where plain Newton can cycle.
-     if (f .gt. 0.0d0) then
-        t_pos = t_mev
-        have_pos = .true.
+     if (sign(1.0d0,f) .eq. sign(1.0d0,fa)) then
+        a = t ; fa = f
      else
-        t_neg = t_mev
-        have_neg = .true.
+        b = t ; fb = f
      end if
 
-     if (have_pos .and. have_neg) then
-        ! bracketed: bisect.  Near the window seams the analytic df/dT
-        ! (separately tabulated dedt) can underestimate the true slope of
-        ! the interpolated e(T), making Newton overshoot the root and cycle;
-        ! bisection is immune (root-finder hygiene, not a physics fallback;
-        ! a target with no root still has no sign change and STOPs below).
-        t_new = 0.5d0*(t_pos + t_neg)
-     else
-        ! no bracket yet: Newton limited to a factor of 2 per iteration
-        t_new = max(0.5d0*t_mev, min(t_mev - f/dfdt, 2.0d0*t_mev))
+     if (b - a .le. 1.0d-10*t) then
+        xtemp = t
+        return
      end if
-     t_mev = t_new
+
+     ! Newton from the analytic derivative (which includes the dw/dT term);
+     ! the bracket makes its accuracy near the seam kinks non-critical.
+     if (dfdt .eq. 0.0d0) then
+        t_new = 0.5d0*(a + b)
+     else
+        t_new = t - f/dfdt
+        if (t_new .le. a .or. t_new .ge. b) t_new = 0.5d0*(a + b)
+     end if
+     t = t_new
+
   end do
 
-  write(*,*) 'nuc_helm_eos_short: blended-energy Newton did not converge'
+  ! unreachable: the bracket halves at worst every iteration
+  write(*,*) 'blend_invert: bracketed root find did not converge'
+  write(*,*) '  last T     = ', t, ' MeV'
+  write(*,*) '  bracket    = ', a, b
+  call blend_diagnostics(i,xrho,xye,xenr,abar,zbar,e_offset,e_lo,e_hi,Y)
+  STOP 'nuc_helm_eos_short: blended keytemp=0 inversion failed'
+
+end subroutine blend_invert
+
+! ---------------------------------------------------------------------------
+! Zone diagnostics shared by the blend-window failure paths.
+! ---------------------------------------------------------------------------
+subroutine blend_diagnostics(i,xrho,xye,xenr,abar,zbar,e_offset,e_lo,e_hi,Y)
+
+  use composition, only: nspec
+  implicit none
+
+  integer, intent(in) :: i
+  real*8,  intent(in) :: xrho, xye, xenr, abar, zbar, e_offset, e_lo, e_hi
+  real*8,  intent(in) :: Y(nspec)
+
   write(*,*) '  zone i     = ', i
   write(*,*) '  rho        = ', xrho
   write(*,*) '  ye         = ', xye
   write(*,*) '  target eps = ', xenr
-  write(*,*) '  guess T    = ', xtemp, ' MeV'
-  write(*,*) '  last T     = ', t_mev, ' MeV'
-  write(*,*) '  last f     = ', f
+  write(*,*) '  e_lo, e_hi = ', e_lo, e_hi
   write(*,*) '  abar, zbar = ', abar, zbar
   write(*,*) '  e_offset   = ', e_offset
   write(*,*) '  Yion       = ', Y
-  write(*,*) '  iteration history (it, T[MeV], w, f, dfdt):'
-  do it = 1, maxit
-     write(*,'(i5,1p4e24.15)') it, t_hist(it), w_hist(it), f_hist(it), dfdt_hist(it)
-  end do
-  STOP 'nuc_helm_eos_short: blended keytemp=0 inversion failed'
 
-end subroutine nuc_helm_eos_short
+end subroutine blend_diagnostics
+
+! ---------------------------------------------------------------------------
+! The blended thermodynamic state at a KNOWN temperature t_mev.  One weight
+! w(T) is applied to every returned quantity, so the state stays a single
+! consistent thermodynamic point.  Only the backend(s) selected by w are
+! evaluated, so cold zones never touch nuc_eos and hot zones never touch
+! Helmholtz.
+!
+! This is the single evaluator used both by the keytemp=0 root find
+! (blend_invert) and to fill the outputs, so the returned state is exactly the
+! converged iterate.
+!
+! dedt is the blended heat capacity in the nuc_eos convention (per MeV; the
+! Helmholtz cv is per Kelvin and is converted here).  dfdt additionally carries
+! the dw/dT term, i.e. it is the full derivative of the blended energy that the
+! root find needs, and differs from dedt inside the window.
+! ---------------------------------------------------------------------------
+subroutine blend_state(xrho,t_mev,xye,abar,zbar,e_offset,rfeps, &
+     e,p,ent,cs2,dedt,dpderho,dpdrhoe,dfdt,keyerr)
+
+  use GR1D_module, only: T_eos_high, T_eos_low, temp_mev_to_kelvin
+  implicit none
+
+  real*8,  intent(in)  :: xrho, t_mev, xye, abar, zbar, e_offset, rfeps
+  real*8,  intent(out) :: e, p, ent, cs2, dedt, dpderho, dpdrhoe, dfdt
+  integer, intent(out) :: keyerr
+
+  real*8 :: w, tk, t_lo_mev, t_hi_mev
+  real*8 :: t_n, e_n, p_n, ent_n, cs2_n, dedt_n, dpde_n, dpdr_n, munu_n
+  real*8 :: tk_h, e_h, p_h, ent_h, cs2_h, dedt_h, dpde_h, dpdr_h
+
+  keyerr = 0
+  tk = t_mev * temp_mev_to_kelvin
+  call blend_weight(tk, w)
+
+  if (w .gt. 0.0d0) then
+     t_n = t_mev
+     call nuc_eos_short(xrho,t_n,xye,e_n,p_n,ent_n,cs2_n,dedt_n, &
+          dpde_n,dpdr_n,munu_n,1,keyerr,rfeps)
+  end if
+  if (w .lt. 1.0d0) then
+     tk_h = tk
+     e_h  = 0.0d0
+     call eval_helm(xrho,tk_h,abar,zbar,e_offset,e_h, &
+          1,p_h,ent_h,cs2_h,dedt_h,dpde_h,dpdr_h)
+     dedt_h = dedt_h * temp_mev_to_kelvin   ! cv per Kelvin -> per MeV
+  end if
+
+  if (w .le. 0.0d0) then
+     e       = e_h
+     p       = p_h
+     ent     = ent_h
+     cs2     = cs2_h
+     dedt    = dedt_h
+     dpderho = dpde_h
+     dpdrhoe = dpdr_h
+     dfdt    = dedt
+  else if (w .ge. 1.0d0) then
+     e       = e_n
+     p       = p_n
+     ent     = ent_n
+     cs2     = cs2_n
+     dedt    = dedt_n
+     dpderho = dpde_n
+     dpdrhoe = dpdr_n
+     dfdt    = dedt
+  else
+     e       = w*e_n    + (1.0d0-w)*e_h
+     p       = w*p_n    + (1.0d0-w)*p_h
+     ent     = w*ent_n  + (1.0d0-w)*ent_h
+     cs2     = w*cs2_n  + (1.0d0-w)*cs2_h
+     dedt    = w*dedt_n + (1.0d0-w)*dedt_h
+     dpderho = w*dpde_n + (1.0d0-w)*dpde_h
+     dpdrhoe = w*dpdr_n + (1.0d0-w)*dpdr_h
+     ! d/dT of w*e_n + (1-w)*e_h with the linear weight: the extra term is
+     ! (e_n - e_h)*dw/dT and dw/dT = 1/(T_hi - T_lo) inside the window
+     t_lo_mev = T_eos_low  / temp_mev_to_kelvin
+     t_hi_mev = T_eos_high / temp_mev_to_kelvin
+     dfdt    = dedt + (e_n - e_h)/(t_hi_mev - t_lo_mev)
+  end if
+
+end subroutine blend_state
 
 ! ---------------------------------------------------------------------------
 ! Single Helmholtz evaluation in the SAME CGS in/out convention as

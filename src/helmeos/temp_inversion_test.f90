@@ -27,7 +27,25 @@ program temp_inversion_test
   real(8), parameter :: abar = 12.0d0  ! fixed; zbar = Ye*abar so ye = Ye
   real(8), parameter :: tol  = 1.0d-6  ! pass/fail threshold on |dT|/T
 
+  ! MeV <-> K (GR1D_module convention)
+  real(8), parameter :: mev2k = 1.1604447522806d10
+
+  ! ---- targeted regression: the zone-508 failure of the old solver --------
+  ! The old nuc_helm_eos_short formed its residual as e_helm + e_offset - eps
+  ! and tested it against rfeps*|eps|.  With |e_offset|/|eps| ~ 3e6 that
+  ! residual is quantised in steps of ~128 erg/g, larger than the tolerance,
+  ! so it could never converge.  eos_input_re strips the offset once and
+  ! converges on the step size in T, which is immune to that cancellation.
+  real(8), parameter :: pt_rho     = 9.8926025740625104d4
+  real(8), parameter :: pt_abar    = 16.836603891228837d0
+  real(8), parameter :: pt_zbar    = 8.4060030734781250d0
+  real(8), parameter :: pt_eoff    = -5.6075204757071507d17
+  real(8), parameter :: pt_T_mev   = 0.12894284376862325d0
+  real(8), parameter :: pt_eps_ref = -2.02274916496d11   ! reported target eps
+  real(8), parameter :: tol_pt     = 1.0d-8
+
   integer :: iT, irho, iye, npts, nfail, nshown, nskip
+  integer :: nfail_pt
   real(8) :: T_true, rho, ye, e_true, T_rec, e_rec
   real(8) :: errT, errE
   real(8) :: maxErrT, maxErrE
@@ -35,6 +53,8 @@ program temp_inversion_test
   real(8) :: maxErrE_rho, maxErrE_T, maxErrE_ye
 
   call ReadHelmTable('helm_table.dat')
+
+  call targeted_checks(nfail_pt)
 
   npts    = 0
   nfail   = 0
@@ -134,11 +154,60 @@ program temp_inversion_test
        "max |de|/e         : ", maxErrE, &
        "  at rho=", maxErrE_rho, " T=", maxErrE_T, " Ye=", maxErrE_ye
 
-  if (nfail == 0 .and. maxErrT <= tol) then
+  if (nfail == 0 .and. maxErrT <= tol .and. nfail_pt == 0) then
      write(*,'(a)') "ALL CHECKS PASSED"
   else
-     write(*,'(a,i0,a)') "FAIL: ", nfail, " point(s) exceeded the tolerance"
+     write(*,'(a,i0,a,i0,a)') "FAIL: ", nfail, " sweep point(s) and ", &
+          nfail_pt, " targeted check(s) exceeded the tolerance"
      stop 1
   end if
+
+contains
+
+  ! Round-trip the reported failing zone, and then the same point with the
+  ! energy offset scaled up: the inversion must stay exact no matter how far
+  ! |e_offset| dwarfs the physical eps, because eos_input_re never forms
+  ! e_helm + e_offset - eps as a convergence quantity.
+  subroutine targeted_checks(nbad)
+    integer, intent(out) :: nbad
+    type(HelmholtzStateType) :: s
+    integer :: k
+    real(8) :: fac(4), T_K, e_t, T_r, err
+    fac = [ 1.0d0, 1.0d1, 1.0d2, 1.0d3 ]
+
+    nbad = 0
+    T_K  = pt_T_mev * mev2k
+
+    write(*,'(a)') "=== targeted regression: zone-508 offset cancellation ==="
+    write(*,'(a,es12.5,a,es12.5,a)') "rho=", pt_rho, "  T=", T_K, " K"
+
+    do k = 1, size(fac)
+       ! forward at the known T with the (scaled) composition offset
+       s%rho      = pt_rho
+       s%T        = T_K
+       s%abar     = pt_abar
+       s%zbar     = pt_zbar
+       s%ye       = pt_zbar / pt_abar
+       s%e_offset = pt_eoff * fac(k)
+       call HelmEOS(eos_input_rt, s)
+       e_t = s%e
+
+       ! inverse from a deliberately wrong guess
+       s%T = 0.3d0 * T_K
+       s%e = e_t
+       call HelmEOS(eos_input_re, s)
+       T_r = s%T
+
+       err = abs(T_r - T_K) / T_K
+       if (err > tol_pt) nbad = nbad + 1
+       write(*,'(a,es9.2,a,es13.6,a,es9.2,a,es10.3,a)') &
+            "  e_offset x", fac(k), "  eps=", e_t, &
+            "  |e_off|/|eps|=", abs(s%e_offset)/abs(e_t), &
+            "  errT=", err, merge("  ok  ", "  FAIL", err <= tol_pt)
+       if (k == 1) write(*,'(a,es13.6,a,es13.6)') &
+            "  reported eps = ", pt_eps_ref, "   recomputed = ", e_t
+    end do
+
+  end subroutine targeted_checks
 
 end program temp_inversion_test
