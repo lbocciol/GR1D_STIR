@@ -886,18 +886,29 @@ end subroutine nuc_helm_eos_short
 ! keytemp=0 regime decision, from the two SEAM energies
 !     e_lo = e_helm(rho, T_eos_low)  (offset included)
 !     e_hi = e_nuc (rho, T_eos_high)
-! Each backend's energy is monotone in T inside its own regime, so
-! xenr <= e_lo means the root is cold and xenr >= e_hi means it is hot.
 !
-! The seam nearest the incoming guess is evaluated first and the other only if
-! needed: one extra backend rho-T call in the common case, none when the guess
-! is already on the right side.
-!
+! NORMAL window (e_lo <= e_hi).  e_blend(T) is monotone, so the seams partition
+! the target space exactly and each regime's reachable energies are
+!     cold [.., e_lo]    window [e_lo, e_hi]    hot [e_hi, ..]
 ! Truth table (cold_ok = xenr<=e_lo, hot_ok = xenr>=e_hi):
 !   T F -> cold
 !   F T -> hot
-!   F F -> e_lo < xenr < e_hi: normal window, sign change GUARANTEED
-!   T T -> only possible if e_lo > e_hi (inverted window, up to three roots)
+!   F F -> e_lo < xenr < e_hi: window, sign change GUARANTEED
+!   T T -> impossible unless e_lo = e_hi = xenr
+!
+! INVERTED window (e_lo > e_hi).  The two backends disagree about the energy
+! zero point by more than the width of the window -- a 13-species network at
+! ye~0.44 puts the Helmholtz zero ~1.2e18 erg/g above the nuc table -- so
+! e_blend(T) FALLS across the window and is no longer monotone.  The seam
+! energies then no longer partition anything: a target can have up to three
+! roots, and, worse, the energy test can route a window root to a branch that
+! cannot reach it at all.  In a degenerate zone e_helm(T) is flat (at
+! rho ~ 1e8 it varies by <1e-3 between 1e3 K and 1e8 K), so the cold branch's
+! reachable range is a thin sliver just below e_lo; a target below that sliver
+! but still <= e_lo has its only root in the window, yet reads as cold_ok.
+! There the regime is taken from the incoming T instead, which keeps a zone on
+! the branch it was on last step and is exactly right for the map_profile
+! round trip (keytemp=1 at temp(i), then keytemp=0 on the eps it just made).
 ! ---------------------------------------------------------------------------
 subroutine classify_regime(i,xrho,xtemp,xye,xenr,abar,zbar,e_offset,Y, &
      t_lo_mev,t_hi_mev,rfeps, regime,e_lo,e_hi)
@@ -917,30 +928,19 @@ subroutine classify_regime(i,xrho,xtemp,xye,xenr,abar,zbar,e_offset,Y, &
   e_lo = 0.0d0
   e_hi = 0.0d0
 
-  if (xtemp .le. t_hi_mev) then          ! guess cold or in-window: cold seam first
-     call seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
-     if (xenr .le. e_lo) then
-        regime = REG_COLD
-        return
-     end if
-     call seam_energy_hot(xrho,xye,t_hi_mev,rfeps, e_hi)
-  else
-     call seam_energy_hot(xrho,xye,t_hi_mev,rfeps, e_hi)
-     if (xenr .ge. e_hi) then
-        regime = REG_HOT
-        return
-     end if
-     call seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
-  end if
+  ! BOTH seams, always.  Returning REG_COLD as soon as xenr <= e_lo, without
+  ! ever looking at e_hi, cannot tell a normal window from an inverted one --
+  ! and in an inverted window that test is not a classification at all.
+  call seam_energy_cold(xrho,abar,zbar,e_offset, e_lo)
+  call seam_energy_hot (xrho,xye,t_hi_mev,rfeps, e_hi)
 
   cold_ok = (xenr .le. e_lo)
   hot_ok  = (xenr .ge. e_hi)
 
-  if (cold_ok .and. hot_ok) then
-     ! Inverted window (e_lo > e_hi): the two backends disagree about the
-     ! energy zero point by more than the width of the blend window, e.g. a
-     ! network far from the table's NSE.  Pick by the incoming T so the zone
-     ! keeps its branch from step to step, and say so out loud.
+  if (e_lo .gt. e_hi) then
+     ! inverted: e_blend(T) is non-monotone, so take the regime from the
+     ! incoming T (temporal continuity) rather than from the energy, and say
+     ! so out loud -- a zone that flips branch between steps jumps in energy.
      call warn_inverted_window(i,xrho,xye,xenr,abar,zbar,e_lo,e_hi,e_offset,Y)
      if (xtemp .le. t_lo_mev) then
         regime = REG_COLD
@@ -1035,19 +1035,27 @@ subroutine warn_inverted_window(i,xrho,xye,xenr,abar,zbar,e_lo,e_hi,e_offset,Y)
 end subroutine warn_inverted_window
 
 ! ---------------------------------------------------------------------------
-! keytemp=0 solve INSIDE the blend window: rtsafe-style Newton with bisection
-! fallback on [T_eos_low, T_eos_high], where classify_regime has already
-! guaranteed opposite signs at the ends.
+! keytemp=0 solve INSIDE the blend window, confined to [T_eos_low, T_eos_high].
 !
 ! Two exit criteria, neither optional:
 !   * the relative-T exit.  The residual test ALONE can be unreachable: the
 !     blended energy carries the composition offset (~1e17 erg/g, spacing
 !     ~1e2) while the tolerance is rfeps*|eps| ~ 1e2, so |f| can be pure
-!     cancellation noise that never falls below it.
+!     cancellation noise that never falls below it.  This is what hung the old
+!     solver.
 !   * the ULP floor on the residual, for the same reason: 8*spacing(|e|) is
 !     ~1e3 erg/g there, i.e. dT ~ 1e-5 K -- thermodynamically irrelevant.
-! The bracket only ever shrinks, so 100 iterations is a hard bound (33 suffice
-! by bisection alone) and exhaustion is unreachable.
+!
+! The seam values are used as a bracket WHEN THEY ARE ONE.  They are not in
+! general: e_blend(T) = w*e_nuc + (1-w)*e_helm is only monotone if the two
+! backends agree on the energy zero point to better than the window's own
+! energy span.  When they do not (see classify_regime), e_blend can dip below
+! e_hi just inside the hot seam -- w -> 1 there while e_nuc(T) < e_nuc(T_hi) --
+! so a target with a perfectly good interior root reads as "outside the
+! bracket".  With a bracket this is rtsafe (Newton, bisect on overshoot); with
+! no bracket it is a damped Newton from the incoming guess, which in both the
+! map_profile round trip and in evolution starts essentially AT the root, and
+! which promotes itself to rtsafe the moment a sign change appears.
 ! ---------------------------------------------------------------------------
 subroutine blend_invert(i,xrho,xye,xenr,abar,zbar,e_offset,Y, &
      t_lo_mev,t_hi_mev,e_lo,e_hi,rfeps, xtemp)
@@ -1060,20 +1068,19 @@ subroutine blend_invert(i,xrho,xye,xenr,abar,zbar,e_offset,Y, &
   real*8,  intent(in)    :: Y(nspec), t_lo_mev, t_hi_mev, e_lo, e_hi, rfeps
   real*8,  intent(inout) :: xtemp
 
-  real*8  :: a, b, fa, fb, f, t, t_new, e, dfdt
+  real*8  :: a, b, fa, fb, f, t, t_new, e, dfdt, t_prev, f_prev
   real*8  :: p, ent, cs2, dedt, dpde, dpdr
+  logical :: bracketed, have_prev
   integer :: it, keyerr
   integer, parameter :: maxit = 100
 
   a = t_lo_mev ; fa = e_lo - xenr
   b = t_hi_mev ; fb = e_hi - xenr
 
-  ! classify_regime must have handed us a bracket; this solver relies on it
-  if (fa*fb .gt. 0.0d0) then
-     write(*,*) 'blend_invert: window is not bracketed'
-     call blend_diagnostics(i,xrho,xye,xenr,abar,zbar,e_offset,e_lo,e_hi,Y)
-     STOP 'blend_invert: unbracketed blend window'
-  end if
+  bracketed = (fa*fb .le. 0.0d0)
+  have_prev = .false.
+  t_prev    = 0.0d0
+  f_prev    = 0.0d0
 
   t = min(max(xtemp, a), b)
 
@@ -1088,32 +1095,75 @@ subroutine blend_invert(i,xrho,xye,xenr,abar,zbar,e_offset,Y, &
         return
      end if
 
-     if (sign(1.0d0,f) .eq. sign(1.0d0,fa)) then
-        a = t ; fa = f
-     else
-        b = t ; fb = f
+     ! a sign change between successive iterates is a bracket too
+     if (.not. bracketed .and. have_prev) then
+        if (sign(1.0d0,f) .ne. sign(1.0d0,f_prev)) then
+           bracketed = .true.
+           if (t .lt. t_prev) then
+              a = t      ; fa = f
+              b = t_prev ; fb = f_prev
+           else
+              a = t_prev ; fa = f_prev
+              b = t      ; fb = f
+           end if
+        end if
      end if
 
-     if (b - a .le. 1.0d-10*t) then
-        xtemp = t
-        return
+     if (bracketed) then
+
+        if (sign(1.0d0,f) .eq. sign(1.0d0,fa)) then
+           a = t ; fa = f
+        else
+           b = t ; fb = f
+        end if
+
+        if (b - a .le. 1.0d-10*t) then
+           xtemp = t
+           return
+        end if
+
+        ! Newton from the analytic derivative (which includes the dw/dT term);
+        ! the bracket makes its accuracy near the seam kinks non-critical.
+        if (dfdt .eq. 0.0d0) then
+           t_new = 0.5d0*(a + b)
+        else
+           t_new = t - f/dfdt
+           if (t_new .le. a .or. t_new .ge. b) t_new = 0.5d0*(a + b)
+        end if
+
+     else
+
+        t_prev = t ; f_prev = f ; have_prev = .true.
+
+        if (dfdt .eq. 0.0d0) then
+           t_new = 0.5d0*(a + b)
+        else
+           t_new = t - f/dfdt
+           t_new = max(0.5d0*t, min(t_new, 2.0d0*t))   ! factor-of-2 damping
+        end if
+        t_new = min(max(t_new, a), b)
+
+        ! converged in T -- but only if the iterate is free to move.  Pinned
+        ! against a window edge the step is zero for the wrong reason, and the
+        ! root is not in this regime at all; let that run out and STOP.
+        if (abs(t_new - t) .le. 1.0d-10*t .and. &
+            t_new .gt. a .and. t_new .lt. b) then
+           xtemp = t_new
+           return
+        end if
+
      end if
 
-     ! Newton from the analytic derivative (which includes the dw/dT term);
-     ! the bracket makes its accuracy near the seam kinks non-critical.
-     if (dfdt .eq. 0.0d0) then
-        t_new = 0.5d0*(a + b)
-     else
-        t_new = t - f/dfdt
-        if (t_new .le. a .or. t_new .ge. b) t_new = 0.5d0*(a + b)
-     end if
      t = t_new
 
   end do
 
-  ! unreachable: the bracket halves at worst every iteration
-  write(*,*) 'blend_invert: bracketed root find did not converge'
+  write(*,*) 'blend_invert: window root find did not converge'
+  call backtrace
+  write(*,*) '  guess T    = ', xtemp, ' MeV'
   write(*,*) '  last T     = ', t, ' MeV'
+  write(*,*) '  last f     = ', f
+  write(*,*) '  bracketed  = ', bracketed
   write(*,*) '  bracket    = ', a, b
   call blend_diagnostics(i,xrho,xye,xenr,abar,zbar,e_offset,e_lo,e_hi,Y)
   STOP 'nuc_helm_eos_short: blended keytemp=0 inversion failed'
