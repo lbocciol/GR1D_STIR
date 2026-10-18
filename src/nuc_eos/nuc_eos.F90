@@ -40,9 +40,6 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   real*8 :: d1,d2,d3
   real*8 :: ff(nvars)
   integer :: keyerrt = 0
-  real*8 :: t1, t2
-
-  call GetThisTime(t1)
 
   if(xrho.gt.eos_rhomax) then
      stop "nuc_eos_full: rho > rhomax"
@@ -138,9 +135,6 @@ subroutine nuc_eos_full(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
 
   xzbar = ff(18)
 
-  call GetThisTime(t2)
-  timer_eosf = timer_eosf + (t2 - t1)
-
 end subroutine nuc_eos_full
 
 subroutine nuc_low_eos(xrho,xenr,xprs,xcs2,xdpderho,xdpdrhoe,keytemp)
@@ -186,9 +180,6 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   real*8 :: lr,lt,y,xx,xeps,leps,xs
   real*8 :: d1,d2,d3,ff(8)
   integer :: keyerrt = 0
-  real*8 :: t1, t2
-
-  call GetThisTime(t1)
 
   if(xrho.gt.eos_rhomax) then
      stop "nuc_eos_short: rho > rhomax"
@@ -270,9 +261,6 @@ subroutine nuc_eos_short(xrho,xtemp,xye,xenr,xprs,xent,xcs2,xdedt,&
   xdpdrhoe = ff(7)
 
   xdpderho = ff(8)
-
-  call GetThisTime(t2)
-  timer_eoss = timer_eoss + (t2 - t1)
 
 end subroutine nuc_eos_short
 

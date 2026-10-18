@@ -30,16 +30,19 @@
   implicit none
 
   integer :: i
+  real*8 :: nu_tempmin, nu_tempmax
 
   if (.not. limit_EoS_table) return
+
+  ! compare linearly instead of calling log10 on every zone
+  nu_tempmin = 10**nulibtable_logtemp_min
+  nu_tempmax = 10**nulibtable_logtemp_max
 
    do i=1, n1
 
       if ( i .le. M1_imaxradii+ghosts1-1 ) then
-         if ( log10(temp(i)) .le. nulibtable_logtemp_min ) &
-            temp(i) = 10**nulibtable_logtemp_min*1.00000001d0
-         if ( log10(temp(i)) .ge. nulibtable_logtemp_max ) &
-            temp(i) = 10**nulibtable_logtemp_max*0.99999999d0
+         if ( temp(i) .le. nu_tempmin ) temp(i) = nu_tempmin*1.00000001d0
+         if ( temp(i) .ge. nu_tempmax ) temp(i) = nu_tempmax*0.99999999d0
 
          if ( ye(i) .le. nulibtable_ye_min ) ye(i) = nulibtable_ye_min*1.00000001d0
          if ( ye(i) .ge. nulibtable_ye_max ) ye(i) = nulibtable_ye_max*0.99999999d0
