@@ -51,7 +51,7 @@ subroutine M1_updateeas
               if(mod(nt,100).eq.0) then
                  write(*,*) "skip M1_update_eas: temp too low", k, xtemp
               endif
-              xtemp = 10**nulibtable_logtemp_min
+              xtemp = 10.0d0**nulibtable_logtemp_min
            else
               stop "M1_update_eas: temp too low"
            endif
@@ -72,7 +72,7 @@ subroutine M1_updateeas
               if(mod(nt,100).eq.0) then
                  write(*,*) "skip M1_update_eas: temp too high", k, xtemp
               endif
-              xtemp = nulibtable_logtemp_max
+              xtemp = 10.0d0**nulibtable_logtemp_max
            else
               stop "M1_update_eas: temp too high"
            endif
@@ -178,14 +178,14 @@ subroutine M1_updateeas
         if (include_Ielectron_imp.or.include_Ielectron_exp) then
             inelastic_tempspectrum = 0.0d0
             if (log10(xrho).lt.nulibtable_logrho_min) then
-              xrho = nulibtable_logrho_min
+              xrho = 10.0d0**nulibtable_logrho_min
             endif
             if (log10(xtemp).lt.nulibtable_logItemp_min) then
                if (limit_EoS_table) then
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Itemp too low", k, xtemp
                   endif
-                  xtemp = 10**nulibtable_logItemp_min
+                  xtemp = 10.0d0**nulibtable_logItemp_min
                 else
                   stop "M1_update_eas: Itemp too low"
                 endif
@@ -195,7 +195,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Ieta too low", k, xeta, xrho, xtemp, xye
                   endif
-                  xeta = 10**nulibtable_logIeta_min
+                  xeta = 10.0d0**nulibtable_logIeta_min
                 else
                   write(*,*) xrho,xtemp,xye,xeta,log10(xeta),nulibtable_logIeta_min, &
                      log10(xeta).lt.nulibtable_logIeta_min
@@ -207,7 +207,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: temp too high", k, xtemp
                   endif
-                  xtemp = 10**nulibtable_logItemp_max
+                  xtemp = 10.0d0**nulibtable_logItemp_max
                 else
                   stop "M1_update_eas: temp too high"
                 endif
@@ -218,7 +218,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Ieta too high", k, xeta, xrho, xtemp, xye
                   endif
-                  xeta = 10**nulibtable_logIeta_max
+                  xeta = 10.0d0**nulibtable_logIeta_max
                 else
                   write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
                   stop "M1_update_eas: Ieta too high"
@@ -245,14 +245,14 @@ subroutine M1_updateeas
         if (include_epannihil_kernels) then
            epannihil_tempspectrum = 0.0d0
            if (log10(xrho).lt.nulibtable_logrho_min) then
-              xrho = nulibtable_logrho_min
+              xrho = 10.0d0**nulibtable_logrho_min
            endif
             if (log10(xtemp).lt.nulibtable_logItemp_min) then
                if (limit_EoS_table) then
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Itemp too low", k, xtemp
                   endif
-                  xtemp = 10**nulibtable_logtemp_min
+                  xtemp = 10.0d0**nulibtable_logtemp_min
                 else
                   stop "M1_update_ess: Itemp too low"
                 endif
@@ -263,7 +263,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Ieta too low 2", k, xeta, xrho, xtemp, xye
                   endif
-                  xeta = 10**nulibtable_logIeta_min
+                  xeta = 10.0d0**nulibtable_logIeta_min
                 else
                   write(*,*) xrho,xtemp,xye,xeta
                   stop "M1_update_ess: Ieta too low 2"
@@ -274,7 +274,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Itemp too high", k, xtemp
                   endif
-                  xtemp = 10**nulibtable_logItemp_max
+                  xtemp = 10.0d0**nulibtable_logItemp_max
                 else
                   stop "M1_update_ess: temp too high"
                 endif
@@ -284,7 +284,7 @@ subroutine M1_updateeas
                   if(mod(nt,100).eq.0) then
                      write(*,*) "skip M1_update_eas: Ieta too high", k, xeta
                   endif
-                  xeta = 10**nulibtable_logIeta_max
+                  xeta = 10.0d0**nulibtable_logIeta_max
                 else
                   write(*,*) xrho,xtemp,xye,xeta,nulibtable_logIeta_max,k
                   stop "M1_update_eas: Ieta too high"
