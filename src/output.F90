@@ -653,6 +653,8 @@ subroutine output_all(modeflag)
         filename = trim(adjustl(outdir))//"/capturing_factors.xg"
         spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
              q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
+        ! cap: high energy groups have a vanishing emissivity during collapse -> J/eta ~ 1e157
+        where (abs(spectrum).gt.1.0d10 .or. spectrum.ne.spectrum) spectrum = 0.0d0
         call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/dyedt_neutrino_c_t.dat"

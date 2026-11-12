@@ -49,6 +49,7 @@ ntinfo			=	100		# stdout
 dynamic_output_control  = 	1		# use output_control.F90
 vs_mass			=	0		# output .xg files vs mass_bary
 small_output		=	0		# used to limit .xg files
+dense_output_near_BH	=	1		# output every 1-10 steps when the central lapse drops below 0.4 (optional, default 1)
 dtout			=	1.0d-3		# time between outputs
 dtout_scalar		=	1.0d-4		# time between scalar out
 ntout			=	-1		# output every timesteps

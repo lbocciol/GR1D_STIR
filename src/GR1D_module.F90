@@ -63,6 +63,8 @@ module GR1D_module
   integer ntout0,ntout_scalar0,ntinfo0,ntout_restart0
   real*8 dtout0,dtout_scalar0,dtout_restart0
   logical small_output
+  ! more frequent output when the central lapse drops (close to BH formation)
+  logical :: dense_output_near_BH = .true.
 
   real*8 tdump,tdump_scalar,tdump_restart
 

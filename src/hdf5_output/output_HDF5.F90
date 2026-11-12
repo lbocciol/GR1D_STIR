@@ -351,6 +351,8 @@ subroutine output_all_HDF5(modeflag)
         ! Capturing factors
         spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
              q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
+        ! cap: high energy groups have a vanishing emissivity during collapse -> J/eta ~ 1e157
+        where (abs(spectrum).gt.1.0d10 .or. spectrum.ne.spectrum) spectrum = 0.0d0
         call hdf5_write_grid_data_1d("capturing_factors", spectrum, number_groups)
      endif
 

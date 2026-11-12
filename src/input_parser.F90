@@ -67,6 +67,9 @@ subroutine input_parser
   if (initial_data.eq.'Collapse') then
      call get_logical_parameter('vs_mass',vs_mass)
      call get_logical_parameter('small_output',small_output)
+     ! optional, default 1 (older parameter files do not have it)
+     if (parameter_exists('dense_output_near_BH')) &
+          call get_logical_parameter('dense_output_near_BH',dense_output_near_BH)
      call get_logical_parameter('dynamic_output_control',&
           dynamic_output_control)
      if (.not.dynamic_output_control) then
@@ -380,6 +383,34 @@ contains
    read(line_string,*) par
 
  end subroutine get_double_parameter
+
+ logical function parameter_exists(parname)
+
+   ! .true. if parname is set in the parameter file (exact name match), to make a
+   ! parameter optional: get_string_parameter stops when a parameter is missing
+
+   implicit none
+   character*(*) parname
+   character*(200) line_string
+   integer i,j
+
+   parameter_exists = .false.
+   open(unit=27,file=input_file,status='unknown')
+   do
+      read(27,'(a)',end=19) line_string
+      i = index(line_string,'=')
+      j = index(line_string,'#')
+      if (i.eq.0.or.j.eq.1) cycle
+      if (j.gt.0.and.j.lt.i) cycle
+      if (trim(adjustl(line_string(1:i-1))).eq.parname) then
+         parameter_exists = .true.
+         exit
+      endif
+   enddo
+19 continue
+   close(27)
+
+ end function parameter_exists
 
  subroutine get_integer_parameter(parname,par)
 

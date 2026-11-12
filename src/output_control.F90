@@ -151,8 +151,9 @@ subroutine output_control
      endif
   endif
 
-  !min lapse to increase output frequency near BH formation
-  if (alp(ghosts1+1).lt.0.4) then
+  !min lapse to increase output frequency near BH formation (can be switched off with
+  !dense_output_near_BH = 0 in the parameter file)
+  if (dense_output_near_BH .and. alp(ghosts1+1).lt.0.4) then
      ntout = 10
      ntout_scalar = 10
      if (alp(ghosts1+1).lt.0.3) then
