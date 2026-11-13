@@ -200,6 +200,7 @@ subroutine output_all(modeflag)
 
      if (do_M1) then
         luminosity_rad = 0.0d0
+        num_luminosity_rad = 0.0d0
         enden_rad = 0.0d0
         fluxden_rad = 0.0d0
         average_energy_rad = 0.0d0
@@ -365,6 +366,62 @@ subroutine output_all(modeflag)
         filename = trim(adjustl(outdir))//"/M1_nue_ng1_rad.xg"
         if (.not.small_output) call output_single(q_M1(:,1,1,1),filename)
 
+        ! spectra with the grid output, like all other .xg files
+        filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_out.xg"
+        spectrum = q_M1(M1_iextractradii,1,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_out.xg"
+        spectrum = q_M1(M1_iextractradii,2,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_out.xg"
+        spectrum = q_M1(M1_iextractradii,3,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nue_enspectra_out.xg"
+        spectrum = q_M1_fluid(M1_iextractradii,1,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_anue_enspectra_out.xg"
+        spectrum = q_M1_fluid(M1_iextractradii,2,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nux_enspectra_out.xg"
+        spectrum = q_M1_fluid(M1_iextractradii,3,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_cen.xg"
+        spectrum = q_M1(ghosts1+1,1,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_cen.xg"
+        spectrum = q_M1(ghosts1+1,2,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_cen.xg"
+        spectrum = q_M1(ghosts1+1,3,:,2)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_nue_enspectra_cen.xg"
+        spectrum = q_M1_fluid(ghosts1+1,1,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/M1_anue_enspectra_cen.xg"
+        spectrum = q_M1_fluid(ghosts1+1,2,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+        
+        filename = trim(adjustl(outdir))//"/M1_nux_enspectra_cen.xg"
+        spectrum = q_M1_fluid(ghosts1+1,3,:,1)*M1_moment_to_distro(:)
+        call output_spectra(spectrum,filename)
+
+        filename = trim(adjustl(outdir))//"/capturing_factors.xg"
+        spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
+             q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
+        ! cap: high energy groups have a vanishing emissivity during collapse -> J/eta ~ 1e157
+        where (abs(spectrum).gt.1.0d10 .or. spectrum.ne.spectrum) spectrum = 0.0d0
+        call output_spectra(spectrum,filename)
+
      endif
 
      if(eoskey.eq.3) then
@@ -463,6 +520,8 @@ subroutine output_all(modeflag)
         ave_tau = 0.0d0
         nusphere_not_found = .true.
         ave_nusphere_not_found = .true.
+        nusphere = 0.0d0      ! stays 0 where no neutrinosphere is found
+        ave_nusphere = 0.0d0
         do k=1,number_species
            do i=M1_imaxradii,ghosts1+1,-1
               ave_tau(i,k) = ave_tau(i+1,k) + (x1i(i+1)-x1i(i))/ &
@@ -601,61 +660,6 @@ subroutine output_all(modeflag)
         scalars(3) = rms_energy(3)
         filename = trim(adjustl(outdir))//"/M1_flux_rmsenergy_lab.dat"
         call output_many_scalars(scalars,nscalars0,nscalars,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,1,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,2,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_out.xg"
-        spectrum = q_M1(M1_iextractradii,3,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nue_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,1,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_anue_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,2,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nux_enspectra_out.xg"
-        spectrum = q_M1_fluid(M1_iextractradii,3,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nue_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,1,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_anue_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,2,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nux_fluxspectra_cen.xg"
-        spectrum = q_M1(ghosts1+1,3,:,2)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_nue_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,1,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/M1_anue_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,2,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-        
-        filename = trim(adjustl(outdir))//"/M1_nux_enspectra_cen.xg"
-        spectrum = q_M1_fluid(ghosts1+1,3,:,1)*M1_moment_to_distro(:)
-        call output_spectra(spectrum,filename)
-
-        filename = trim(adjustl(outdir))//"/capturing_factors.xg"
-        spectrum = alp(ghosts1+1)*(1.0d0-eas(ghosts1+1,1,:,2)* &
-             q_M1_fluid(ghosts1+1,1,:,1)/eas(ghosts1+1,1,:,1))
-        ! cap: high energy groups have a vanishing emissivity during collapse -> J/eta ~ 1e157
-        where (abs(spectrum).gt.1.0d10 .or. spectrum.ne.spectrum) spectrum = 0.0d0
-        call output_spectra(spectrum,filename)
 
         filename = trim(adjustl(outdir))//"/dyedt_neutrino_c_t.dat"
         if (.not.small_output)  call output_central(dyedt_neutrino*time_gf,filename)

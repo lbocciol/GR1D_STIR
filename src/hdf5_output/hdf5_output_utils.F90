@@ -4,6 +4,13 @@ module hdf5_output_utils
   !! Provides wrapper functions for writing GR1D_STIR output to HDF5 files
   !! Two files are created: xg.h5 (grid profiles) and dat.h5 (scalar time series)
   !! Files are kept open within output scope for efficiency
+  !!
+  !! xg.h5 layout 2 (/metadata attribute xg_layout = 2): every grid variable is one dataset at
+  !! the file root that grows by one output at a time, shape (n, nT) as seen from python/C
+  !! (n = n1 or number_groups), plus /time of shape (nT). One output per chunk, so each output
+  !! only writes new chunks. /time is written last in every output: readers take nT = len(time)
+  !! and ignore any extra column left by a crash in the middle of an output.
+  !! (Layout 1, before: one group /output_NNNNN per output with one dataset per variable.)
   
   use hdf5
   implicit none
@@ -42,6 +49,9 @@ module hdf5_output_utils
   
   ! Compression settings (GZIP removed - using regular HDF5 files)
   ! integer, parameter :: GZIP_LEVEL = 4
+
+  ! Layout of xg.h5 written by this version (stored as /metadata attribute xg_layout)
+  integer, parameter :: XG_LAYOUT = 2
   
 contains
 
@@ -114,11 +124,8 @@ contains
   end subroutine hdf5_create_output_files
 
   subroutine hdf5_open_xg_file()
-    !! Open xg.h5 file and create/open output_#### group for persistent writing
+    !! Open xg.h5 file for persistent writing of one output (time series datasets at the root)
     integer :: error
-    character(len=256) :: group_name
-    logical :: group_exists
-    integer(HID_T) :: aid, asid
     
     ! Open file if not already open
     if (.not. xg_file_open) then
@@ -130,48 +137,6 @@ contains
       xg_file_open = .true.
     endif
     
-    ! Create group name for this output timestep
-    write(group_name, '(A,I0.5)') "/output_", output_counter
-    
-    ! Check if group exists
-    call h5lexists_f(xg_file_id, trim(group_name), group_exists, error)
-    
-    if (.not. group_exists) then
-      ! Create new group
-      call h5gcreate_f(xg_file_id, trim(group_name), xg_group_id, error)
-      if (error /= 0) then
-        write(*,*) "ERROR: Failed to create group ", trim(group_name)
-        return
-      endif
-      
-      ! Write attributes
-      call h5screate_f(H5S_SCALAR_F, asid, error)
-      
-      ! Write time attribute
-      call h5acreate_f(xg_group_id, "time", H5T_NATIVE_DOUBLE, asid, aid, error)
-      call h5awrite_f(aid, H5T_NATIVE_DOUBLE, [0.0d0], [1_HSIZE_T], error)
-      call h5aclose_f(aid, error)
-      
-      ! Write timestep attribute
-      call h5acreate_f(xg_group_id, "timestep", H5T_NATIVE_INTEGER, asid, aid, error)
-      call h5awrite_f(aid, H5T_NATIVE_INTEGER, [0], [1_HSIZE_T], error)
-      call h5aclose_f(aid, error)
-      
-      ! Write output_number attribute
-      call h5acreate_f(xg_group_id, "output_number", H5T_NATIVE_INTEGER, asid, aid, error)
-      call h5awrite_f(aid, H5T_NATIVE_INTEGER, output_counter, [1_HSIZE_T], error)
-      call h5aclose_f(aid, error)
-      
-      call h5sclose_f(asid, error)
-    else
-      ! Open existing group
-      call h5gopen_f(xg_file_id, trim(group_name), xg_group_id, error)
-      if (error /= 0) then
-        write(*,*) "ERROR: Failed to open group ", trim(group_name)
-        return
-      endif
-    endif
-    
   end subroutine hdf5_open_xg_file
 
   subroutine hdf5_close_xg_file()
@@ -179,10 +144,6 @@ contains
     integer :: error
     
     if (xg_file_open) then
-      if (xg_group_id >= 0) then
-        call h5gclose_f(xg_group_id, error)
-        xg_group_id = -1
-      endif
       call h5fclose_f(xg_file_id, error)
       xg_file_id = -1
       xg_file_open = .false.
@@ -288,53 +249,74 @@ contains
   end subroutine hdf5_write_root_dataset_1d
 
   subroutine hdf5_write_grid_data_1d(varname, data, n1)
-    !! Write 1D grid variable to xg.h5 using persistent file handles
-    !! Assumes xg_file_id and xg_group_id are already open via hdf5_open_xg_file()
+    !! Append one output of a grid variable to its time series /<varname> in xg.h5
+    !! (shape (n1, nT) from python/C, 1D (nT) if n1 = 1, e.g. time), creating it at the first
+    !! output. Assumes xg.h5 is open via hdf5_open_xg_file()
     character(len=*), intent(in) :: varname
     integer, intent(in) :: n1
     real(kind=8), intent(in) :: data(n1)
-    integer :: error
-    integer(HID_T) :: dset_id, dspace_id, dcpl_id
-    integer(HSIZE_T) :: dims(1)
+    integer :: error, rank
+    integer(HID_T) :: dset_id, dspace_id, dcpl_id, memspace_id
+    integer(HSIZE_T) :: dims(2), maxdims(2), offset(2), count(2), chunk(2)
+    logical :: exists
     
     ! Validate that file is open
-    if (.not. xg_file_open .or. xg_group_id < 0) then
-      write(*,*) "ERROR: xg.h5 file/group not open. Call hdf5_open_xg_file() first"
+    if (.not. xg_file_open) then
+      write(*,*) "ERROR: xg.h5 file not open. Call hdf5_open_xg_file() first"
       return
     endif
     
-    dims(1) = n1
+    ! Fortran dimension order: (time, n1); a single value per output is stored as 1D (time)
+    rank = 2
+    if (n1 == 1) rank = 1
+    count(1) = 1
+    count(2) = n1
     
-    ! Create dataspace
-    call h5screate_simple_f(1, dims, dspace_id, error)
-    if (error /= 0) then
-      write(*,*) "ERROR: Failed to create dataspace for ", trim(varname)
-      return
-    endif
+    call h5lexists_f(xg_file_id, trim(varname), exists, error)
     
-    ! Create dataset creation property list (no compression)
-    call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl_id, error)
-    
-    ! Create dataset in the group
-    call h5dcreate_f(xg_group_id, trim(varname), H5T_NATIVE_DOUBLE, dspace_id, &
-                     dset_id, error, dcpl_id)
-    if (error /= 0) then
-      write(*,*) "ERROR: Failed to create dataset for ", trim(varname)
-      call h5sclose_f(dspace_id, error)
+    if (.not. exists) then
+      ! Create resizable dataset with one output, chunked one output at a time
+      dims = count
+      maxdims(1) = H5S_UNLIMITED_F
+      maxdims(2) = n1
+      chunk = count
+      call h5screate_simple_f(rank, dims(1:rank), dspace_id, error, maxdims(1:rank))
+      call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl_id, error)
+      call h5pset_chunk_f(dcpl_id, rank, chunk(1:rank), error)
+      call h5dcreate_f(xg_file_id, trim(varname), H5T_NATIVE_DOUBLE, dspace_id, &
+                       dset_id, error, dcpl_id)
       call h5pclose_f(dcpl_id, error)
-      return
+      if (error /= 0) then
+        write(*,*) "ERROR: Failed to create dataset for ", trim(varname)
+        call h5sclose_f(dspace_id, error)
+        return
+      endif
+      call h5sclose_f(dspace_id, error)
+      offset = 0
+    else
+      ! Extend the existing dataset by one output
+      call h5dopen_f(xg_file_id, trim(varname), dset_id, error)
+      call h5dget_space_f(dset_id, dspace_id, error)
+      call h5sget_simple_extent_dims_f(dspace_id, dims(1:rank), maxdims(1:rank), error)
+      call h5sclose_f(dspace_id, error)
+      offset = 0
+      offset(1) = dims(1)
+      dims(1) = dims(1) + 1
+      call h5dset_extent_f(dset_id, dims(1:rank), error)
     endif
     
-    ! Write data
-    call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, data, dims, error)
+    ! Write the new output into the last position along time
+    call h5dget_space_f(dset_id, dspace_id, error)
+    call h5sselect_hyperslab_f(dspace_id, H5S_SELECT_SET_F, offset(1:rank), count(1:rank), error)
+    call h5screate_simple_f(rank, count(1:rank), memspace_id, error)
+    call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, data, count(1:rank), error, memspace_id, dspace_id)
     if (error /= 0) then
       write(*,*) "ERROR: Failed to write data for ", trim(varname)
     endif
     
-    ! Close dataset and resources
-    call h5dclose_f(dset_id, error)
+    call h5sclose_f(memspace_id, error)
     call h5sclose_f(dspace_id, error)
-    call h5pclose_f(dcpl_id, error)
+    call h5dclose_f(dset_id, error)
     
   end subroutine hdf5_write_grid_data_1d
 
@@ -622,6 +604,23 @@ contains
     
   end subroutine hdf5_write_metadata
 
+  subroutine hdf5_write_xg_layout()
+    !! Store the xg.h5 layout version as /metadata attribute xg_layout (xg.h5 only)
+    integer :: error
+    integer(HID_T) :: file_id, metadata_group_id, aid, asid
+
+    call h5fopen_f(trim(xg_file_path), H5F_ACC_RDWR_F, file_id, error)
+    call h5gopen_f(file_id, "/metadata", metadata_group_id, error)
+    call h5screate_f(H5S_SCALAR_F, asid, error)
+    call h5acreate_f(metadata_group_id, "xg_layout", H5T_NATIVE_INTEGER, asid, aid, error)
+    call h5awrite_f(aid, H5T_NATIVE_INTEGER, XG_LAYOUT, [1_HSIZE_T], error)
+    call h5aclose_f(aid, error)
+    call h5sclose_f(asid, error)
+    call h5gclose_f(metadata_group_id, error)
+    call h5fclose_f(file_id, error)
+
+  end subroutine hdf5_write_xg_layout
+
   subroutine hdf5_increment_output_counter()
 
     !! Increment output counter (called after each output)
@@ -658,6 +657,7 @@ contains
     call hdf5_write_metadata(xg_file_path, n1, ghosts1, eoskey, do_M1, &
                              do_rotation, do_turbulence, GR, &
                              number_groups, number_species)
+    call hdf5_write_xg_layout()
 
     write(*,*) "HDF5 output initialized successfully"
     write(*,*) "  Grid output: ", trim(adjustl(dat_file_path))

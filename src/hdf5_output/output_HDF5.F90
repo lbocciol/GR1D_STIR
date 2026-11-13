@@ -56,8 +56,6 @@ subroutine output_all_HDF5(modeflag)
   real*8 nusphere(number_species,number_groups,2)
   real*8 ave_nusphere(number_species,5)
 
-  integer keyerr,keytemp
-  real*8 eosdummy(14)
 
   call hdf5_initialize()
 
@@ -68,23 +66,7 @@ subroutine output_all_HDF5(modeflag)
      ! Open xg.h5 file ONCE at the beginning
      call hdf5_open_xg_file()
 
-     call ApplyEOS_limits
-     do k=ghosts1+1,n1-ghosts1
-        keyerr = 0
-        keytemp = 0
 
-        ! This is to calculate things like mass fractions and chemical
-        ! potentials
-        call eos_full(k,rho(k),temp(k),ye(k),eps(k),press(k),pressth(k), &
-          entropy(k),cs2(k),eosdummy(2),&
-          eosdummy(3),eosdummy(4),massfrac_a(k),massfrac_h(k), &
-          massfrac_n(k),massfrac_p(k),massfrac_abar(k),massfrac_zbar(k), &
-          elechem(k),eosdummy(12),eosdummy(13),eosdummy(14), &
-          keytemp,keyerr,eoskey,eos_rf_prec)
-     enddo
-
-     ! Write time and grid coordinates
-     call hdf5_write_grid_data_1d("time", [time], 1)
      
      ! Write velocity
      if (.not.small_output) call hdf5_write_grid_data_1d("v1", v1(1:n1)*clite, n1)
@@ -189,6 +171,7 @@ subroutine output_all_HDF5(modeflag)
 
      if (do_M1) then
         luminosity_rad = 0.0d0
+        num_luminosity_rad = 0.0d0
         enden_rad = 0.0d0
         fluxden_rad = 0.0d0
         average_energy_rad = 0.0d0
@@ -364,6 +347,9 @@ subroutine output_all_HDF5(modeflag)
         call hdf5_write_grid_data_1d("temperature", temp(1:n1), n1)
      endif
      
+     ! time last: it marks the output as complete (readers use nT = size of /time)
+     call hdf5_write_grid_data_1d("time", [time], 1)
+
      ! Close xg.h5 file ONCE at the end of modeflag==1
      call hdf5_close_xg_file()
      
@@ -437,6 +423,8 @@ subroutine output_all_HDF5(modeflag)
         ave_tau = 0.0d0
         nusphere_not_found = .true.
         ave_nusphere_not_found = .true.
+        nusphere = 0.0d0      ! stays 0 where no neutrinosphere is found
+        ave_nusphere = 0.0d0
         do k=1,number_species
            do i=M1_imaxradii,ghosts1+1,-1
               ave_tau(i,k) = ave_tau(i+1,k) + (x1i(i+1)-x1i(i))/ &

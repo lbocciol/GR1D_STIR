@@ -1,451 +1,217 @@
 #!/usr/bin/env python3
 """
-Comprehensive HDF5 to Text Converter for GR1D
+HDF5 to Text Converter for GR1D
 
-Converts xg.h5 and dat.h5 back to original output.F90 text format.
-Uses neutrino_energies from HDF5 as energy coordinate for spectra.
-Uses radius from HDF5 as spatial coordinate for grid data.
+Converts xg.h5 and dat.h5 back to the legacy text output of output.F90 (.xg and .dat files),
+i.e. what GR1D writes when compiled with HAVE_HDF5_OUTPUT=0.
+
+xg.h5 layouts (both supported):
+  layout 1 (older): one group /output_NNNNN per output, one dataset per variable inside
+  layout 2 (/metadata attribute xg_layout = 2): one dataset per variable at the root, shape
+           (n, nT) with n = n1 or number_groups, and /time of shape (nT); only the first
+           len(time) outputs are complete
+Grid variables use /radius as coordinate, spectra use /neutrino_energies. The bounce profiles
+(*_at_bounce) and tbounce.dat are rebuilt from the root datasets written at bounce.
+
+Usage: python hdf5_to_text.py <outdir | path/xg.h5 | path/dat.h5>
+  with a folder both dat.h5 and xg.h5 in it are converted; text files go next to the h5 files
 """
+
+import sys
+import math
+from pathlib import Path
 
 import h5py
 import numpy as np
-import sys
-from pathlib import Path
+
+MASS_GF = 5.02765209e-34  # GR1D_module mass_gf: grams -> code units (solar masses)
 
 
-def format_fortran_e18_9(value):
-    """Format a single value in Fortran 1P20E18.9 format (1P E18.9)
-    
-    Fortran format 1P20E18.9 means:
-    - 1P: scale by 10^0 with leading significant digit
-    - E18.9: E notation with 18 total chars, 9 decimal places
-    - Example: 1.234567E+00 (total 18 chars)
-    """
-    if abs(value) < 1.0e-90:
-        value = 0.0
-    # Format to match Fortran 1PE18.9: E notation with 18 chars total, 9 decimals
-    # This produces output like: " 1.234567890E+00"
-    return f"{value:18.9E}"
+# ---------------------------------------------------------------------------------------------
+# Fortran formatting
+
+def fortran_e(value, width=18, digits=9, scale1p=True):
+    """Fortran 1PEw.d (scale1p, d.ddd) or Ew.d (0.ddd) edit descriptor, correctly rounded"""
+    if not math.isfinite(value):
+        return ('NaN' if math.isnan(value) else ('-Infinity' if value < 0 else 'Infinity')).rjust(width)
+    sig = digits + 1 if scale1p else digits
+    mant, exp = f'{abs(value):.{sig - 1}e}'.split('e')  # correctly rounded significant digits
+    exp = int(exp)
+    if value == 0.0:
+        exp = 0 if scale1p else -1
+    if scale1p:
+        m = mant
+    else:
+        m = '0.' + mant.replace('.', '')
+        exp += 1
+    e = f'E{exp:+03d}' if abs(exp) <= 99 else f'{exp:+04d}'
+    return (('-' if value < 0 or (value == 0.0 and math.copysign(1, value) < 0) else '') + m + e).rjust(width)
 
 
-def write_xg_line(out, coord, value):
-    """Write a single (coordinate, value) line in output_single format
-    
-    Matches Fortran: write(666,"(1P20E18.9)") coordinate, value
-    """
-    if abs(coord) < 1.0e-90:
-        coord = 0.0
-    if abs(value) < 1.0e-90:
-        value = 0.0
-    out.write(f"{format_fortran_e18_9(coord)}{format_fortran_e18_9(value)}\n")
+def xg_value(value):
+    # output_single / output_spectra write 0 for |value| < 1e-90
+    return 0.0 if abs(value) < 1.0e-90 else value
 
 
-def write_spectrum_line(out, energy, value):
-    """Write a single (energy, value) line in output_spectra format
-    
-    Matches Fortran: write(666,"(1P20E18.9)") energy, value
-    """
-    if abs(energy) < 1.0e-90:
-        energy = 0.0
-    if abs(value) < 1.0e-90:
-        value = 0.0
-    out.write(f"{format_fortran_e18_9(energy)}{format_fortran_e18_9(value)}\n")
+def fortran_list_real(value):
+    """ifort list-directed output of a real*8 (as in write(666,*) '"Time = ',time):
+    fixed notation with 15 significant digits for 0.1 <= |x| < 1e15, else E with 16"""
+    if value == 0.0:
+        return '  0.000000000000000E+000'
+    exp15 = int(f'{value:.14e}'.split('e')[1])  # exponent after rounding to 15 digits
+    rounded = float(f'{value:.14e}')
+    if 0.1 <= abs(rounded) and abs(value) < 1.0e15:
+        decimals = max(15 - (exp15 + 1), 0)
+        text = f'{rounded:.{decimals}f}' + ('.' if decimals == 0 else '')
+        return text.rjust(19) + '     '
+    mant, exp = f'{value:.15e}'.split('e')  # E notation: 16 significant digits
+    return ('  ' if value > 0 else ' ') + f'{mant}E{int(exp):+04d}'
 
 
-def write_scalar_line(out, time, *values):
-    """Write a time + values line in output_scalar/output_many_scalars format
-    
-    Matches Fortran: write(666,"(1P20E18.9)") time, var(1:n) OR
-                     write(666,"(1P256E18.9)") time, var(1:n)
-    """
-    if abs(time) < 1.0e-90:
-        time = 0.0
-    line = format_fortran_e18_9(time)
-    for val in values:
-        if abs(val) < 1.0e-90:
-            val = 0.0
-        line += format_fortran_e18_9(val)
-    out.write(line + "\n")
+def header_line(time):
+    return ' "Time = ' + fortran_list_real(time) + '\n'
+
+
+BLANK_LINE = '  \n'  # write(666,*) " "
+
+
+def write_block(out, time, coords, values):
+    out.write(header_line(time))
+    out.write(''.join(fortran_e(c) + fortran_e(xg_value(v)) + '\n' for c, v in zip(coords, values)))
+    out.write(BLANK_LINE)
+    out.write(BLANK_LINE)
+
+
+def scalar_line(time, values):
+    return fortran_e(time) + ''.join(fortran_e(v) for v in values) + '\n'
+
+
+# ---------------------------------------------------------------------------------------------
+# xg.h5 reading (both layouts)
+
+def xg_layout(f):
+    if 'metadata' in f and 'xg_layout' in f['metadata'].attrs:
+        return int(np.ravel(f['metadata'].attrs['xg_layout'])[0])
+    return 1 if any(k.startswith('output_') for k in f) else 2
+
+
+def xg_series(f):
+    """Returns (times, {variable: array (nT, n)}) for both layouts, outputs in time order"""
+    if xg_layout(f) == 1:
+        groups = [k for k in f if k.startswith('output_')]
+        times = np.array([float(np.ravel(f[g]['time'][()])[0]) for g in groups])
+        order = np.argsort(times, kind='stable')
+        groups, times = [groups[i] for i in order], times[order]
+        names = [k for k in f[groups[0]] if k != 'time']
+        data = {n: np.array([f[g][n][()] for g in groups]) for n in names}
+        return times, data
+    times = f['time'][()]
+    nT = times.size
+    data = {}
+    for name, obj in f.items():
+        if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
+            data[name] = obj[:, :nT].T  # (n, nT) on file -> (nT, n)
+    return times, data
 
 
 def convert_xg_file(hdf5_file, output_dir):
-    """
-    Convert xg.h5 to individual .xg text files.
-    
-    For each variable in output_#### groups, create .xg file with:
-    - Time header: "Time = <value>
-    - Data rows: radius value (or mass value if using mass coordinate)
-    - Blank lines between timesteps
-    """
-    print(f"Converting {hdf5_file.name} to text format...")
-    
-    with h5py.File(hdf5_file, 'r') as f:
-        # Get all output groups
-        output_groups = sorted([k for k in f.keys() if k.startswith('output_')])
-        
-        if not output_groups:
-            print("No output groups found in xg.h5")
-            return
-        
-        # Get metadata to determine coordinate system
-        first_group = f[output_groups[0]]
-        
-        # Check for coordinate datasets at root level (new structure)
-        has_radius = 'radius' in f
-        has_neutrino_energies = 'neutrino_energies' in f
-        has_mass = 'mass' in first_group
-        
-        # Get variable names (exclude coordinate/metadata datasets)
-        exclude_keys = {'time', 'radius', 'mass', 'volume', 'neutrino_energies'}
-        variables = sorted([k for k in first_group.keys() if k not in exclude_keys and not 
-                            'bounce' in k])
-        
-        print(f"Found {len(output_groups)} timesteps with {len(variables)} variables")
-        print(f"Coordinate system: {'radius' if has_radius else 'mass' if has_mass else 'grid index'}")
-        
-        # Read neutrino_energies from root dataset if it exists (new structure, for spectra conversion)
-        neutrino_energies = None
-        if has_neutrino_energies:
-            neutrino_energies = f['neutrino_energies'][:]
-            print(f"Found neutrino_energies coordinate ({len(neutrino_energies)} groups)")
-        
-        # Get radius for grid data (from root level in new structure)
-        radius = None
-        if has_radius:
-            radius = f['radius'][:]
-        
-        # Classify variables by checking dimension size
-        # Grid variables should match radius/mass size; spectrum variables use number_groups size
-        grid_size = len(radius) if radius is not None else None
-        spectrum_size = len(neutrino_energies) if neutrino_energies is not None else None
-        
-        # Classify each variable based on its actual data size
-        grid_vars = []
-        spectrum_vars = []
-        
-        for var in variables:
-            first_group = f[output_groups[0]]
-            var_data = first_group[var][:]
-            var_size = len(var_data)
-            
-            # Check if it matches neutrino_energies dimension (spectrum)
-            if spectrum_size is not None and var_size == spectrum_size:
-                spectrum_vars.append(var)
-            # Otherwise treat as grid data
+    print(f'Converting {hdf5_file} ...')
+    # whole file into memory: one sequential read instead of many small ones
+    with h5py.File(hdf5_file, 'r', driver='core', backing_store=False) as f:
+        print(f'  layout {xg_layout(f)}')
+        radius = f['radius'][()]
+        energies = f['neutrino_energies'][()] if 'neutrino_energies' in f else None
+        times, data = xg_series(f)
+        print(f'  {times.size} outputs, {len(data)} variables')
+
+        for name, values in sorted(data.items()):
+            if energies is not None and values.shape[1] == energies.size:
+                coords = energies
+            elif values.shape[1] == radius.size:
+                coords = radius
             else:
-                grid_vars.append(var)
-        
-        print(f"  {len(grid_vars)} grid variables, {len(spectrum_vars)} spectrum variables")
-        
-        # Process bounce variables
-        bounce_vars = [var for var in variables if 'at_bounce' in var]
-        if bounce_vars:
-            tbounce = f['tbounce'][0]
-            for var in bounce_vars:
-                xg_file = output_dir / f"{var}.xg"
-                print(f"  Writing {var}.xg...", end='', flush=True)
-                
-                with open(xg_file, 'w') as out:
-                    group = f[output_group]
-                    
-                    # Write time header in Fortran list-directed format
-                    out.write(f' "Time = {tbounce:25.16E}\n')
+                print(f'  warning: {name} has {values.shape[1]} points per output, skipped')
+                continue
+            with open(output_dir / f'{name}.xg', 'w') as out:
+                for t, v in zip(times, values):
+                    write_block(out, t, coords, v)
 
-                    # Get variable data
-                    data = group[var][:]
-                    
-                    # Get coordinate system (radius is at root level in new structure)
-                    if 'mass' in var:
-                        coords = radius
-                    else:
-                        coords = group['mass'][:]
-                    
-                    # Write data in columns
-                    for i in range(len(data)):
-                        write_xg_line(out, coords[i], data[i])
-                    
-                    # Write blank lines between outputs
-                    out.write("\n\n")
-                
-                print(" done")
-
-        # Process grid data variables
-        if grid_vars:
-            for var in grid_vars:
-                xg_file = output_dir / f"{var}.xg"
-                print(f"  Writing {var}.xg...", end='', flush=True)
-                
-                with open(xg_file, 'w') as out:
-                    for output_group in output_groups:
-                        group = f[output_group]
-                        time = group['time'][0]
-                        
-                        # Write time header in Fortran list-directed format
-                        if time == 0:
-                            out.write(f' "Time =    0.0000000000000000     \n')
-                        else:
-                            out.write(f' "Time = {time:25.16E}\n')
-
-                        # Get variable data
-                        data = group[var][:]
-                        
-                        # Get coordinate system (radius is at root level in new structure)
-                        if has_radius:
-                            coords = radius
-                        elif has_mass and 'mass' in group:
-                            coords = group['mass'][:]
-                        else:
-                            coords = np.arange(len(data))
-                        
-                        # Write data in columns
-                        for i in range(len(data)):
-                            write_xg_line(out, coords[i], data[i])
-                        
-                        # Write blank lines between outputs
-                        out.write("\n\n")
-                
-                print(" done")
-        
-        # Process spectrum variables
-        if spectrum_vars:
-            for var in spectrum_vars:
-                xg_file = output_dir / f"{var}.xg"
-                print(f"  Writing {var}.xg...", end='', flush=True)
-                
-                with open(xg_file, 'w') as out:
-                    for output_group in output_groups:
-                        group = f[output_group]
-                        time = group.attrs.get('time', 0.0)
-                        
-                        # Write time header in Fortran list-directed format
-                        out.write(f' "Time = " {time}\n')
-                        
-                        # Get spectrum data
-                        spectrum_data = group[var][:]
-                        
-                        # Use neutrino_energies as energy coordinate if available
-                        if neutrino_energies is not None:
-                            for i in range(len(neutrino_energies)):
-                                write_spectrum_line(out, neutrino_energies[i], spectrum_data[i])
-                        else:
-                            # Fallback to index-based coordinates
-                            for i in range(len(spectrum_data)):
-                                write_spectrum_line(out, float(i), spectrum_data[i])
-                        
-                        # Write blank lines between outputs
-                        out.write("\n\n")
-                
-                print(" done")
-        
-        # Process root-level coordinate datasets (volume, etc.)
-        print(f"\nProcessing root-level datasets...")
-        
+        # static profile
         if 'volume' in f:
-            print(f"  Writing volume.xg...", end='', flush=True)
-            volume = f['volume'][:]
-            xg_file = output_dir / "volume.xg"
-            
-            with open(xg_file, 'w') as out:
-                # Write volume only ONCE, since it's a static root-level dataset
-                # We pull the first output group just to evaluate coordinates if needed
-                first_group = f[output_groups[0]]
-                
-                # Write the static time header using your 0.0 format
-                out.write(' "Time =    0.0000000000000000    \n')
-                
-                # Get coordinate system
-                if has_radius:
-                    coords = radius
-                elif has_mass and 'mass' in first_group:
-                    coords = first_group['mass'][:]
-                else:
-                    coords = np.arange(len(volume))
-                
-                # Write data in columns
-                for i in range(len(volume)):
-                    write_xg_line(out, coords[i], volume[i])
-                
-                # Write final blank lines
-                out.write("\n\n")
-            
-            print(" done")
-        
-        print(f"Successfully converted {len(variables)} variables to .xg files")
+            with open(output_dir / 'volume.xg', 'w') as out:
+                write_block(out, 0.0, radius, f['volume'][()])
+
+        # bounce profiles: mass_bary vs radius, the others vs enclosed mass in solar masses
+        if 'tbounce' in f:
+            t_bounce = float(np.ravel(f['tbounce'][()])[0])
+            mass_code = f['mass_bary_at_bounce'][()] * MASS_GF if 'mass_bary_at_bounce' in f else None
+            for name in sorted(k for k in f if k.endswith('_at_bounce')):
+                coords = radius if name == 'mass_bary_at_bounce' else mass_code
+                if coords is None:
+                    print(f'  warning: no mass_bary_at_bounce, {name}.xg skipped')
+                    continue
+                with open(output_dir / f'{name}.xg', 'w') as out:
+                    write_block(out, t_bounce, coords, f[name][()])
+            if 'rho_at_bounce' not in f:
+                print('  note: rho_at_bounce not stored in this file (older GR1D), rho_at_bounce.xg not written')
+            if 'tbounce_dat' in f:
+                with open(output_dir / 'tbounce.dat', 'w') as out:
+                    out.write(''.join(fortran_e(v, 27, 18, scale1p=False) + '\n' for v in f['tbounce_dat'][()]))
+            else:
+                print('  note: tbounce_dat not stored in this file (older GR1D), tbounce.dat only from dat.h5')
+    print(f'  done: {len(data)} .xg files')
+
+
+# ---------------------------------------------------------------------------------------------
+# dat.h5
 
 def convert_dat_file(hdf5_file, output_dir):
-    """
-    Convert dat.h5 to individual .dat text files.
-    
-    For each scalar time series in /scalars group:
-    - Create .dat file with: time + value(s) per row
-    - Handle both 1D (single value) and 2D (multiple values) data
-    - Time is stored in time_c or similar dataset that matches data length
-    - Automatically adjusts time arrays for post-bounce variables
-    - Writes tbounce as a single number in tbounce.dat
-    """
-    print(f"Converting {hdf5_file.name} to text format...")
-    
-    with h5py.File(hdf5_file, 'r') as f:
-        if 'scalars' not in f:
-            print("No /scalars group found in dat.h5")
-            return
-        
-        scalars_group = f['scalars']
-        
-        # Get all variables except 'metadata' and explicitly exclude 'accretion_radii'
-        exclude_keys = {'metadata', 'accretion_radii'}
-        all_variables = sorted([k for k in scalars_group.keys() if k not in exclude_keys])
-        
-        # Find time array - look for time_c or any variable that could be time
-        time_var_name = 'time'
-        if time_var_name not in scalars_group:
-            print(f"Error: No time dataset found. Available datasets: {all_variables}")
-            return
-            
-        time = scalars_group[time_var_name][:]
-        print(f"Found time in '{time_var_name}' with {len(time)} timesteps")
-        
-        # --- NEW: Extract tbounce, write to tbounce.dat, and exclude it from the loop ---
-        tbounce_val = None
-        if 'tbounce' in scalars_group:
-            tbounce_val = scalars_group['tbounce'][0]
-        elif 'tbounce' in f:
-            tbounce_val = f['tbounce'][0]
-            
-        if tbounce_val is not None:
-            print(f"Found tbounce = {tbounce_val}. Writing tbounce.dat and preparing to adjust arrays.")
-            with open(output_dir / "tbounce.dat", 'w') as tb_out:
-                tb_out.write(f"{tbounce_val:18.9E}\n")
-            
-            # Make sure we don't try to process tbounce as a time series below
-            exclude_keys.add('tbounce')
-
-        # Get data variables (exclude time and already excluded keys)
-        exclude_keys.add(time_var_name)
-        variables = sorted([k for k in all_variables if k not in exclude_keys])
-        
-        print(f"Found {len(variables)} scalar time series")
-        
-        # For each variable, create a .dat file
-        for var in variables:
-            dat_file = output_dir / f"{var}.dat"
-            print(f"  Writing {var}.dat...", end='', flush=True)
-            
-            with open(dat_file, 'w') as out:
-                data = scalars_group[var][:]
-                
-                # Determine data length along time axis
-                data_len = len(data) if data.ndim == 1 else data.shape[1]
-                current_time = time
-                
-                # Check for mismatch and apply post-bounce time slicing
-                if data_len != len(time):
-                    if tbounce_val is not None:
-                        post_bounce_time = time[time >= tbounce_val]
-                        
-                        if data_len == len(post_bounce_time):
-                            current_time = post_bounce_time
-                        elif data_len < len(time):
-                            # Fallback: Slicing from the tail is bulletproof for post-bounce arrays
-                            current_time = time[-data_len:]
-                        else:
-                            print(f"\nWarning: Length mismatch for {var}: data has {data_len} entries, time has {len(time)}")
-                            continue
-                    else:
-                        print(f"\nWarning: Length mismatch for {var}: data has {data_len} entries, time has {len(time)} (No tbounce found to adjust)")
-                        continue
-                
-                # Handle 1D and 2D data using the properly sized current_time array
+    print(f'Converting {hdf5_file} ...')
+    with h5py.File(hdf5_file, 'r', driver='core', backing_store=False) as f:
+        s = f['scalars']
+        time = s['time'][()]
+        skip = {'time', 'tbounce', 'accretion_radii'}
+        n_files = 0
+        for name in sorted(k for k in s if k not in skip):
+            data = s[name][()]
+            # series written only after bounce are aligned with the end of time
+            n = data.shape[-1]
+            t = time[time.size - n:]
+            with open(output_dir / f'{name}.dat', 'w') as out:
+                if name in ('accretion_rates', 'accreted_mass') and 'accretion_radii' in s:
+                    # header written by analysis.F90 when the run starts
+                    radii = s['accretion_radii'][()][:, 0]
+                    out.write('#Radii: ' + ''.join(fortran_e(r) for r in radii) + '\n')
                 if data.ndim == 1:
-                    # 1D scalar time series (single value per timestep)
-                    for t, val in zip(current_time, data):
-                        write_scalar_line(out, t, val)
-                        
-                elif data.ndim == 2:
-                    # 2D array stored as (components, time) in HDF5
-                    # Need to transpose to (time, components) for output
-                    for t_idx, t in enumerate(current_time):
-                        values = data[:, t_idx]  # Get all components for this timestep
-                        write_scalar_line(out, t, *values)
-                        
+                    out.write(''.join(scalar_line(ti, [vi]) for ti, vi in zip(t, data)))
                 else:
-                    print(f"\nWarning: Unexpected data dimensionality for {var}: {data.ndim}")
-                    continue
-            
-            print(" done")
-        
-        # Handle special cases with headers
-        # Read accretion_radii (Fortran implies root dataset, but checking scalars group too just in case)
-        radii_data = None
-        if 'accretion_radii' in f:
-            radii_data = f['accretion_radii'][:]
-        elif 'accretion_radii' in scalars_group:
-            radii_data = scalars_group['accretion_radii'][:]
-            
-        if radii_data is not None:
-            # Flatten the 2D (11, 1) array into a 1D sequence and cast to float
-            header_str = "#Radii: " + "".join(f"{float(r):18.9E}" for r in radii_data.flatten()) + "\n"
-            
-            # Prepend the header to specific files
-            target_files = ["accretion_rates.dat", "accreted_mass.dat"]
-            for target in target_files:
-                target_path = output_dir / target
-                if target_path.exists():
-                    print(f"  Prepending header to {target}...")
-                    # Read existing content
-                    with open(target_path, 'r') as file:
-                        original_content = file.read()
-                    # Rewrite with header
-                    with open(target_path, 'w') as file:
-                        file.write(header_str)
-                        file.write(original_content)
-                else:
-                    print(f"  Warning: {target} was not generated; skipping header injection.")
+                    out.write(''.join(scalar_line(ti, data[:, i]) for i, ti in enumerate(t)))
+            n_files += 1
 
-        print(f"Successfully converted {len(variables)} scalar time series to .dat files")
+        # tbounce.dat: the full legacy version comes from xg.h5 (tbounce_dat); only t_bounce here
+        if 'tbounce' in s and not (output_dir / 'tbounce.dat').exists():
+            with open(output_dir / 'tbounce.dat', 'w') as out:
+                out.write(fortran_e(float(np.ravel(s['tbounce'][()])[0]), 27, 18, scale1p=False) + '\n')
+    print(f'  done: {n_files} .dat files')
 
-def write_scalar_line(file_obj, time_val, *values):
-    """Helper to write time and values to file in standard format"""
-    # Assuming standard scientific notation formatting for the columns
-    line = f"{time_val:18.9E} " + " ".join(f"{v:18.9E}" for v in values) + "\n"
-    file_obj.write(line)
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python hdf5_to_text.py <full_path_to_hdf5_file>")
-        print("  Converts xg.h5 or dat.h5 to original output.F90 text format")
-        print("  Output files are saved in the same directory as the input file")
-        sys.exit(1)
-    
-    # Resolve creates an absolute path
-    input_file = Path(sys.argv[1]).resolve()
-    output_dir = input_file.parent
-    
-    # Check if file exists
-    if not input_file.exists():
-        print(f"Error: File {input_file} not found")
-        sys.exit(1)
-    
-    # Ensure the path points to a file, not a directory
-    if not input_file.is_file():
-        print(f"Error: {input_file} is a directory. Please provide the path to a file.")
-        sys.exit(1)
-    
-    # Check if HDF5 file
-    if not h5py.is_hdf5(input_file):
-        print(f"Error: {input_file} is not a valid HDF5 file")
-        sys.exit(1)
-    
-    # Convert based on filename
-    if input_file.name == 'xg.h5':
-        convert_xg_file(input_file, output_dir)
-    elif input_file.name == 'dat.h5':
-        convert_dat_file(input_file, output_dir)
+        sys.exit(__doc__)
+    path = Path(sys.argv[1]).resolve()
+    if path.is_dir():
+        files = [path / 'xg.h5', path / 'dat.h5']  # xg first: it has the full tbounce.dat
     else:
-        print(f"Error: Unrecognized file '{input_file.name}'. File must be named exactly 'xg.h5' or 'dat.h5'")
-        sys.exit(1)
-    
-    print(f"\nConversion complete! Files written to {output_dir}")
+        files = [path]
+    for file in files:
+        if not file.is_file() or not h5py.is_hdf5(file):
+            sys.exit(f'Error: {file} is not an HDF5 file')
+        if file.name == 'xg.h5':
+            convert_xg_file(file, file.parent)
+        elif file.name == 'dat.h5':
+            convert_dat_file(file, file.parent)
+        else:
+            sys.exit(f"Error: unrecognized file '{file.name}', expected xg.h5 or dat.h5")
 
 
 if __name__ == '__main__':

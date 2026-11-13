@@ -81,6 +81,11 @@ subroutine output_control
                     call hdf5_write_root_dataset_1d("temperature_at_bounce", temp, n1)
                     call hdf5_write_root_dataset_1d("entropy_at_bounce", entropy, n1)
                     call hdf5_write_root_dataset_1d("ye_at_bounce", ye, n1)
+                    ! also stored so that the legacy text output can be rebuilt: rho_at_bounce.xg
+                    ! and the 5 numbers of tbounce.dat (same as the text output branch below)
+                    call hdf5_write_root_dataset_1d("rho_at_bounce", rho/rho_gf, n1)
+                    call hdf5_write_root_dataset_1d("tbounce_dat", [t_bounce, x1i(ig)/length_gf, &
+                         mass(ig) / (x1i(ig)/length_gf/1.0d8), mass(i), mass(ig)], 5)
                     call hdf5_finalize()
 #else
                     open(unit=666,file=trim(adjustl(outdir))//"/tbounce.dat", &
